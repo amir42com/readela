@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Readela</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Readela</h1>
+        <label class="switch" for="enabled">
+          <input type="checkbox" role="switch" id="enabled" />
+          <span id="enabled-label">On</span>
+        </label>
+      </header>
+      <p class="note" id="state-note"></p>
+
+      <fieldset>
+        <legend>Text direction</legend>
+        <div class="choices">
+          <label><input type="radio" name="direction" value="auto" /> Automatic</label>
+          <label><input type="radio" name="direction" value="rtl" /> Right to left</label>
+          <label><input type="radio" name="direction" value="ltr" /> Left to right</label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="font">Font</label>
+        <select id="font">
+          <option value="page">Page default</option>
+          <option value="sans">Sans-serif (installed fonts)</option>
+          <option value="serif">Serif / Naskh (installed fonts)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="size">Text size</label>
+        <select id="size">
+          <option value="page">Page default</option>
+          <option value="110">110%</option>
+          <option value="125">125%</option>
+          <option value="140">140%</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="spacing">Line spacing</label>
+        <select id="spacing">
+          <option value="page">Page default</option>
+          <option value="1.6">1.6</option>
+          <option value="1.9">1.9</option>
+          <option value="2.2">2.2</option>
+        </select>
+      </div>
+
+      <button type="button" id="reset">Reset reading settings</button>
+      <p class="note" id="status" role="status" aria-live="polite"></p>
+      <p class="note">Works on chatgpt.com. Settings stay on this device.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

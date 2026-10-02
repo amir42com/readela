@@ -1,0 +1,162 @@
+:root {
+  color-scheme: light dark;
+  --background: #ffffff;
+  --text: #1b1f24;
+  --muted: #4b5563;
+  --border: #6b7280;
+  --accent: #0b5cad;
+  --accent-text: #ffffff;
+  --surface: #f3f4f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1c1f24;
+    --text: #f1f3f5;
+    --muted: #c3c9d1;
+    --border: #9aa3ad;
+    --accent: #8ec5ff;
+    --accent-text: #0b1b2b;
+    --surface: #2a2f36;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 320px;
+  max-width: 100%;
+  background: var(--background);
+  color: var(--text);
+  font: 14px/1.45 system-ui, "Segoe UI", sans-serif;
+}
+
+main {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.switch input {
+  appearance: none;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border: 2px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.switch input::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.switch input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.switch input:checked::before {
+  left: 20px;
+  background: var(--accent-text);
+}
+
+fieldset {
+  margin: 0;
+  padding: 8px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+legend,
+.field > label {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.field > label {
+  padding: 0;
+}
+
+.choices {
+  display: grid;
+  gap: 6px;
+}
+
+.choices label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.choices input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+select,
+button {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.note:empty {
+  display: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
