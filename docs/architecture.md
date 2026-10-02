@@ -1,7 +1,9 @@
 # Architecture
 
 Four small layers with plain data between them. Chrome and Firefox share all
-of the code; only the manifest differs.
+of the code; only the manifest differs. Supporting another site means adding
+one adapter and its host to the manifest; the core, the popup and the
+preference model do not change.
 
 ```
 src/core/      portable rules            no DOM, no extension API, no UI
@@ -29,12 +31,26 @@ is tested with Node's built-in test runner and nothing else.
 
 ## Page integration (`src/page/`)
 
-- `sites/chatgpt.js` — the only site-specific data: the conversation region,
-  and what must never be touched. The conversation is read structurally
-  (paragraph-like elements) rather than through styling class names.
+- `sites/` — one adapter per supported site, each plain data, and nothing else
+  site-specific anywhere. The contract is documented in `sites/index.js`:
+  `hosts`, `scope`, optional `within` and `extraBlocks`, and `exclude`.
+  `siteFor(hostname)` selects the adapter by exact host; the manifest match
+  patterns are exactly the adapters' hosts.
+  - `chatgpt.js` reads structurally (paragraph-like elements in the main
+    region), because that site's styling class names change between front-end
+    versions.
+  - `claude.js` reads only inside messages and rendered-Markdown containers,
+    which that site marks with stable hooks; text elsewhere on the page is
+    left alone.
+  - `common.js` holds what is never touched on any site: editable fields,
+    controls, navigation and dialogs.
 - `reader.js` — gathers each block's text, asks the core for a direction and
   marks the block. One `MutationObserver` batches streamed changes. `apply`
   is idempotent; `stop` removes every mark and disconnects the observer.
+  A list or quotation that reads against the page's direction is compared
+  under both directions: if the page's indentation and border did not move,
+  they are pinned to a physical side and are re-expressed on logical sides;
+  if they moved, the page's own layout is left as it is.
 - `style.js` — the whole stylesheet as text, keyed on the marks. It is static:
   without marks it has no effect. The build writes it to `content.css`.
 
@@ -59,7 +75,7 @@ A popup of native controls that reads and writes the shared preferences.
 
 | | Chrome | Firefox |
 | --- | --- | --- |
-| Manifest | `minimum_chrome_version` | `browser_specific_settings.gecko` (ID, minimum version, data-collection declaration) |
+| Manifest | `minimum_chrome_version` | `browser_specific_settings.gecko` (ID, minimum version, data-collection declaration); `author` and `developer`, which Chrome does not use |
 | Code | identical | identical |
 
 ## Build
