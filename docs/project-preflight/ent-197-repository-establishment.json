@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-197-repository-establishment.json",
+  "recordDate": "2026-10-02",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-197",
+    "relatedWorkUnits": ["ENT-196", "ENT-198"],
+    "title": "Establish the Readela repository and deliver the first usable evaluation build",
+    "authorizingDecision": "DEC-100",
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner execution instruction of 2026-10-02: authorizes product definition within the stated first-release scope, the project-specific Preflight and Gate work, initial repository establishment, the supported Bootstrap adoption workflow, implementation, testing, local packaging, commits, a focused branch push and a draft pull request. It excludes merge, release, store submission and security-setting changes.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the instruction above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "preRepositoryEstablishment": {
+    "applies": true,
+    "pendingRecordLocation": "Personal OS entry ENT-197, section 'Pre-repository Full Preflight — 2 October 2026', written and read back before repository initialization.",
+    "note": "This file is the first repository history and is the authoritative Preflight Record from this commit onward."
+  },
+  "baseCommit": null,
+  "baseCommitNote": "Not yet established: this record is part of the root commit. The commit containing this file is the anchor for descendant work.",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": ["a new repository-backed Project is started"]
+  },
+  "verifiedStartingState": {
+    "localTarget": "Existing empty directory with no Git administration.",
+    "remote": "github.com/amir42com/readela: public, empty, no branches.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "Product Brief for the first release, grounded in the owner's stated scope.",
+      "Repository establishment with this record as first history.",
+      "Bootstrap Inspect, Plan and Prepare, which are read-only on the target.",
+      "Implementation, tests and local evaluation packages for Chrome and Firefox on a focused branch.",
+      "Branch push and a draft pull request.",
+      "Dated verification evidence in the repository."
+    ],
+    "outOfScope": [
+      "Merge, release publication and extension-store submission.",
+      "Open-source license selection.",
+      "Bootstrap Apply and any hand-built substitute for its outputs.",
+      "GitHub ruleset or other security-setting changes.",
+      "Changes to upstream dev-standards or Project Bootstrap.",
+      "Project Exceptions."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "basis": "The extension ships a browser-based user-facing interface (its popup page) that people operate directly, which is the canonical web-interface definition at the pinned baseline.",
+    "notDeclared": {
+      "mobile-app": "No installable application for a mobile operating system is shipped. A possible future mobile client is not a current project fact.",
+      "operated-service": "No deployed, network-reachable service exists; the extension has no backend.",
+      "data-analysis": "No published analytical results.",
+      "predictive-model": "No predictive model."
+    }
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "tagObjectId": "95f5b6d42bfb20e21f3c7fe2019b00f52abdd348",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "pinnedBy": "Universal Project Bootstrap main d3efc7c5d1d99b20f6691c8242fc2892e530c176 (src/source.mjs). The frozen bootstrap-v1 tag predates this pin and is not used.",
+    "adoptedInTarget": false,
+    "adoptionNote": "The baseline is adopted only by a completed Bootstrap Apply. Until then no consumer bundle, lock or verifier exists in this repository and no conformance claim is made."
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission or privacy rule; SEC-004 is conditional on mobile-app and does not apply.",
+      "handling": "Project-local controls recorded in this repository: minimal permissions with a stated reason for each, local-only processing, no remote code, no telemetry, preferences-only storage, and a runtime network check. The canonical standards are not expanded."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "dev-standards consumer bundle, neutral docs/project-instructions.md pointer and governance CI are not published.",
+      "reason": "They are Bootstrap Apply outputs and Apply is blocked (see gates.bootstrapApply). They are not written by hand.",
+      "revisitTrigger": "Owner provides the Apply prerequisites named in gates.bootstrapApply."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "Open-source license not selected.",
+      "reason": "Owner decision; not needed for a local evaluation build.",
+      "revisitTrigger": "Before any release, store submission or invitation to reuse the source."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": false,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "The extension's host access and DOM changes on a third-party site are the trust-relevant surface: permission scope, text preservation, editable-field exclusion, cleanup and network behaviour receive targeted tests."
+  },
+  "gates": {
+    "establishmentAndImplementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-02",
+      "covers": "Repository initialization, commits, focused branch push and draft pull request within the declared scope.",
+      "basis": [
+        "The mutation is authorized by the owner instruction recorded above.",
+        "The Preflight content and this Gate result were recorded in Personal OS and read back before initialization.",
+        "Protocol, Project state, Entries and the accepted Decision were read and are consistent with the instruction.",
+        "The target directory was empty; no existing work can be overwritten.",
+        "No session-coordination lock applies to this target."
+      ],
+      "invalidators": [
+        "Work leaves the declared scope.",
+        "Declared Capabilities change.",
+        "The applicable baseline identity changes.",
+        "HEAD stops descending from the establishment commit.",
+        "Project Operating Protocol semantics materially change before integration."
+      ]
+    },
+    "bootstrapApply": {
+      "result": "BLOCKED",
+      "evaluatedOn": "2026-10-02",
+      "unmetPrerequisites": [
+        "Owner approval of the exact frozen final Plan and candidate identities, which exist only after Prepare and so cannot be covered by an earlier instruction.",
+        "A verified target-specific external mutation boundary for amir42com/readela. The boundary established for another target grants no authority here, and creating a ruleset is a security-setting change outside the authorized scope.",
+        "The owner-approved OS execution identity named for this target, with an OS-backed observation recorded at the Gate (Bootstrap ADR-006)."
+      ],
+      "consequence": "Apply is not run. Its outputs are not imitated by hand."
+    }
+  }
+}
