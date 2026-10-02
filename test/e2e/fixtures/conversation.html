@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en-US" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Readela fixture: conversation</title>
+    <link rel="icon" href="data:," />
+    <!--
+      A synthetic conversation page written for these tests. It reproduces the
+      structural traits Readela has to cope with (paragraphs carrying
+      dir="auto", first-strong "plaintext" handling, logical and physical list
+      indentation, an editable composer). It contains no real conversation.
+    -->
+    <style>
+      body { margin: 0; font: 16px/1.75 system-ui, sans-serif; color: #111; background: #fff; }
+      @media (prefers-color-scheme: dark) { body { color: #eee; background: #212121; } }
+      .layout { display: flex; }
+      nav { width: 200px; padding: 12px; }
+      main { flex: 1; max-width: 720px; padding: 16px; }
+      .turn { margin-bottom: 24px; }
+      .plaintext { unicode-bidi: plaintext; }
+      .bubble { white-space: pre-wrap; unicode-bidi: plaintext; padding: 8px 12px; background: #8881; border-radius: 12px; }
+      ul, ol { padding-inline-start: 26px; }
+      ul.physical { padding-inline-start: 0; padding-left: 30px; }
+      blockquote { margin: 0 0 12px 0; padding-left: 12px; border-left: 3px solid #888; }
+      pre { padding: 12px; background: #8882; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; }
+      code { font-family: ui-monospace, Consolas, monospace; }
+      th { text-align: left; }
+      td, th { padding: 4px 8px; border: 1px solid #8884; }
+      .katex { font-family: "Times New Roman", serif; }
+      form { margin-top: 24px; border: 1px solid #8886; padding: 8px; }
+      [contenteditable] { min-height: 24px; }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <nav aria-label="Chat history">
+        <p id="nav-title">React چیست</p>
+        <button id="page-button" type="button">New chat</button>
+      </nav>
+
+      <main>
+        <div class="turn" data-message-author-role="user">
+          <div class="bubble whitespace-pre-wrap" id="user-bubble" dir="auto">React hooks را به زبان ساده توضیح بده.
+با مثال لطفاً.</div>
+        </div>
+
+        <div class="turn" data-message-author-role="assistant" id="turn-fa">
+          <h2 id="h-fa" dir="auto">React Hooks چیست و چرا مهم است؟</h2>
+          <p id="p-en-start" dir="auto" class="plaintext">React یک کتابخانه جاوااسکریپت برای ساخت رابط کاربری است.</p>
+          <p id="p-punct" dir="auto" class="plaintext">قیمت 25 دلار است (تقریباً 1,050,000 تومان)!</p>
+          <p id="p-inline" dir="auto" class="plaintext">برای نصب از <code id="inline-code">npm install react</code> استفاده کنید و مستندات را در <a id="link-url" href="https://react.dev/learn">https://react.dev/learn</a> بخوانید؛ <a id="link-text" href="https://example.org/guide">راهنمای کامل</a> هم مفید است.</p>
+          <ul id="ul-fa">
+            <li id="li-fa-1">useState برای مدیریت وضعیت کامپوننت</li>
+            <li id="li-fa-2">
+              <p id="li-fa-2-p" dir="auto">مراحل نصب به انگلیسی:</p>
+              <ol id="ol-en">
+                <li id="li-en-1">Install the package</li>
+                <li id="li-en-2">Run the tests</li>
+              </ol>
+            </li>
+            <li id="li-fa-3">useEffect برای کارهای جانبی</li>
+          </ul>
+          <ul id="ul-physical" class="physical">
+            <li>مورد اول با تورفتگی فیزیکی</li>
+            <li>مورد دوم</li>
+          </ul>
+          <blockquote id="quote-fa">
+            <p id="quote-fa-p" dir="auto">Hooks باعث می‌شوند منطق قابل استفادهٔ مجدد باشد.</p>
+          </blockquote>
+          <pre id="code-block"><code id="code">const [count, setCount] = useState(0); // شمارنده
+if (count &gt; 10) { reset(); }</code></pre>
+          <p id="p-math" dir="auto" class="plaintext">فرمول <span class="katex" id="math">E = mc^2</span> معروف است.</p>
+          <p id="p-neutral" dir="auto">1,234.50</p>
+          <table id="table-fa">
+            <thead><tr><th id="th-fa">نام Hook</th><th>کاربرد</th></tr></thead>
+            <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td></tr></tbody>
+          </table>
+        </div>
+
+        <div class="turn" data-message-author-role="assistant" id="turn-en">
+          <h2 id="h-en" dir="auto">Getting started with hooks</h2>
+          <p id="p-en" dir="auto">Hooks let you use state and other React features without writing a class.</p>
+          <p id="p-en-quote" dir="auto" class="plaintext">کتاب is the Persian word for book, and it is pronounced ketab.</p>
+          <ul id="ul-en">
+            <li id="li-en-a">Call hooks at the top level.</li>
+            <li id="li-en-b">Call hooks from React functions.</li>
+          </ul>
+        </div>
+
+        <div class="turn" data-message-author-role="assistant" id="turn-other">
+          <p id="p-ar" dir="auto">هذه جملة باللغة العربية عن البرمجة.</p>
+          <p id="p-ar-en-start" dir="auto" class="plaintext">Python هي لغة برمجة سهلة التعلم.</p>
+          <p id="p-he" dir="auto">זהו משפט בעברית על תכנות.</p>
+          <p id="p-he-en-start" dir="auto" class="plaintext">JavaScript היא שפת תכנות נפוצה מאוד.</p>
+        </div>
+
+        <form id="composer-form">
+          <div id="prompt-textarea" contenteditable="true"><p id="composer-p">React را توضیح بده</p></div>
+          <textarea id="composer-textarea" aria-label="Message">سلام world</textarea>
+          <button id="send-button" type="button">Send</button>
+        </form>
+      </main>
+    </div>
+  </body>
+</html>
