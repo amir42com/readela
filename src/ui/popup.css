@@ -52,6 +52,12 @@ h1 {
   font-size: 18px;
 }
 
+.by {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
 .switch {
   display: inline-flex;
   align-items: center;

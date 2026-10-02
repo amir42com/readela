@@ -27,7 +27,8 @@ const TEXT = 3;
 /**
  * @param {object} options
  * @param {Document} options.document
- * @param {{ scope: string, extraBlocks?: string, exclude: string }} options.site
+ * @param {{ scope: string, within?: string, extraBlocks?: string, exclude: string }} options.site
+ *   a site adapter; see `sites/index.js` for the contract
  * @param {() => boolean} [options.isAlive] returns false once the extension
  *   that owns this reader is gone; the reader then removes its footprint.
  */
@@ -40,6 +41,7 @@ export function createReader({ document, site, isAlive = () => true }) {
   let observer = null;
   let timer = null;
   const pending = new Set();
+  let mirrorChecked = new WeakSet(); // lists and quotations already examined by mirrorFor
 
   const scopeElement = () => document.querySelector(site.scope) ?? document.body;
 
@@ -111,6 +113,7 @@ export function createReader({ document, site, isAlive = () => true }) {
 
   function isEligible(element, scope) {
     if (!scope.contains(element) || element.closest(site.exclude)) return false;
+    if (site.within && !element.closest(site.within)) return false;
     return element.matches("pre") ? !element.parentElement?.closest(PROTECTED) : !element.closest(PROTECTED);
   }
 
@@ -121,24 +124,41 @@ export function createReader({ document, site, isAlive = () => true }) {
     return direction === "rtl" ? align === "left" : align === "right";
   }
 
-  // The page indents this list or quotation on the physical side opposite the
-  // reading start. Returns the same spacing and border expressed on logical
-  // sides, or null when the page's own layout already follows the direction.
-  function mirrorFor(element, direction) {
+  // Spacing and border of an element on each physical side, as laid out now.
+  function sideLayout(element) {
     const style = view.getComputedStyle(element);
-    const [start, end] = direction === "rtl" ? ["Right", "Left"] : ["Left", "Right"];
-    const extent = (side) =>
-      parseFloat(style[`padding${side}`]) + parseFloat(style[`margin${side}`]) + parseFloat(style[`border${side}Width`]);
-    if (!(extent(end) > extent(start))) return null;
+    const side = (name) => ({
+      padding: style[`padding${name}`],
+      margin: style[`margin${name}`],
+      border: `${style[`border${name}Width`]} ${style[`border${name}Style`]} ${style[`border${name}Color`]}`,
+    });
+    return { Left: side("Left"), Right: side("Right") };
+  }
 
-    const border = (side) => `${style[`border${side}Width`]} ${style[`border${side}Style`]} ${style[`border${side}Color`]}`;
+  // A list or quotation whose direction differs from the page's needs its
+  // indentation and border on the other side. Where the page describes them
+  // with logical properties they move by themselves. Where it pins them to a
+  // physical side they do not: the layout is then identical under both
+  // directions, and this returns it re-expressed on logical sides. Returns
+  // null when nothing has to be mirrored.
+  function mirrorFor(element, direction) {
+    const pageDirection = view.getComputedStyle(document.documentElement).direction;
+    const ours = sideLayout(element);
+    setMark(element, MARK.dir, pageDirection);
+    const pages = sideLayout(element);
+    setMark(element, MARK.dir, direction);
+
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    if (!same(ours, pages) || same(pages.Left, pages.Right)) return null;
+
+    const [start, end] = pageDirection === "rtl" ? [pages.Right, pages.Left] : [pages.Left, pages.Right];
     return {
-      "--readela-padding-start": style[`padding${end}`],
-      "--readela-padding-end": style[`padding${start}`],
-      "--readela-margin-start": style[`margin${end}`],
-      "--readela-margin-end": style[`margin${start}`],
-      "--readela-border-start": border(end),
-      "--readela-border-end": border(start),
+      "--readela-padding-start": start.padding,
+      "--readela-padding-end": end.padding,
+      "--readela-margin-start": start.margin,
+      "--readela-margin-end": end.margin,
+      "--readela-border-start": start.border,
+      "--readela-border-end": end.border,
     };
   }
 
@@ -168,19 +188,27 @@ export function createReader({ document, site, isAlive = () => true }) {
       setMark(link, MARK.ltr, inMarkedBlock && isAddressText(link.textContent) ? "" : null);
     }
 
-    // Then layout reads, gathered before any further write.
-    const corrections = [];
+    // Then alignment reads, gathered before any further write.
+    const misaligned = [];
+    const containers = [];
     for (const element of marked) {
-      const direction = element.getAttribute(MARK.dir);
       if (element.matches(MIRRORED)) {
-        if (element.hasAttribute(MARK.mirror)) continue;
-        const mirror = mirrorFor(element, direction);
-        if (mirror) corrections.push(() => applyMirror(element, mirror));
+        if (!element.hasAttribute(MARK.mirror) && !mirrorChecked.has(element)) containers.push(element);
       } else if (!element.matches("table") && !element.hasAttribute(MARK.align)) {
-        if (needsStartAlignment(element, direction)) corrections.push(() => setMark(element, MARK.align, ""));
+        if (needsStartAlignment(element, element.getAttribute(MARK.dir))) misaligned.push(element);
       }
     }
-    for (const correct of corrections) correct();
+    for (const element of misaligned) setMark(element, MARK.align, "");
+
+    // Last, the mirror check, once per list or quotation that reads against
+    // the page's direction.
+    for (const element of containers) {
+      const direction = element.getAttribute(MARK.dir);
+      if (direction === view.getComputedStyle(document.documentElement).direction) continue;
+      mirrorChecked.add(element);
+      const mirror = mirrorFor(element, direction);
+      if (mirror) applyMirror(element, mirror);
+    }
   }
 
   function applyMirror(element, mirror) {
@@ -214,6 +242,8 @@ export function createReader({ document, site, isAlive = () => true }) {
         continue;
       }
       if (node.closest(site.exclude)) continue;
+      // Changes that neither sit in nor bring in readable content are skipped.
+      if (site.within && !node.closest(site.within) && !node.querySelector(site.within)) continue;
       roots.add(outermostCandidate(node, scope) ?? node);
     }
     pending.clear();
@@ -260,6 +290,7 @@ export function createReader({ document, site, isAlive = () => true }) {
     if (timer !== null) view.clearTimeout(timer);
     timer = null;
     pending.clear();
+    mirrorChecked = new WeakSet();
 
     for (const element of document.querySelectorAll(anyMark)) clearMarks(element);
     for (const name of Object.values(ROOT_MARKS)) setMark(document.documentElement, name, null);

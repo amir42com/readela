@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Readela fixture: Claude conversation</title>
+    <link rel="icon" href="data:," />
+    <!--
+      A synthetic conversation page written for these tests. It reproduces the
+      structural traits observed in the site's public assets on 2026-10-02:
+      messages carry data-testid="assistant-message" / "user-message" and
+      data-is-streaming; rendered Markdown sits in .standard-markdown (or
+      .progressive-markdown while streaming); lists use logical start padding
+      while every text block also has physical left and right padding; there
+      is no <main>; the composer is a contenteditable outside any <form>.
+      It contains no real conversation.
+    -->
+    <style>
+      body { margin: 0; font: 16px/1.65 system-ui, sans-serif; color: #141413; background: #faf9f5; }
+      @media (prefers-color-scheme: dark) { body { color: #f0eee6; background: #262624; } }
+      .shell { display: flex; }
+      nav { width: 220px; padding: 12px; }
+      .column { flex: 1; max-width: 760px; padding: 16px; }
+      [data-testid="user-message"] { padding: 8px 12px; margin: 0 0 16px auto; max-width: 80%; background: #8882; border-radius: 12px; }
+      .whitespace-pre-wrap { white-space: pre-wrap; }
+      .plaintext { unicode-bidi: plaintext; }
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+      ul.ps-7, ol.ps-7 { padding-inline-start: 1.75rem; }
+      .border-s-2 { border-inline-start: 2px solid #888; margin: 0 0 12px; }
+      .standard-markdown :is(p, blockquote, h1, h2, h3, h4, h5, h6),
+      .progressive-markdown :is(p, blockquote, h1, h2, h3, h4, h5, h6) { padding-left: 0.5rem; }
+      .standard-markdown :is(p, blockquote, ul, ol, h1, h2, h3, h4, h5, h6),
+      .progressive-markdown :is(p, blockquote, ul, ol, h1, h2, h3, h4, h5, h6) { padding-right: 2rem; }
+      pre { padding: 12px; background: #8882; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; }
+      code { font-family: ui-monospace, Consolas, monospace; }
+      td, th { padding: 4px 8px; border: 1px solid #8884; }
+      .katex { font-family: "Times New Roman", serif; }
+      fieldset { margin-top: 24px; border: 1px solid #8886; padding: 8px; }
+      .ProseMirror { min-height: 24px; }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <nav aria-label="Sidebar">
+        <p id="c-nav-title">گفت‌وگو دربارهٔ React</p>
+        <button id="c-page-button" type="button">New chat</button>
+      </nav>
+
+      <div class="column">
+        <div class="transcript" id="c-transcript">
+          <div data-testid="user-message" class="whitespace-pre-wrap plaintext" id="c-user">TypeScript را به زبان ساده توضیح بده.
+با مثال لطفاً.</div>
+
+          <div data-testid="assistant-message" data-is-streaming="false" id="c-assistant-fa">
+            <h2 class="sr-only" data-find-omitted="" id="c-sr-heading">Assistant said:</h2>
+            <div class="font-claude-response">
+              <div class="standard-markdown" id="c-markdown-fa">
+                <h2 id="c-h-fa">TypeScript چیست و چه مزیتی دارد؟</h2>
+                <p id="c-p-en-start" class="whitespace-normal break-words">TypeScript یک زبان برنامه‌نویسی است که روی JavaScript ساخته شده.</p>
+                <p id="c-p-inline" class="whitespace-normal break-words">برای نصب از <code id="c-inline-code">npm install typescript</code> استفاده کنید؛ مستندات در <a id="c-link-url" href="https://www.typescriptlang.org/docs/">https://www.typescriptlang.org/docs/</a> است.</p>
+                <ul id="c-ul-fa" class="list-disc ps-7">
+                  <li id="c-li-fa-1" class="whitespace-normal break-words">نوع‌های ایستا برای خطایابی زودتر</li>
+                  <li id="c-li-fa-2" class="whitespace-normal break-words">ابزارهای بهتر در editor</li>
+                </ul>
+                <blockquote id="c-quote-fa" class="border-s-2">
+                  <p id="c-quote-fa-p">Types خطاها را پیش از اجرا نشان می‌دهند.</p>
+                </blockquote>
+                <pre id="c-code-block"><code id="c-code">let count: number = 0; // شمارنده
+count += 1;</code></pre>
+                <p id="c-p-math" class="whitespace-normal break-words">رابطهٔ <span class="katex" id="c-math">a^2 + b^2 = c^2</span> را به یاد دارید.</p>
+                <div class="md-table-scroll">
+                  <table id="c-table-fa">
+                    <thead><tr><th id="c-th-fa">نوع</th><th>توضیح</th></tr></thead>
+                    <tbody><tr><td>string</td><td>رشتهٔ متنی</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div data-testid="user-message" id="c-user-rich">
+            <p id="c-user-rich-p" class="whitespace-pre-wrap">Now answer in English, please.</p>
+          </div>
+
+          <div data-testid="assistant-message" data-is-streaming="false" id="c-assistant-en">
+            <div class="font-claude-response">
+              <div class="standard-markdown">
+                <p id="c-p-en" class="whitespace-normal break-words">TypeScript adds static types to JavaScript.</p>
+                <ul id="c-ul-en" class="list-disc ps-7">
+                  <li id="c-li-en-1" class="whitespace-normal break-words">Errors are found earlier.</li>
+                  <li class="whitespace-normal break-words">Editors can help more.</li>
+                </ul>
+                <blockquote id="c-quote-en" class="border-s-2">
+                  <p>Types are documentation that the compiler checks.</p>
+                </blockquote>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page text that is not part of any message. -->
+        <div id="c-ui">
+          <p id="c-ui-p">Claude می‌تواند اشتباه کند. لطفاً پاسخ‌ها را بررسی کنید.</p>
+        </div>
+
+        <fieldset id="c-composer">
+          <div class="ProseMirror" id="c-input" contenteditable="true" data-testid="chat-input" aria-label="Write your prompt"><p id="c-input-p">TypeScript را توضیح بده</p></div>
+          <button id="c-send" type="button">Send</button>
+        </fieldset>
+      </div>
+    </div>
+  </body>
+</html>

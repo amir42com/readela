@@ -9,7 +9,7 @@
 //
 //   node test/e2e/run.mjs [--browser chrome|firefox] [--live] [--headed]
 //
-// --live additionally opens the real https://chatgpt.com/ start page, signed
+// --live additionally opens the real start pages of the supported sites, signed
 // out, without sending anything. It reports what it observed; it is a smoke
 // check, not a substitute for the fixture checks.
 
@@ -24,7 +24,10 @@ import puppeteer from "puppeteer-core";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const results = path.join(root, "test-results");
 const fixtureSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "conversation.html"), "utf8");
+const claudeSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "claude-conversation.html"), "utf8");
 const FIXTURE_URL = "https://chatgpt.com/c/readela-fixture";
+const CLAUDE_FIXTURE_URL = "https://claude.ai/chat/readela-fixture";
+const FIXTURES = { [FIXTURE_URL]: fixtureSource, [CLAUDE_FIXTURE_URL]: claudeSource };
 
 const FIREFOX_ADDON_ID = "readela@amir42.com";
 const FIREFOX_UUID = "5f0d3b0e-6a57-4a3e-9d1f-7c1c2f4a9b10"; // fixed so the popup address is known
@@ -98,20 +101,20 @@ async function start(name, firefoxScheme = "light") {
 // ---------------------------------------------------------------------------
 // Page helpers
 
-async function openFixture(browser, requests) {
+async function openFixture(browser, requests, address = FIXTURE_URL) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1100, height: 900 });
   await page.setRequestInterception(true);
   page.on("request", (request) => {
     const url = request.url();
     requests.push(url);
-    if (url === FIXTURE_URL) {
-      request.respond({ status: 200, contentType: "text/html; charset=utf-8", body: fixtureSource });
+    if (url in FIXTURES) {
+      request.respond({ status: 200, contentType: "text/html; charset=utf-8", body: FIXTURES[url] });
     } else {
       request.abort();
     }
   });
-  await page.goto(FIXTURE_URL, { waitUntil: "load" });
+  await page.goto(address, { waitUntil: "load" });
   return page;
 }
 
@@ -726,6 +729,213 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForMark(page, "#p-en-start", "rtl");
   });
 
+  // -------------------------------------------------------------------------
+  // Claude: the second site adapter, with the same extension and preferences
+
+  const claude = await openFixture(browser, requests, CLAUDE_FIXTURE_URL);
+  const onClaude = async (action) => {
+    await front(popup);
+    await action(popup);
+    await front(claude);
+  };
+
+  await step("Claude: the content script runs on claude.ai and reads message content only", async () => {
+    await waitForMark(claude, "#c-p-en-start", "rtl");
+    const outside = ["#c-ui-p", "#c-nav-title", "#c-page-button", "#c-composer", "#c-input", "#c-input-p", "#c-send"];
+    for (const [selector, fact] of Object.entries(await inspect(claude, outside))) assert.deepEqual(fact.marks, [], selector);
+    await claude.click("#c-input");
+    await claude.keyboard.type(" abc");
+    await sleep(200);
+    assert.match(await claude.$eval("#c-input", (element) => element.textContent), /abc/);
+    for (const [selector, fact] of Object.entries(await inspect(claude, ["#c-input", "#c-input-p"]))) {
+      assert.deepEqual(fact.marks, [], selector);
+    }
+  });
+
+  await step("Claude: mixed-direction replies and the reader's own messages read correctly", async () => {
+    const facts = await inspect(claude, [
+      "#c-p-en-start", "#c-h-fa", "#c-user", "#c-quote-fa-p", "#c-table-fa", "#c-th-fa", "#c-p-en", "#c-user-rich-p",
+    ]);
+    for (const selector of ["#c-p-en-start", "#c-h-fa", "#c-user", "#c-quote-fa-p", "#c-table-fa", "#c-th-fa"]) {
+      assert.equal(facts[selector].direction, "rtl", selector);
+    }
+    assert.equal(facts["#c-user"].unicodeBidi, "isolate", "first-strong handling on the own message is overridden");
+    assert.equal(facts["#c-p-en"].mark, "ltr");
+    assert.equal(facts["#c-user-rich-p"].mark, "ltr");
+    assert.ok((await characterLeft(claude, "#c-p-en-start", "T")) > (await characterLeft(claude, "#c-p-en-start", ".", true)));
+    assert.ok((await characterLeft(claude, "#c-user", "T")) > (await characterLeft(claude, "#c-user", ".")));
+  });
+
+  await step("Claude: lists and quotations follow the direction; the site's own spacing is not rearranged", async () => {
+    const facts = await inspect(claude, ["#c-ul-fa", "#c-li-fa-1", "#c-quote-fa", "#c-ul-en", "#c-li-en-1", "#c-quote-en"]);
+    assert.equal(facts["#c-ul-fa"].direction, "rtl");
+    assert.equal(facts["#c-li-fa-1"].direction, "rtl");
+    assert.equal(parseFloat(facts["#c-ul-fa"].paddingRight), 32, "marker room at the reading start");
+    assert.equal(parseFloat(facts["#c-ul-fa"].paddingLeft), 0);
+    assert.equal(parseFloat(facts["#c-quote-fa"].borderRightWidth), 2, "quotation bar at the reading start");
+    assert.equal(parseFloat(facts["#c-quote-fa"].borderLeftWidth), 0);
+    // Left-to-right content keeps exactly the layout the site gives it.
+    assert.equal(facts["#c-ul-en"].direction, "ltr");
+    assert.equal(parseFloat(facts["#c-ul-en"].paddingLeft), 28);
+    assert.equal(parseFloat(facts["#c-ul-en"].paddingRight), 32);
+    assert.equal(parseFloat(facts["#c-quote-en"].borderLeftWidth), 2);
+    assert.equal(parseFloat(facts["#c-quote-en"].paddingLeft), 8);
+    assert.equal(parseFloat(facts["#c-quote-en"].paddingRight), 32);
+    // This layout moves by itself with the direction, so nothing is mirrored.
+    assert.equal((await footprint(claude)).customProperties, 0);
+    await claude.screenshot({ path: path.join(results, `${name}-claude-fixture.png`) });
+  });
+
+  await step("Claude: code, mathematics and web addresses stay left-to-right; text is unchanged", async () => {
+    const facts = await inspect(claude, ["#c-inline-code", "#c-code-block", "#c-code", "#c-math", "#c-link-url"]);
+    for (const selector of ["#c-inline-code", "#c-code-block", "#c-math", "#c-link-url"]) {
+      assert.equal(facts[selector].direction, "ltr", selector);
+    }
+    assert.equal(facts["#c-inline-code"].unicodeBidi, "isolate");
+    assert.equal(facts["#c-code-block"].mark, null);
+    assert.match(facts["#c-code"].fontFamily, /monospace/);
+    const same = await claude.evaluate((source) => {
+      const original = new DOMParser().parseFromString(source, "text/html");
+      const live = document.querySelector("#c-transcript");
+      const selection = getSelection();
+      selection.selectAllChildren(document.querySelector("#c-p-inline"));
+      const selected = selection.toString();
+      selection.removeAllRanges();
+      return {
+        text: live.textContent === original.querySelector("#c-transcript").textContent,
+        elements: live.querySelectorAll("*").length === original.querySelectorAll("#c-transcript *").length,
+        selected: selected === original.querySelector("#c-p-inline").textContent,
+        href: document.querySelector("#c-link-url").href,
+      };
+    }, claudeSource);
+    assert.deepEqual(same, { text: true, elements: true, selected: true, href: "https://www.typescriptlang.org/docs/" });
+  });
+
+  await step("Claude: the shared preferences apply here too, and only to message content", async () => {
+    const before = await inspect(claude, ["#c-ui-p", "#c-code"]);
+    await onClaude(async (p) => {
+      await p.select("#font", "serif");
+      await p.select("#size", "125");
+    });
+    await claude.waitForFunction(() => document.documentElement.getAttribute("data-readela-size") === "125");
+    // One preference set: the ChatGPT page received the same change.
+    await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-size") === "125");
+    const after = await inspect(claude, ["#c-p-en-start", "#c-user", "#c-ul-fa", "#c-li-fa-1", "#c-ui-p", "#c-code"]);
+    assert.equal(Number(after["#c-p-en-start"].zoom), 1.25);
+    assert.equal(Number(after["#c-user"].zoom), 1.25);
+    assert.equal(Number(after["#c-ul-fa"].zoom), 1.25);
+    assert.equal(Number(after["#c-li-fa-1"].zoom), 1);
+    assert.match(after["#c-p-en-start"].fontFamily, /serif$/);
+    assert.equal(after["#c-code"].fontFamily, before["#c-code"].fontFamily);
+    assert.equal(Number(after["#c-ui-p"].zoom), 1, "page text outside messages is not scaled");
+    assert.equal(after["#c-ui-p"].fontFamily, before["#c-ui-p"].fontFamily);
+    assert.equal(
+      await claude.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+      true,
+      "no horizontal scrolling introduced",
+    );
+  });
+
+  await step("Claude: turning Readela off restores the page exactly; while off, new content is left alone", async () => {
+    await onClaude((p) => press(p, "#enabled"));
+    await claude.waitForFunction(() => document.querySelector("[data-readela-dir]") === null);
+    assert.deepEqual(await footprint(claude), { marked: 0, customProperties: 0 });
+    const state = await claude.evaluate((source) => {
+      const original = new DOMParser().parseFromString(source, "text/html");
+      const strip = (html) => html.replace(/\s+/g, " ");
+      const same =
+        strip(document.querySelector("#c-transcript").innerHTML) === strip(original.querySelector("#c-transcript").innerHTML);
+      const paragraph = document.createElement("p");
+      paragraph.id = "c-while-off";
+      paragraph.textContent = "Vite در حالت خاموش";
+      document.querySelector("#c-markdown-fa").append(paragraph);
+      return {
+        same,
+        rootAttributes: document.documentElement.getAttributeNames().sort(),
+        ownMessage: getComputedStyle(document.querySelector("#c-user")).unicodeBidi,
+      };
+    }, claudeSource);
+    assert.deepEqual(state, { same: true, rootAttributes: ["dir", "lang"], ownMessage: "plaintext" });
+    await sleep(400);
+    assert.deepEqual(await footprint(claude), { marked: 0, customProperties: 0 });
+    await onClaude((p) => press(p, "#enabled"));
+    await waitForMark(claude, "#c-while-off", "rtl");
+  });
+
+  await step("Claude: streamed replies and conversation navigation are followed", async () => {
+    await claude.evaluate(async () => {
+      const pause = (ms = 15) => new Promise((resolve) => setTimeout(resolve, ms));
+      const message = document.createElement("div");
+      message.dataset.testid = "assistant-message";
+      message.dataset.isStreaming = "true";
+      message.id = "c-stream";
+      const markdown = document.createElement("div");
+      markdown.className = "progressive-markdown";
+      const paragraph = document.createElement("p");
+      paragraph.id = "c-p-stream";
+      paragraph.textContent = "Vite";
+      markdown.append(paragraph);
+      message.append(markdown);
+      document.querySelector("#c-transcript").append(message);
+      await pause(1500);
+      window.readelaFirstMark = paragraph.getAttribute("data-readela-dir");
+      for (const piece of [" یک", " ابزار", " ساخت", " سریع", " برای", " پروژه‌های", " front-end", " است", "."]) {
+        paragraph.firstChild.appendData(piece);
+        await pause();
+      }
+      const list = document.createElement("ul");
+      list.id = "c-ul-stream";
+      list.className = "list-disc ps-7";
+      markdown.append(list);
+      for (const text of ["راه‌اندازی سریع", "به‌روزرسانی آنی"]) {
+        const item = document.createElement("li");
+        list.append(item);
+        for (const word of text.split(" ")) {
+          item.append(document.createTextNode(`${word} `));
+          await pause();
+        }
+      }
+      markdown.className = "standard-markdown";
+      message.dataset.isStreaming = "false";
+    });
+    assert.equal(
+      await claude.evaluate(() => window.readelaFirstMark),
+      "ltr",
+      "the first streamed word alone reads left-to-right",
+    );
+    await waitForMark(claude, "#c-p-stream", "rtl");
+    await waitForMark(claude, "#c-ul-stream", "rtl");
+    await waitForMark(claude, "#c-ul-stream li:last-child", "rtl");
+
+    await claude.evaluate(() => {
+      history.pushState({}, "", "/chat/readela-fixture-2");
+      const transcript = document.querySelector("#c-transcript");
+      transcript.replaceChildren();
+      const message = document.createElement("div");
+      message.dataset.testid = "assistant-message";
+      message.dataset.isStreaming = "false";
+      const markdown = document.createElement("div");
+      markdown.className = "standard-markdown";
+      for (const [id, text] of [
+        ["c-nav-fa", "Rust یک زبان سیستمی است."],
+        ["c-nav-en", "It has no garbage collector."],
+      ]) {
+        const paragraph = document.createElement("p");
+        paragraph.id = id;
+        paragraph.textContent = text;
+        markdown.append(paragraph);
+      }
+      message.append(markdown);
+      transcript.append(message);
+    });
+    await waitForMark(claude, "#c-nav-fa", "rtl");
+    await waitForMark(claude, "#c-nav-en", "ltr");
+
+    await onClaude((p) => press(p, "#reset"));
+    await claude.waitForFunction(() => !document.documentElement.hasAttribute("data-readela-size"));
+    await page.waitForFunction(() => !document.documentElement.hasAttribute("data-readela-size"));
+  });
+
   for (const scheme of schemes) {
     await step(`${scheme} theme: popup text contrast, 320px fit, and readable page text`, () =>
       checkTheme({ name, ui, page, scheme, emulate: input, report }),
@@ -734,8 +944,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 
   await step("the extension makes no network request", async () => {
     // Inline data: resources never reach the network and are not counted.
-    const unexpected = requests.filter((url) => url !== FIXTURE_URL && !url.startsWith("data:"));
-    assert.deepEqual(unexpected, [], "every request seen on the fixture page is the fixture document itself");
+    const unexpected = requests.filter((url) => !(url in FIXTURES) && !url.startsWith("data:"));
+    assert.deepEqual(unexpected, [], "every request seen on the fixture pages is a fixture document itself");
+    assert.ok(requests.includes(FIXTURE_URL) && requests.includes(CLAUDE_FIXTURE_URL));
     const stored = await popup.evaluate(async () => {
       const api = globalThis.browser ?? globalThis.chrome;
       return api.storage.local.get(null);
@@ -746,6 +957,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 
   report.fixtureRequests = [...new Set(requests)].map((url) => (url.startsWith("data:") ? `${url.slice(0, 24)}…` : url));
   if (ui !== popup) await ui.close();
+  await claude.close();
   await page.close();
   await popup.close();
   return steps;
@@ -754,7 +966,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 // ---------------------------------------------------------------------------
 // Live start page (signed out, nothing sent)
 
-async function runLive(name, browser) {
+async function runLive(name, browser, address, label) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 900 });
   const requests = [];
@@ -767,9 +979,9 @@ async function runLive(name, browser) {
     }
     requests.push({ url: request.url(), initiator });
   });
-  const outcome = { url: "https://chatgpt.com/" };
+  const outcome = { url: address };
   try {
-    await page.goto("https://chatgpt.com/", { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.goto(address, { waitUntil: "domcontentloaded", timeout: 45000 });
     await sleep(8000);
     Object.assign(
       outcome,
@@ -780,6 +992,9 @@ async function runLive(name, browser) {
           finalUrl: location.href,
           title: document.title,
           hasMain: document.querySelector("main") !== null,
+          // The text size was set to 110% beforehand; the root mark shows that
+          // the content script ran here and read the stored preferences.
+          contentScriptRan: document.documentElement.getAttribute("data-readela-size") === "110",
           editableFields: editable.length,
           editableTouched: editable.filter(
             (element) =>
@@ -792,7 +1007,7 @@ async function runLive(name, browser) {
       }),
     );
     outcome.botCheck = /just a moment|verify you are human|attention required/i.test(outcome.title ?? "");
-    await page.screenshot({ path: path.join(results, `${name}-live.png`) });
+    await page.screenshot({ path: path.join(results, `${name}-live-${label}.png`) });
   } catch (error) {
     outcome.error = String(error?.message ?? error).split("\n")[0];
   }
@@ -846,8 +1061,15 @@ for (const name of selected) {
     report.steps = await runSuite(name, browser, popupUrl, started.input, started.input ? ["light", "dark"] : ["light"], report);
     if (report.steps.some((entry) => !entry.ok)) failed = true;
     if (flag("--live")) {
-      report.live = await runLive(name, browser);
-      console.log(`  live: ${JSON.stringify(report.live)}`);
+      const popup = await openPopup(browser, popupUrl);
+      await popup.select("#size", "110");
+      report.live = {};
+      for (const [label, address] of [["chatgpt", "https://chatgpt.com/"], ["claude", "https://claude.ai/"]]) {
+        report.live[label] = await runLive(name, browser, address, label);
+        console.log(`  live ${label}: ${JSON.stringify(report.live[label])}`);
+      }
+      await popup.select("#size", "page");
+      await popup.close();
     }
   } finally {
     await browser.close();
