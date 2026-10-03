@@ -1,0 +1,233 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/amir42com/dev-standards/schemas/global-policy.schema.json",
+  "title": "Amir42 global governance policy",
+  "description": "Validates the canonical machine-readable policy source. Rule identity is closed to the approved, never-reused IDs; the number of rules is not a schema constraint. Exact enforcement targets are declared here and nowhere else: the enforcement-coverage declaration is proof of implementation, never an authority that can create a target. Each rule additionally carries its orthogonal non-machine Conformance obligation (`conformance.mode`), which is never derived from targeting and never creates coverage.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policy_version", "domains", "capabilities", "rules"],
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "description": "Semantic version of the policy source (MAJOR.MINOR.PATCH).",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "domains": {
+      "type": "array",
+      "description": "The flat responsibility Domains. Classification metadata only: a Domain carries no version, no precedence, no applicability, no enforcement authority and no mechanism binding. Membership is derived from each rule's own `domain` reference — a Domain never lists rules — and semantic validation rejects a declared Domain no current rule references. Deliberately NOT an enum restated anywhere else: this declaration is the single home of the Domain set, cross-checked against rule references structurally, so no second source of truth exists.",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/domain" }
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "The canonical Capability vocabulary: every closed identity a consuming project may declare as a stable semantic property or ability of itself or its execution context. Required even when empty, so the vocabulary is always stated rather than implied. This list is the vocabulary's ONLY home: the schema constrains the member shape and never restates membership as an enum, no runtime mirror exists, and the compiled local policy cache does not carry it. A Capability is a project fact — never a rule, an enforcement location, a target environment, a target cell, a mechanism, a profile or an exception — and it grants no enforcement, dispatch, targeting or coverage authority. Semantic validation rejects duplicate ids and any id spelled exactly like a target-environment or enforcement-location token.",
+      "items": { "$ref": "#/definitions/capability" }
+    },
+    "rules": {
+      "type": "array",
+      "description": "The canonical rule objects. Identity is closed by the `id` enum below. Uniqueness and completeness against the approved identity set are cross-checked structurally from the authoritative rule-identity registry, so neither a fixed item count nor a per-identity clause is restated here.",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/rule" }
+    }
+  },
+  "definitions": {
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "responsibility"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Flat kebab-case Domain identity. Domain-independent of rule identity: reclassifying a rule never changes the rule's id.",
+          "pattern": "^[a-z]+(-[a-z]+)*$"
+        },
+        "responsibility": {
+          "type": "string",
+          "description": "The one responsibility this Domain groups rules under.",
+          "minLength": 1
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "description": "One Capability declaration: a stable machine id and a human definition of the one project fact it names. Closed: the member carries nothing else — no rule list, no environment, no location, no mechanism, no parameter, no precedence. Which rules require a Capability is derived from each rule's own `applicability` reference, never from the Capability.",
+      "additionalProperties": false,
+      "required": ["id", "definition"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Flat lower-case kebab-case Capability identity, the same machine-id shape the Domain vocabulary uses. Deliberately NOT an enum: membership has exactly one home, the `capabilities` list itself.",
+          "pattern": "^[a-z]+(-[a-z]+)*$"
+        },
+        "definition": {
+          "type": "string",
+          "description": "The one stable semantic property or ability this Capability names.",
+          "minLength": 1
+        }
+      }
+    },
+    "location": {
+      "description": "The closed location vocabulary. One home for the whole document: exact target cells and declared semantic surfaces both reference it, so a location can never be spelled two ways.",
+      "enum": [
+        "git.branch",
+        "commit.subject",
+        "commit.body",
+        "commit.trailer",
+        "pr.title",
+        "pr.body",
+        "pr.comment",
+        "pr.review",
+        "issue.title",
+        "issue.body",
+        "issue.comment",
+        "release.metadata",
+        "workflow.message",
+        "changelog.entry",
+        "file.path",
+        "file.content",
+        "package.metadata"
+      ]
+    },
+    "targetCell": {
+      "description": "One EXACT enforcement target: this rule must be enforced at this location in this environment. The cell is the whole statement — it carries no mechanism, no proof and no exception, because implementation is proven by the coverage declaration and an exclusion is expressed by a cell's ABSENCE from the target set.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "location"],
+      "properties": {
+        "environment": {
+          "description": "The enforcement environment this target is enforced in.",
+          "enum": ["local", "ci"]
+        },
+        "location": { "$ref": "#/definitions/location" }
+      }
+    },
+    "targeting": {
+      "description": "The SOLE persisted authority for a rule's exact enforcement targets, as one tagged record. `targeted` carries the exact `environment × location` cells that must be enforced; `unimplemented` states that ZERO executable targets is the intentional, reviewed position and instead declares the surfaces the rule conceptually governs. The two branches are closed and mutually exclusive: a targeted rule cannot declare semantic surfaces, and an unimplemented rule cannot declare an executable cell. Each branch closes itself with additionalProperties:false, so no field may be shared between them accidentally.",
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "cells"],
+          "properties": {
+            "state": { "const": "targeted" },
+            "cells": {
+              "type": "array",
+              "description": "The exact target cells. At least one: a targeted rule with zero cells would claim enforcement it does not perform. Unique: a duplicated exact cell is a declaration defect, not extra coverage.",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/definitions/targetCell" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "declared_surfaces"],
+          "properties": {
+            "state": { "const": "unimplemented" },
+            "declared_surfaces": {
+              "type": "array",
+              "description": "The surfaces this rule conceptually governs while it has no executable enforcement. SEMANTIC SCOPE ONLY: these are not target locations, nothing dispatches on them, no mechanism may claim them, and they never grant execution authority. Required and non-empty so that `unimplemented` states something reviewable rather than being vacuously satisfiable.",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/definitions/location" }
+            }
+          }
+        }
+      ]
+    },
+    "conformance": {
+      "description": "The rule's non-machine Conformance obligation (decision 0021): an axis ORTHOGONAL to `targeting`, never derived from it and deriving nothing about it. One closed value under `mode`. `none` — no additional non-machine obligation; says nothing about whether machine enforcement exists. `review` — a human review against the rule's own criteria is required. `attestation` — a responsible human or role must explicitly declare that the required state or result holds. Review and attestation are distinct, neither is mechanical proof, neither ever enters P or C, and neither is cryptographic authentication. There is deliberately no `machine` mode: machine enforcement has its own axis. Scope is the WHOLE rule — no per-cell, per-environment or per-location Conformance and no second targeting language; finer human criteria belong in the rule's closed parameters. Semantic validation additionally rejects the one invalid CURRENT-rule combination, `targeting.state = unimplemented` with `mode = none`, for active and deprecated rules alike.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "description": "The closed Conformance vocabulary.",
+          "enum": ["none", "review", "attestation"]
+        }
+      }
+    },
+    "applicability": {
+      "description": "The rule's explicit applicability: WHETHER it belongs in a consuming project's future effective policy, as one tagged record. `universal` resolves in unconditionally and carries nothing else. `conditional` resolves in only for a project whose validated Capability set contains EVERY Capability under `requires` (ALL-OF; no any-of, exclusion, negation, expression, hierarchy or dependency model exists). Required on every rule: absence is invalid, never universal-by-omission. Referenced ids must be declared in the canonical `capabilities` vocabulary — checked semantically, never restated as an enum. This is a DIFFERENT axis from `targeting`: it names no environment, location or cell, it can never add, remove or reorder an exact target, and no enforcement, dispatch, scanning, coverage or cache reads it.",
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": {
+            "state": { "const": "universal" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "requires"],
+          "properties": {
+            "state": { "const": "conditional" },
+            "requires": {
+              "type": "array",
+              "description": "The Capabilities a project must ALL declare for this rule to resolve into its effective policy. At least one; no duplicate; each a declared canonical Capability id.",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z]+(-[a-z]+)*$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "targeting",
+        "conformance",
+        "domain",
+        "applicability",
+        "title",
+        "severity",
+        "non_bypassable",
+        "rationale"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable, never-reused rule identity. Closed to the approved IDs; this enum is held identical to the authoritative rule-identity registry by test.",
+          "enum": ["ATTR-001", "META-001", "SEC-001", "NAME-001", "ACC-001", "ACC-002", "ACC-003", "ACC-004", "SEC-002", "REC-001", "SEC-003", "DATA-001", "PRED-001", "SEC-004", "SEC-005", "ACC-005"]
+        },
+        "status": {
+          "description": "Policy lifecycle status: whether this rule is part of the active canonical policy. Deprecation changes status; it never deletes identity. Distinct from `targeting`.",
+          "enum": ["active", "deprecated"]
+        },
+        "targeting": { "$ref": "#/definitions/targeting" },
+        "conformance": { "$ref": "#/definitions/conformance" },
+        "domain": {
+          "description": "The ONE declared responsibility Domain this rule belongs to (rule -> Domain is the only direction). A single string by construction, so a rule can never carry multiple Domains. Membership in the declared `domains` set is validated semantically rather than by a second enum, so the Domain set has exactly one home.",
+          "type": "string",
+          "pattern": "^[a-z]+(-[a-z]+)*$"
+        },
+        "applicability": { "$ref": "#/definitions/applicability" },
+        "title": { "type": "string", "minLength": 1 },
+        "severity": {
+          "description": "Deterministic severity of a future violation.",
+          "enum": ["error", "warning"]
+        },
+        "non_bypassable": {
+          "type": "boolean",
+          "description": "Whether Project Exceptions are forbidden for this rule (decision 0022). `true`: no project-local Exception may be granted for the rule, and no Capability, Domain, project input, CLI flag or environment variable can override that — changing bypassability requires changing this canonical rule. `false`: the rule is eligible for a whole-rule Project Exception, subject to every other Exception validity check. A Project Exception changes a consuming project's Effective Policy identity only; it never disables a hook, a detector or a CI check."
+        },
+        "rationale": { "type": "string", "minLength": 1 },
+        "parameters": {
+          "type": "object",
+          "description": "Rule-specific structured data. Every behaviorally consumed rule is validated by an explicit closed per-rule schema with additionalProperties:false before engine consumption."
+        }
+      }
+    }
+  }
+}

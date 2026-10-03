@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-198-claude-support.json",
+  "recordDate": "2026-10-02",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-198",
+    "relatedWorkUnits": ["ENT-196", "ENT-197"],
+    "title": "Add Claude support and reconcile the Product Brief and release-facing documentation with the accepted decisions",
+    "authorizingDecisions": ["DEC-100", "DEC-102", "DEC-103", "DEC-104"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner continuation instruction of 2026-10-02: reconcile the Product Brief and directly affected documentation and metadata with the accepted decisions, add the MIT license file, add bounded Claude support through the existing site-adapter architecture, extend tests and evidence, re-run Bootstrap Inspect, Plan and Prepare for the final target state, continue draft pull request 1, and reconcile Personal OS. It excludes merge, release, store submission, Safari implementation, and ruleset or other security-setting changes.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the instruction above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecord": {
+    "record": "docs/project-preflight/ent-197-repository-establishment.json",
+    "status": "Remains the record for repository establishment and the first evaluation build. Its declared scope does not cover a second supported site, so this record covers the expanded scope."
+  },
+  "baseCommit": "d4f16a63fa25d1944e746fc4463dc3bb8658b991",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope expands outside the scope covered by the current Preflight: a second supported site (Claude) joins the first release",
+      "the work changes a trust boundary: the extension requests host access to an additional site"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. Bootstrap main d3efc7c5d1d99b20f6691c8242fc2892e530c176 still pins dev-standards v0.6.0 with the identities below; re-verified on 2026-10-02.",
+      "protocolChanged": "No. The revision is v1.23, the revision the earlier record was assessed under."
+    }
+  },
+  "verifiedStartingState": {
+    "branch": "feat/ent-198-first-usable-extension at d4f16a63fa25d1944e746fc4463dc3bb8658b991, clean, equal to the remote branch.",
+    "pullRequest": "amir42com/readela pull request 1: open, draft, no comments, reviews or checks.",
+    "repositoryRulesets": "None.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "Product Brief and directly affected documentation and metadata reconciled with DEC-102, DEC-103 and DEC-104.",
+      "MIT license file.",
+      "A dedicated Claude site adapter, site selection, and the minimum host match for claude.ai.",
+      "Tests for the shared site contract and for Claude behaviour, in the existing test structure.",
+      "Dated verification evidence for results actually observed.",
+      "Bootstrap Inspect, Plan and Prepare for the final target state (read-only on the target).",
+      "Commits and push to the existing draft pull request."
+    ],
+    "outOfScope": [
+      "Changes to the direction algorithm or the portable core, unless Claude evidence shows a shared-core defect.",
+      "Safari, reading-position marker, focus modes, per-site preferences, UI redesign, dependency upgrades, unrelated refactors.",
+      "Merge, release publication and extension-store submission.",
+      "Bootstrap Apply and any hand-built substitute for its outputs.",
+      "GitHub ruleset, branch-protection or other security-setting changes.",
+      "Changes to upstream dev-standards or Project Bootstrap; Project Exceptions."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "revisitTrigger": "Planning of the Safari platform accepted in DEC-104: packaging for iOS or iPadOS may make mobile-app a project fact and must be assessed before that work starts."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "tagObjectId": "95f5b6d42bfb20e21f3c7fe2019b00f52abdd348",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "pinnedBy": "Universal Project Bootstrap main d3efc7c5d1d99b20f6691c8242fc2892e530c176 (src/source.mjs).",
+    "adoptedInTarget": false
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission or privacy rule.",
+      "handling": "The project-local controls in docs/privacy-and-permissions.md apply to both supported sites. This work adds one match pattern and updates that document and the Product Brief in the same change, as control 8 requires."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "dev-standards consumer bundle, neutral docs/project-instructions.md pointer and governance CI are not published.",
+      "reason": "They are Bootstrap Apply outputs and Apply is blocked (see gates.bootstrapApply). They are not written by hand.",
+      "revisitTrigger": "Owner provides the Apply prerequisites named in gates.bootstrapApply."
+    }
+  ],
+  "resolvedSinceEarlierRecord": [
+    "Open-source license: MIT (DEC-103). The earlier record's OPEN-2 is closed by adding the license file in this work."
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "The added host access is the trust-relevant change. It receives the same targeted checks as the first site: permission scope, text preservation, editable-field exclusion, exact cleanup and network behaviour, plus a check that the manifest match patterns and the site adapters agree."
+  },
+  "gates": {
+    "implementationAndDocumentation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-02",
+      "covers": "Commits on the existing branch and push to the existing draft pull request within the declared scope.",
+      "basis": [
+        "The mutation is authorized by the owner instruction recorded above and by accepted DEC-102, DEC-103 and DEC-104.",
+        "Protocol, Project state, Entries and Accepted Decisions were re-read and are consistent with the instruction.",
+        "Repository, remote branch and pull request match the recorded state; no unrelated local change exists.",
+        "This record is committed before the implementation it covers."
+      ],
+      "invalidators": [
+        "Work leaves the declared scope.",
+        "Declared Capabilities change.",
+        "The applicable baseline identity changes.",
+        "HEAD stops descending from baseCommit.",
+        "Project Operating Protocol semantics materially change before integration."
+      ]
+    },
+    "bootstrapApply": {
+      "result": "BLOCKED",
+      "evaluatedOn": "2026-10-02",
+      "evaluatedAgainst": "The state at baseCommit, before this work. It is evaluated again at the final target state and that result is recorded in dated evidence.",
+      "unmetPrerequisites": [
+        "Owner approval of the exact frozen final Plan and candidate identities for the target state to be applied.",
+        "A verified target-specific external mutation boundary for amir42com/readela; the repository has no ruleset.",
+        "The owner-approved OS execution identity named for this target, with an OS-backed observation recorded at the Gate (Bootstrap ADR-006)."
+      ],
+      "consequence": "Apply is not run. Its outputs are not imitated by hand."
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "author": "Amir",
+  "developer": {
+    "name": "Amir42",
+    "url": "https://amir42.com"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "readela@amir42.com",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  }
+}

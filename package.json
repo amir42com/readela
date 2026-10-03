@@ -1,0 +1,28 @@
+{
+  "name": "readela",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Browser extension that makes multilingual text easier to read within the original page.",
+  "author": "Amir",
+  "license": "MIT",
+  "homepage": "https://amir42.com",
+  "type": "module",
+  "engines": {
+    "node": ">=22.15.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "package": "node scripts/build.mjs --package",
+    "icons": "node scripts/make-icons.mjs",
+    "test": "node --test \"test/core/*.test.mjs\" \"test/page/*.test.mjs\"",
+    "test:e2e": "node test/e2e/run.mjs",
+    "test:e2e:chrome": "node test/e2e/run.mjs --browser chrome",
+    "test:e2e:firefox": "node test/e2e/run.mjs --browser firefox",
+    "browsers:firefox": "node test/e2e/install-firefox.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "puppeteer-core": "25.12.0",
+    "@puppeteer/browsers": "3.2.3"
+  }
+}

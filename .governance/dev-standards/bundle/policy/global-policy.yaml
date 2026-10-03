@@ -1,0 +1,820 @@
+# Canonical machine-readable governance policy.
+#
+# This file is the authoritative source for the Amir42 global development rules.
+# It is authored in YAML and validated against schemas/global-policy.schema.json.
+#
+# Scope of this release: SIXTEEN rules — the four universal rules this line has always carried,
+# the three `accessibility` rules admitted in S6-B (decision 0025), each conditional on the
+# `web-interface` Capability, and the nine rules of the ENT-127 baseline admission (decision
+# 0030), each conditional on exactly one Capability. That count is a present-state fact, never
+# a constraint: neither this document nor the schema fixes how many rules may exist. Rule IDs
+# are stable and are never reused; deprecation later changes `status`, it does not delete
+# historical identity.
+#
+# Five independent per-rule fields matter to enforcement, Conformance, classification and
+# applicability:
+#   status      — the rule's lifecycle status within the CURRENT canonical policy
+#                 (active | deprecated). BOTH values are current and BOTH are enforced
+#                 identically: deprecated marks a rule for future replacement or
+#                 retirement, it never disables, skips or weakens it. Retirement is not a
+#                 status value — a retired rule leaves this document entirely while its
+#                 identity stays permanently reserved (scripts/lib/rule-identity.mjs).
+#   targeting   — the SOLE persisted authority for exact enforcement targets. One tagged
+#                 record per rule, in exactly one of two states:
+#                   targeted      — the rule has executable enforcement targets, listed as
+#                                   exact `environment × location` cells. At least one cell;
+#                                   no duplicate exact cell. This set IS what must be
+#                                   enforced.
+#                   unimplemented — the rule intentionally has ZERO executable target cells.
+#                                   Executable cells are forbidden; the record instead
+#                                   declares the surfaces the rule conceptually governs.
+#                                   Those surfaces are semantic scope only — they are not
+#                                   target locations and grant no execution authority.
+#                 `policy/enforcement-coverage.json` is PROOF, not authority: it declares
+#                 which mechanism implements each target and must reconcile exactly with the
+#                 cells below. It can never create a target. Mechanisms stay out of this
+#                 document entirely: policy states WHAT must be enforced, coverage states
+#                 WHICH implementation proves it. See
+#                 docs/decisions/0016-canonical-exact-enforcement-targets.md.
+#   conformance — the rule's NON-MACHINE Conformance obligation, as one closed record
+#                 `conformance.mode` in exactly one of three states:
+#                   none          — no additional non-machine obligation; says nothing about
+#                                   whether machine enforcement exists.
+#                   review        — a human review against the rule's criteria is required.
+#                   attestation   — a responsible human or role must explicitly declare that
+#                                   the required state or result holds.
+#                 This is an axis ORTHOGONAL to `targeting`: it is never derived from the
+#                 targeting state, it derives nothing about it, it creates no coverage, and
+#                 review or attestation never counts as machine proof or enters P or C. It
+#                 attaches to the WHOLE rule — there is no per-cell Conformance and no second
+#                 targeting language. The one invalid combination for a CURRENT rule (active
+#                 or deprecated) is `unimplemented` targeting with `none` Conformance, because
+#                 such a rule states no operative obligation at all. Stating `attestation` or
+#                 `review` declares the obligation class only: it does not claim that
+#                 attestation or review evidence is collected, checked or reported by any
+#                 mechanism. See docs/decisions/0021-s5-conformance-and-finding-disposition.md.
+#   domain      — the one responsibility Domain the rule belongs to, declared under
+#                 `domains` below. Domains are flat classification metadata ONLY: no
+#                 runtime enforcement, dispatch, applicability or mechanism decision may
+#                 depend on them, and reclassifying a rule changes nothing about its
+#                 identity or enforcement.
+#   applicability — WHETHER the rule belongs in a consuming project's future effective policy,
+#                 as one tagged record. Required on every rule; absence is invalid, never
+#                 universal by omission. Two states:
+#                   universal     — resolves into every project's effective policy,
+#                                   unconditionally. Carries `state` and nothing else.
+#                   conditional   — resolves in only for a project whose validated Capability
+#                                   set contains EVERY Capability listed under `requires`
+#                                   (ALL-OF; no any-of, exclusion, negation or hierarchy).
+#                                   Each requirement must be declared under `capabilities`.
+#                 This is a DIFFERENT axis from `targeting`: it names no environment, location
+#                 or cell, it can never add, remove or reorder an exact target, and no
+#                 enforcement, dispatch, secret scanning, coverage or local cache reads it.
+#                 The Effective Policy resolver (docs/decisions/0019-effective-policy-resolution.md)
+#                 resolves a consuming project's Effective Policy from it. Four current rules
+#                 (ATTR-001, META-001, SEC-001, NAME-001) are universal; ACC-001, ACC-002 and
+#                 ACC-003 are conditional on the `web-interface` Capability (decision 0025), and
+#                 the nine rules admitted by decision 0030 are each conditional on exactly one
+#                 Capability.
+#
+# `non_bypassable` governs Project Exceptions (docs/decisions/0022-s5-project-exceptions.md):
+# `true` forbids any project-local Exception for the rule and nothing outside this document
+# can override that; `false` makes the rule eligible for a whole-rule, expiring Project
+# Exception subject to every other validity check. A Project Exception changes a consuming
+# project's Effective Policy identity only — it never disables a hook, a detector or a CI check.
+
+policy_version: 0.6.0
+
+# The flat responsibility Domains. A Domain is classification/grouping of rule
+# responsibility and nothing else: not a policy layer, not a version line, not precedence,
+# not applicability, not enforcement authority, and never a mechanism selector. Membership
+# is derived by reading each rule's own `domain` field — a Domain never lists its rules —
+# and every declared Domain must be referenced by at least one current rule.
+domains:
+  - id: surface-neutrality
+    responsibility: >-
+      Keeping tracked artifacts, metadata and public repository surfaces free of
+      structural authorship attribution and optional tool or service identity.
+  - id: security
+    responsibility: >-
+      Protecting secrets, credentials, access control, confidential data and user-granted
+      platform permissions in repository history, operated services and shipped applications.
+  - id: naming
+    responsibility: >-
+      Keeping repository naming conventions consistent and automatable.
+  - id: accessibility
+    responsibility: >-
+      Keeping user-facing interfaces operable and perceivable by people using assistive
+      technology, keyboard-only interaction or low vision.
+  - id: recoverability
+    responsibility: >-
+      Keeping materially important persistent state recoverable after loss.
+  - id: analytical-integrity
+    responsibility: >-
+      Keeping published analytical results and predictive-model performance claims reproducible
+      and credible.
+
+# The canonical Capability vocabulary. A Capability is a closed canonical identity naming ONE
+# stable semantic property or ability of a consuming project or its execution context — a
+# project fact, never a rule, a policy obligation, a Domain, a target environment, an
+# enforcement location, a target cell, a mechanism, a profile, an exception or a free-form
+# tag. This list is the vocabulary's only home: the schema constrains the member shape and
+# never restates membership, no runtime mirror exists, and the compiled local policy cache does
+# not carry it. Capabilities grant no enforcement, dispatch, targeting or coverage authority
+# anywhere. Each member is `{ id, definition }`; an id must not be spelled like a target
+# environment or an enforcement location. The first real Capability was admitted in S6-B
+# (decision 0025) and four more in the ENT-127 baseline admission (decision 0030), each together
+# with the rules that require it, in one reviewed change, exactly as the atomic admission contract
+# requires. Every identifier is permanently reserved and its definition is immutable under that
+# identifier: `capability-identity/ledger.json` records each admitted pair and the history
+# validator enforces both across the full commit DAG. No Capability implies another.
+capabilities:
+  - id: web-interface
+    definition: "The project ships web pages or a browser-based user-facing interface that people operate directly, independent of framework or implementation technology."
+  - id: operated-service
+    definition: "The project operates a deployed, network-reachable service for which the project owner is operationally responsible, independent of hosting provider or implementation technology."
+  - id: data-analysis
+    definition: "The project's deliverables include published analytical results — figures, tables, statistics or quantitative conclusions — that the project derives from data, independent of tooling or medium."
+  - id: predictive-model
+    definition: "The project develops a predictive model — one whose outputs are predictions or forecasts for cases or periods not used to fit it — and publishes or acts on those outputs, independent of framework or algorithm."
+  - id: mobile-app
+    definition: "The project ships an installable user-facing application that runs on a mobile operating system, independent of framework, distribution channel or specific mobile platform."
+
+rules:
+  # ---------------------------------------------------------------------------
+  - id: ATTR-001
+    status: active
+    domain: surface-neutrality
+    applicability:
+      state: universal
+    title: No structural authorship or provenance attribution
+    severity: error
+    non_bypassable: true
+    # Exact enforcement authority: 14 cells over 8 locations. `pr.title` and `pr.body` are
+    # targeted in CI ONLY, and their absence from the local environment is the whole
+    # statement — pull-request metadata does not exist during the local Git-hook lifecycle,
+    # so there is nothing there to evaluate. That exclusion is expressed by absence from
+    # this set, never by a structured exception list: an exclusion that has to be declared
+    # is a second authority that can disagree with the first.
+    targeting:
+      state: targeted
+      cells:
+        - environment: local
+          location: commit.subject
+        - environment: ci
+          location: commit.subject
+        - environment: local
+          location: commit.body
+        - environment: ci
+          location: commit.body
+        - environment: local
+          location: commit.trailer
+        - environment: ci
+          location: commit.trailer
+        - environment: ci
+          location: pr.title
+        - environment: ci
+          location: pr.body
+        - environment: local
+          location: file.content
+        - environment: ci
+          location: file.content
+        - environment: local
+          location: file.path
+        - environment: ci
+          location: file.path
+        - environment: local
+          location: package.metadata
+        - environment: ci
+          location: package.metadata
+    conformance:
+      mode: none
+    rationale: >-
+      Tracked artifacts and their metadata must not carry authorship or provenance
+      attribution for the change itself — for example generated-by lines, automated- or
+      assistant-authorship notes, co-author trailers naming a vendor or tool, bot
+      signatures, or automation badges. Such wording is structural: it asserts who or
+      what produced the change. A legitimate functional or subject-matter reference to
+      automation or attribution — text that merely discusses the topic because the
+      standards or the code genuinely need to — is not a violation. Pull-request title and
+      body are targeted in CI only: pull-request metadata does not exist during the local
+      Git-hook lifecycle.
+    parameters:
+      prohibited: structural-authorship-or-provenance-attribution-of-the-change
+      permitted: functional-or-subject-matter-reference
+      distinction: >-
+        A finding is a violation only when the text attributes authorship or provenance
+        of the change itself. Text that discusses attribution or automation as a subject,
+        without claiming it authored the change, is permitted.
+
+  # ---------------------------------------------------------------------------
+  - id: META-001
+    status: active
+    domain: surface-neutrality
+    applicability:
+      state: universal
+    title: Tool-neutral public repository surfaces
+    severity: error
+    non_bypassable: true
+    # Intentionally unimplemented: zero executable target cells, stated explicitly rather
+    # than implied by an empty list. The 16 surfaces below are this rule's SEMANTIC SCOPE —
+    # what it governs as policy — and are deliberately not target locations: nothing
+    # dispatches on them, no mechanism may claim them, and coverage must carry no entry for
+    # this rule. Before META-001 may become targeted, a separate reviewed change must
+    # provide exact target cells, closed parameters, repository-hosting event acquisition,
+    # deterministic findings, a mechanism binding and executable evidence.
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - commit.subject
+        - commit.body
+        - commit.trailer
+        - pr.title
+        - pr.body
+        - pr.comment
+        - pr.review
+        - issue.title
+        - issue.body
+        - issue.comment
+        - release.metadata
+        - workflow.message
+        - changelog.entry
+        - file.content
+        - file.path
+        - package.metadata
+    # Explicit S5-B migration (decision 0021 §6): META-001 stays `unimplemented` on the
+    # machine axis and gains the positive non-machine obligation it always carried only by
+    # absence. `attestation` states that a responsible human or role must explicitly declare
+    # that the governed surfaces are tool-neutral. It claims NO machine enforcement, no
+    # target cell, no coverage and no mechanism, and it does not claim that attestation
+    # evidence is collected, checked or reported by anything yet.
+    conformance:
+      mode: attestation
+    rationale: >-
+      Repository-facing output must not expose optional automated-tool, model, assistant,
+      agent, vendor or service identity; bot signatures; or account, quota and usage
+      messages. Public project history must remain tool-neutral. Platform-native identity
+      that the hosting service necessarily records is allowed. A specific functional
+      reference is allowed only when the repository owner explicitly approves it because
+      the project genuinely requires that reference.
+      For repository-facing Rules, publication responsibility begins at the exact consumer
+      commit where the committed immutable release identity, committed project inputs, and
+      resolved Effective Policy first make that Rule applicable. Artifacts published before
+      that boundary are not retroactively governed and do not require history rewriting
+      merely because they remain reachable in Git history, closed pull requests, retained
+      pull-request refs, or API-retrievable objects. Rewrite, cherry-pick, copying historical
+      content into a new governed artifact, republishing, and re-releasing are new
+      publication acts and are governed by the Rule applicable at that new publication.
+    parameters:
+      prohibited:
+        - optional-automated-tool-or-service-identity
+        - bot-or-service-signature
+        - account-quota-or-usage-message
+        - unapproved-automated-review-output
+      permitted:
+        - platform-native-required-identity
+        - owner-approved-functional-reference
+        - generic-policy-terminology
+      activation: explicit-owner-approval-required-for-external-automated-review
+
+  # ---------------------------------------------------------------------------
+  - id: SEC-001
+    status: active
+    domain: security
+    applicability:
+      state: universal
+    title: Secret-scanning contract
+    severity: error
+    non_bypassable: true
+    # Exact enforcement authority: 6 cells over 3 locations, in both environments. Which
+    # concrete tool implements detection remains a mechanism fact owned by the tool lock and
+    # the coverage declaration; this document states only what must be enforced and where.
+    targeting:
+      state: targeted
+      cells:
+        - environment: local
+          location: file.content
+        - environment: ci
+          location: file.content
+        - environment: local
+          location: commit.subject
+        - environment: ci
+          location: commit.subject
+        - environment: local
+          location: commit.body
+        - environment: ci
+          location: commit.body
+    conformance:
+      mode: none
+    rationale: >-
+      Repository changes must not introduce secrets, credentials or protected credential
+      material. Detection uses exactly the pinned detection mechanism fixed by the
+      reviewed repository tool lock; rule-specific detector tuning, baselines, allowlists,
+      exceptions, and bypasses are forbidden. Which concrete tool currently implements
+      detection is a mechanism fact owned by the tool lock and enforcement
+      implementation, never by this policy statement. A credential that could be active
+      must be revoked or rotated and the rotation verified; deleting exposed text alone
+      is insufficient. Historical scanning is an explicit sanitized report-only
+      operation, separate from new-change blocking.
+    parameters: {}
+
+  # ---------------------------------------------------------------------------
+  - id: NAME-001
+    status: active
+    domain: naming
+    applicability:
+      state: universal
+    title: Branch and commit-subject naming
+    severity: error
+    non_bypassable: false
+    # Exact enforcement authority: 4 cells over 2 locations, in both environments.
+    targeting:
+      state: targeted
+      cells:
+        - environment: local
+          location: git.branch
+        - environment: ci
+          location: git.branch
+        - environment: local
+          location: commit.subject
+        - environment: ci
+          location: commit.subject
+    conformance:
+      mode: none
+    rationale: >-
+      Branch names and commit subjects must follow the agreed naming conventions so that
+      history stays readable and automatable. This rule covers branch naming and
+      commit-subject naming only. File and folder naming are intentionally out of scope
+      until a separate, approved naming standard exists.
+    parameters:
+      covers:
+        - git.branch
+        - commit.subject
+      excludes:
+        - file-or-folder-naming
+      commit_subject: conventional-commits-style
+      branch: type-prefixed-kebab-case
+
+  # ---------------------------------------------------------------------------
+  # The `accessibility` Domain (decision 0025). All three rules are CONDITIONAL on the
+  # `web-interface` Capability: they resolve into a consuming project's Effective Policy only
+  # when that project declares it, and into no other project's. They are the first conditional
+  # production rules; applicability still names no environment, location or cell, and no
+  # enforcement, dispatch, coverage or cache path reads it.
+  #
+  # All three are `non_bypassable: false`: a consuming project may hold a whole-Rule, expiring
+  # Project Exception for any of them, subject to every other validity check. An Exception
+  # changes that project's Effective Policy identity only — it never disables a hook, a
+  # detector or a CI check here.
+  #
+  # None declares `parameters`. A rule that declares none needs no closed parameter schema, and
+  # the legal parameter value closure is unchanged by their admission.
+  # ---------------------------------------------------------------------------
+  - id: ACC-001
+    status: active
+    domain: accessibility
+    applicability:
+      state: conditional
+      requires:
+        - web-interface
+    title: HTML document language declaration
+    severity: error
+    non_bypassable: false
+    # Exact enforcement authority: 2 cells over 1 location, in both environments. The
+    # deterministic detector is deliberately narrower than the accessibility criterion it
+    # supports; the rationale below states that boundary rather than implying full conformance.
+    targeting:
+      state: targeted
+      cells:
+        - environment: local
+          location: file.content
+        - environment: ci
+          location: file.content
+    conformance:
+      mode: none
+    rationale: >-
+      A standalone HTML document targeted by this rule must declare a non-empty `lang`
+      attribute on its root `html` element. Declaring the document language supports
+      programmatic identification of the page's default human language, which assistive
+      technology relies on to select pronunciation and to present text correctly. The
+      requirement is intentionally NARROW and is not a claim of full conformance with the
+      external Language of Page criterion it supports: enforcement targets documents that
+      actually declare a root `html` start tag — the HTML syntax permits that start tag to be
+      omitted, and a document without one is not targeted — and it proves only that a non-empty
+      value is declared. It does NOT validate that the value is a well-formed language tag, and
+      it does NOT establish that the declared language is the document's actual default human
+      language. Fragments and partials with no root `html` start tag, non-HTML documents, and
+      content that could not be read as text are outside the enforced scope; generated or
+      runtime DOM and framework template systems are not parsed.
+
+  # ---------------------------------------------------------------------------
+  - id: ACC-002
+    status: active
+    domain: accessibility
+    applicability:
+      state: conditional
+      requires:
+        - web-interface
+    title: Image text alternatives
+    severity: error
+    non_bypassable: false
+    # Intentionally unimplemented: zero executable target cells, stated explicitly. The declared
+    # surface below is this rule's SEMANTIC SCOPE — what it governs as policy — and is not a
+    # target location: nothing dispatches on it, no mechanism may claim it, and coverage must
+    # carry no entry for this rule. Whether a text alternative serves an equivalent purpose, and
+    # whether an image is meaningful or decorative, are human judgements about intent; a check
+    # that merely asserts an attribute is present would prove neither.
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      Every meaningful image in the project's web interface must have a text alternative that
+      serves an equivalent purpose, and every purely decorative image must be represented so
+      that assistive technology can ignore it. Satisfaction is established by human review
+      against those two criteria, examining how images are actually used in the applicable
+      interface. This rule claims NO machine enforcement, no target cell, no coverage and no
+      mechanism, and nothing in this repository claims that generic automation can determine
+      whether a text alternative is semantically appropriate or whether a given image is
+      decorative. Declaring the review obligation does not claim that review evidence is
+      collected, checked or reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: ACC-003
+    status: active
+    domain: accessibility
+    applicability:
+      state: conditional
+      requires:
+        - web-interface
+    title: Keyboard operability and no keyboard trap
+    severity: error
+    non_bypassable: false
+    # Intentionally unimplemented, exactly as ACC-002: the declared surface is semantic scope
+    # only. Keyboard operability is a property of the running interface, not of any file's
+    # bytes; no static heuristic here pretends to prove it and no browser automation is
+    # introduced to try.
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: attestation
+    rationale: >-
+      A responsible person or role must explicitly declare that the intended functionality of
+      the project's web interface can be operated using a keyboard interface, and that keyboard
+      focus can always be moved away from any component it can be moved to — and, where moving
+      away requires more than standard exit methods, that the user is advised how. This rule
+      claims NO machine enforcement, no target cell, no coverage and no mechanism, and declaring
+      the attestation obligation does not claim that attestation evidence is collected, checked
+      or reported by any mechanism here. A visible keyboard focus indicator is deliberately
+      OUTSIDE this rule's scope: it is a separate, higher-conformance-level requirement reserved
+      for a future independent rule, and nothing here may be read as covering or claiming it.
+
+  # ---------------------------------------------------------------------------
+  # The ENT-127 baseline admission (decision 0030). Nine rules, each CONDITIONAL on exactly one
+  # Capability: ACC-004 on `web-interface`; SEC-002, REC-001 and SEC-003 on `operated-service`;
+  # DATA-001 on `data-analysis`; PRED-001 on `predictive-model`; SEC-004, SEC-005 and ACC-005 on
+  # `mobile-app`. No Capability implies another: a project declares each fact that is true of it.
+  #
+  # All nine are intentionally unimplemented, exactly as ACC-002 and ACC-003: zero executable
+  # target cells, and the declared surface is SEMANTIC SCOPE only — nothing dispatches on it, no
+  # mechanism may claim it, and coverage must carry no entry for any of them. Operational state
+  # itself is not a repository surface; `file.content` is the existing semantic-scope token and no
+  # new surface or location vocabulary was justified (decision 0030, per decision 0021 §15).
+  # `review` is used where a reviewer can inspect the truth in project artifacts or the delivered
+  # interface; `attestation` where it lives in operational state only the responsible operator
+  # can declare (SEC-002, REC-001).
+  #
+  # All nine are `non_bypassable: false` and none declares `parameters`: the legal parameter value
+  # closure is unchanged by their admission. Each rationale opens with the rule's normative
+  # requirement.
+  # ---------------------------------------------------------------------------
+  - id: ACC-004
+    status: active
+    domain: accessibility
+    applicability:
+      state: conditional
+      requires:
+        - web-interface
+    title: Text contrast, visible keyboard focus and reflow
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      In the project's web interface: (1) the visual presentation of text and images of text has a
+      contrast ratio of at least 4.5:1, or at least 3:1 for large-scale text and images of
+      large-scale text, except for text or images of text that are part of an inactive
+      user-interface component, are pure decoration, are not visible to anyone, are part of a
+      picture that contains significant other visual content, or are part of a logo or brand name;
+      (2) any keyboard-operable user interface has a mode of operation in which the keyboard focus
+      indicator is visible; and (3) content can be presented without loss of information or
+      functionality, and without requiring scrolling in two dimensions, at a width equivalent to
+      320 CSS pixels for vertically scrolling content and at a height equivalent to 256 CSS pixels
+      for horizontally scrolling content, except for parts of the content that require
+      two-dimensional layout for usage or meaning. Satisfaction is established by human review of
+      the interface as delivered. Low-vision and keyboard users cannot use an interface whose text
+      is illegible, whose focus position is invisible, or which forces two-dimensional scrolling
+      when magnified or viewed narrowly. These are the three durable Level AA presentation
+      criteria most often violated and not covered by ACC-001/002/003. "Large-scale" carries the
+      WCAG meaning (at least 18 point, or 14 point bold, or the CJK equivalent). No
+      name/role/value requirement; no touch-target size; no SEO, metadata, structured data or
+      performance threshold; no tool, checker, framework or CSS technique; no claim of WCAG
+      conformance overall. Automated checkers may inform the review but are not proof. Non-text
+      (graphical-object) contrast is not covered. This rule claims NO machine enforcement, no
+      target cell, no coverage and no mechanism, and declaring the review obligation does not
+      claim that review evidence is collected, checked or reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: SEC-002
+    status: active
+    domain: security
+    applicability:
+      state: conditional
+      requires:
+        - operated-service
+    title: Runtime secret confidentiality and encrypted transport
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: attestation
+    rationale: >-
+      A responsible person or role must attest that, for the operated service: (1) secrets the
+      service uses reach it only through its runtime environment or a secret store appropriate to
+      the deployment; (2) those secrets do not appear in tracked files, build outputs, code or
+      data delivered to clients, or logs; (3) materially distinct environments use distinct
+      credentials; and (4) service traffic that crosses an untrusted network is encrypted in
+      transit. A deployed service concentrates live credentials. The durable failure modes are
+      secrets baked into source, builds, client bundles or logs; one credential shared across
+      environments so that a lower-trust environment compromises production; and cleartext
+      transport. All four clauses protect the same asset — confidentiality of the service's
+      secrets and traffic — at the service's runtime boundary. No least-privilege requirement; no
+      personal-data logging requirement; no vulnerability-reporting route; no recurring-job
+      idempotence; no secret-store product, hosting provider, TLS version, cipher or header.
+      "Materially distinct" and "appropriate" are owner judgements recorded with the attestation.
+      Relation to SEC-001: SEC-001 is a universal machine-enforced scan of repository changes;
+      this Rule is the standing operational state of a service's secrets across four surfaces,
+      three of which SEC-001 cannot see. The overlap on tracked files is deliberate and creates no
+      second detector. This rule claims NO machine enforcement, no target cell, no coverage and no
+      mechanism, and declaring the attestation obligation does not claim that attestation evidence
+      is collected, checked or reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: REC-001
+    status: active
+    domain: recoverability
+    applicability:
+      state: conditional
+      requires:
+        - operated-service
+    title: Recoverable persistent service state
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: attestation
+    rationale: >-
+      Where loss of the operated service's persistent state would cause material loss, a
+      responsible person or role must attest that backups of that state exist and that restoration
+      from those backups has been exercised. Where the service holds no such state, the
+      attestation states that fact. A backup that has never been restored is an untested
+      assumption. This is the standing half of Universal outcome family 8 (proportionate
+      maintenance and recovery). Family 8 names the trigger as an operated service or important
+      stored state; this Rule intentionally covers only the `operated-service` branch, because
+      that is the real current consumer boundary. Non-network owners of materially important
+      mutable state remain deliberately uncovered until a real consumer demonstrates a need
+      (revisit trigger: decision 0030). No speculative `persistent-data` Capability is created. No
+      frequency, retention, RPO/RTO, tooling, provider or off-site requirement; no
+      migration-execution architecture and no destructive-operation authorization (both are
+      transition controls — decision 0030). Whether loss is "material" is an owner judgement
+      recorded with the attestation. This rule claims NO machine enforcement, no target cell, no
+      coverage and no mechanism, and declaring the attestation obligation does not claim that
+      attestation evidence is collected, checked or reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: SEC-003
+    status: active
+    domain: security
+    applicability:
+      state: conditional
+      requires:
+        - operated-service
+    title: Server-side authorization, limited authentication attempts and bounded sessions
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      For the operated service: (1) access to every non-public resource or operation is authorized
+      on the server side; (2) where people authenticate to the service, authentication attempts
+      are limited; and (3) where the service maintains authenticated sessions, those sessions have
+      a bounded lifetime and can be invalidated on the server side. Satisfaction is established by
+      human review of the service's access-control design and implementation. Client-side-only
+      authorization, unlimited credential guessing and unrevocable or unbounded sessions are the
+      durable, provider-independent access-control failures. A service with no non-public resource
+      and no authentication satisfies the Rule trivially; the review records that fact. No generic
+      "validate all input" clause; no password length, composition or rotation number; no
+      mandatory MFA; no authentication provider, protocol, token format or rate-limit value.
+      Clause (3) does require that a revocation capability exists, including for token-based
+      sessions. Current NIST SP 800-63B / OWASP authentication guidance is Guidance (decision
+      0030), never normative text. This rule claims NO machine enforcement, no target cell, no
+      coverage and no mechanism, and declaring the review obligation does not claim that review
+      evidence is collected, checked or reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: DATA-001
+    status: active
+    domain: analytical-integrity
+    applicability:
+      state: conditional
+      requires:
+        - data-analysis
+    title: Reproducible provenance of published analytical results
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      For every published analytical result: (1) the source data is identified by its origin, the
+      terms relevant to its use, and either its retrieval date or, where applicable, an immutable
+      upstream version; (2) the analysed snapshot is bound to a content identity or an immutable
+      upstream identity; (3) any fitted statistical or predictive model that directly supports the
+      result is identifiable to the same standard; (4) the result is regenerable from tracked
+      code, a locked environment and the identified data snapshot; and (5) material randomness is
+      seeded and the seed is recorded. Satisfaction is established by human review of the
+      project's tracked artifacts. A published figure that cannot be traced to exact data and
+      regenerated cannot be corrected, defended or trusted. Provenance (clauses 1–3) and
+      regenerability (clauses 4–5) are the two halves of one property: without identity,
+      "regenerable" has no fixed input; without regenerability, identity proves nothing about the
+      result. No redistribution of licensed or proprietary data — identity plus the access route
+      suffices, and "regenerable" means by a party with legitimate access to the identified
+      snapshot; bit-identical output is not required where numerical nondeterminism is immaterial.
+      No data-versioning tool, schema-validation framework, or universal timezone, CRS or units
+      rule (Guidance or project-local when material). Visual tooling that cannot itself be
+      versioned satisfies the Rule through the versioned extract and model definition it consumes.
+      This rule claims NO machine enforcement, no target cell, no coverage and no mechanism, and
+      declaring the review obligation does not claim that review evidence is collected, checked or
+      reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: PRED-001
+    status: active
+    domain: analytical-integrity
+    applicability:
+      state: conditional
+      requires:
+        - predictive-model
+    title: Credible evaluation of predictive models
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      For every reported predictive model: (1) performance represented as held-out performance is
+      measured on data not used for model training, feature construction, hyperparameter tuning or
+      model selection; where any such overlap exists it is explicitly disclosed and the result is
+      not represented as independent held-out performance; (2) where the target is time-ordered,
+      evaluation respects temporal order and states the prediction or forecast horizon; (3) the
+      model is compared with a stated simple baseline using the same evaluation data; and (4)
+      probabilistic predictions are evaluated with an appropriate proper scoring rule.
+      Satisfaction is established by human review of the evaluation as reported. Leakage,
+      look-ahead, the absence of a naive baseline and improper scoring of probabilities are the
+      durable, algorithm-independent ways a model's claimed skill is overstated. The Rule
+      constrains what may be *claimed*, not how exploration is conducted. Exploratory analysis and
+      model selection are not forbidden — only the representation of their results as independent
+      held-out performance. No separate forecasting Capability; no mandated metric; no SHAP or
+      explainability; no production drift monitoring; no enterprise AI governance; no model-card
+      format. Choice of baseline and of scoring rule within the class is project-local. This rule
+      claims NO machine enforcement, no target cell, no coverage and no mechanism, and declaring
+      the review obligation does not claim that review evidence is collected, checked or reported
+      by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: SEC-004
+    status: active
+    domain: security
+    applicability:
+      state: conditional
+      requires:
+        - mobile-app
+    title: Mobile permission minimisation and denial handling
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      For the mobile application: (1) it requests only those platform permissions materially
+      required by its enabled features; and (2) denial or revocation of a requested permission is
+      handled without unsafe failure and without misleading the user. Satisfaction is established
+      by human review of the application's declared permissions, configuration and implementation.
+      A mobile application runs on a user's personal device inside a platform security model built
+      on user-granted permissions. Over-requested permissions and denial paths that crash or
+      deceive are the durable, platform-independent failures of that part of the model. No API
+      level, SDK, library, framework or store permission list is named; no background-work API is
+      required; no iOS- or Android-specific wording. Confidentiality of data in transit and at
+      rest is governed by SEC-005, not here. Current Android mechanisms are Guidance (decision
+      0030). This rule claims NO machine enforcement, no target cell, no coverage and no
+      mechanism, and declaring the review obligation does not claim that review evidence is
+      collected, checked or reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: SEC-005
+    status: active
+    domain: security
+    applicability:
+      state: conditional
+      requires:
+        - mobile-app
+    title: Mobile encrypted transport and protected local storage
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      For the mobile application: (1) application network traffic that crosses an untrusted
+      network is encrypted in transit; and (2) locally stored data that requires confidentiality
+      is protected using a secure-storage or operating-system-backed protection mechanism
+      supported by the mobile platform, rather than ordinary unprotected application storage.
+      Satisfaction is established by human review of the application's configuration and
+      implementation. A mobile application moves and keeps data on a user's personal device inside
+      a platform security model built on protected transport and OS-backed storage. Cleartext
+      traffic and confidential data in plain application storage are the durable,
+      platform-independent failures of that part of the model. No API level, SDK, library or
+      framework is named; no certificate pinning, root/jailbreak detection, obfuscation or
+      anti-tampering is required; no iOS- or Android-specific wording. Which data "requires
+      confidentiality" is an owner judgement recorded in the review. Permission scope and denial
+      handling are governed by SEC-004, not here. Current Android mechanisms are Guidance
+      (decision 0030). This rule claims NO machine enforcement, no target cell, no coverage and no
+      mechanism, and declaring the review obligation does not claim that review evidence is
+      collected, checked or reported by any mechanism here.
+
+  # ---------------------------------------------------------------------------
+  - id: ACC-005
+    status: active
+    domain: accessibility
+    applicability:
+      state: conditional
+      requires:
+        - mobile-app
+    title: Mobile accessibility semantics, screen-reader operability and text contrast
+    severity: error
+    non_bypassable: false
+    targeting:
+      state: unimplemented
+      declared_surfaces:
+        - file.content
+    conformance:
+      mode: review
+    rationale: >-
+      In the mobile application: (1) meaningful non-text user-interface elements and interactive
+      controls expose labels and semantics usable by the platform's accessibility system; (2) the
+      application's primary user flows are operable with the platform's screen reader or
+      equivalent built-in accessibility service; and (3) text has a contrast ratio of at least
+      4.5:1, or at least 3:1 for large-scale text, except for text that is part of an inactive
+      user-interface component, is pure decoration, is not visible to anyone, is part of a picture
+      that contains significant other visual content, or is part of a logo or brand name.
+      Satisfaction is established by human review of the application as delivered. People using a
+      screen reader or with low vision can use a mobile application only if its controls are
+      exposed to the platform accessibility system, its main flows actually complete under the
+      screen reader, and its text is legible. Which flows are "primary" is recorded in the review.
+      No touch-target number (`dp`, points or CSS pixels) — Guidance, see decision 0030; no
+      screen-reader product name; no UI toolkit; no iOS-specific requirement; no store-quality
+      threshold; no claim of WCAG or platform conformance overall. The contrast clause restates
+      its exceptions inline so that this Rule has no textual dependency on ACC-004. This rule
+      claims NO machine enforcement, no target cell, no coverage and no mechanism, and declaring
+      the review obligation does not claim that review evidence is collected, checked or reported
+      by any mechanism here.

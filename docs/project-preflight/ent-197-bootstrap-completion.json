@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-197-bootstrap-completion.json",
+  "recordDate": "2026-10-02",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-197",
+    "relatedWorkUnits": ["ENT-196", "ENT-198"],
+    "title": "Complete the governed Bootstrap of the Readela repository through the Stage 4 Receipt",
+    "authorizingDecision": "DEC-100",
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner Bootstrap completion authorization of 2026-10-02, recorded in the managerial work unit ENT-197. It authorizes: a main ruleset for this repository as the target-specific external mutation boundary; Bootstrap Apply of an exact owner-approved frozen package; a commit of exactly the published result and a push of the existing focused branch; the later addition of the observed verify check as a strict required status check; controlled integration through pull request 1; and the Stage 4 Receipt. It names the approved OS execution identity. It excludes extension-store submission, public release publication, Safari implementation, unrelated product changes, dependency upgrades and unrelated cleanup. It also states that a repository Preflight change needed for Bootstrap ADR-006 is limited to the minimum correction, is followed by a fresh Prepare, and stops at the exact-package authorization boundary.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": [
+      "docs/project-preflight/ent-197-repository-establishment.json",
+      "docs/project-preflight/ent-198-claude-support.json"
+    ],
+    "status": "Both remain the records for the work they cover and are not edited. Both place Bootstrap Apply, ruleset changes and merge out of scope, and neither declares how the OS execution identity is observed. This record covers that scope and makes that declaration."
+  },
+  "baseCommit": "b01bcf843a889981691372793e600962db0957cf",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope expands outside the scope covered by the current Preflight: the main ruleset, Bootstrap Apply, controlled integration and the Stage 4 Receipt"
+    ],
+    "contractReason": "Universal Project Bootstrap ADR-006 requires the applicable work-specific Preflight to state exactly how the OS execution identity is observed for the work unit. No earlier record in this repository states it.",
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. Bootstrap main d3efc7c5d1d99b20f6691c8242fc2892e530c176 still pins dev-standards v0.6.0 with the identities below; re-verified on 2026-10-02.",
+      "protocolChanged": "No. The revision is v1.23, the revision the earlier records were assessed under."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-02",
+    "branch": "feat/ent-198-first-usable-extension at b01bcf843a889981691372793e600962db0957cf, clean worktree and index, equal to the remote branch.",
+    "main": "bca17d071daac544c1a9b4be6f834888e7ebfead, locally and on the remote.",
+    "pullRequest": "amir42com/readela pull request 1: open, draft, head equal to the branch above, base main.",
+    "repositoryRulesets": "None. No rule applies to main.",
+    "hostedWorkflows": "No workflow file and no workflow run exist.",
+    "bootstrapOperationState": "No Bootstrap output exists in the repository. Apply has not been run.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed alone on the existing focused branch before any of the work it covers.",
+      "Bootstrap Inspect, Plan and Prepare for the target state that contains this record (read-only on the target).",
+      "The main ruleset described under mutationBoundary, created and verified before Bootstrap Apply.",
+      "Bootstrap Apply of the exact frozen package that the owner approves for that target state, and Reconcile only if Apply leaves operation state.",
+      "One commit of exactly the Bootstrap-published result, and a push of the existing focused branch.",
+      "The status-check addition described under mutationBoundary, after the real check has been observed.",
+      "Controlled integration through pull request 1 and verification of the integrated main.",
+      "The Stage 4 Receipt on the integrated main."
+    ],
+    "outOfScope": [
+      "Product code, product documentation and tests.",
+      "Hand-built substitutes for Bootstrap outputs, hook installation, and lock upgrade or repair.",
+      "Extension-store submission, release publication, signing and public distribution.",
+      "Safari, reading-position marker and any new product functionality.",
+      "Dependency upgrades, unrelated refactors and cleanup.",
+      "Changes to upstream dev-standards or Project Bootstrap; Project Exceptions."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "tagObjectId": "95f5b6d42bfb20e21f3c7fe2019b00f52abdd348",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "pinnedBy": "Universal Project Bootstrap main d3efc7c5d1d99b20f6691c8242fc2892e530c176 (src/source.mjs).",
+    "adoptedInTarget": false,
+    "adoptionNote": "The baseline is adopted only by a completed Bootstrap Apply. Until then no consumer bundle, lock or verifier exists in this repository and no conformance claim is made."
+  },
+  "requestedBootstrapOperations": [
+    { "id": "dev-standards-adoption", "destination": ".governance/dev-standards" },
+    { "id": "governance-ci-insertion", "destination": ".github/workflows/dev-standards-verify.yml" },
+    { "id": "project-instructions", "destination": "docs/project-instructions.md" }
+  ],
+  "executionIdentity": {
+    "governingContract": "Universal Project Bootstrap ADR-002 and ADR-006.",
+    "approvedIdentity": "The OS account the owner approved for Bootstrap Apply, Reconcile and Receipt on this target is named in the managerial work unit ENT-197. This repository is public, so the machine and account name are not repeated here.",
+    "observationMethod": "On this Windows target the executing identity is the account that owns the running process, read from the process access token through the platform identity interface (System.Security.Principal.WindowsIdentity.GetCurrent, properties Name and User). It is cross-checked with the platform whoami command, run with the /user option from the system directory that the operating system reports. Neither reading uses an environment variable, a Git or hosting-platform account, repository ownership, a caller-supplied string or a Bootstrap preparation field.",
+    "comparison": "The account name read from the token must equal the approved identity as an exact string. The whoami reading must name the same account, compared without regard to letter case because Windows account names are case-insensitive, and its security identifier must equal the security identifier read from the token exactly. Any difference blocks the Gate.",
+    "gateRequirement": "Before Bootstrap Apply, Reconcile or Receipt is run for this target, the applicable Gate records a fresh observation by this method and the comparison result. The observation is retained with the Bootstrap evidence outside this repository.",
+    "limits": "This is an assumption-and-evidence boundary. It provides no cross-user exclusion and adds nothing to the Bootstrap runtime."
+  },
+  "mutationBoundary": {
+    "status": "PENDING at record time. Owner-authorized in ENT-197; not yet created.",
+    "requirement": "Mutation of a real governed target requires a verified external mutation boundary for that target. A boundary established for another repository grants no authority here.",
+    "mechanism": "One native repository ruleset on amir42com/readela targeting only refs/heads/main.",
+    "initialRuleset": {
+      "name": "ENT-197 main protection",
+      "target": "branch",
+      "enforcement": "active",
+      "bypass_actors": [],
+      "conditions": {
+        "ref_name": { "include": ["refs/heads/main"], "exclude": [] }
+      },
+      "rules": [
+        { "type": "deletion" },
+        { "type": "non_fast_forward" },
+        {
+          "type": "pull_request",
+          "parameters": {
+            "required_approving_review_count": 0,
+            "dismiss_stale_reviews_on_push": false,
+            "required_reviewers": [],
+            "require_code_owner_review": false,
+            "require_last_push_approval": false,
+            "required_review_thread_resolution": false,
+            "require_extra_approval_for_unattributed_changes": false,
+            "allowed_merge_methods": ["merge", "squash", "rebase"]
+          }
+        }
+      ]
+    },
+    "verification": "The created ruleset is read back and compared field by field, and the effective rules for main are read. The Gate requires no bypass actor and a current-user bypass value of never.",
+    "statusCheckAddition": {
+      "when": "After the governance workflow published by Bootstrap has completed a successful push-event run on the focused branch in this repository.",
+      "rule": "A required_status_checks rule with the strict policy enabled, naming the observed check context and the integration that produced it.",
+      "identityNote": "The expected context is verify. The context and the integration identity are read from the real check run and are not assumed; a different observed context stops the change."
+    },
+    "knownLimits": [
+      "A repository administrator can change or delete a repository ruleset; the boundary constrains reference updates, not administration."
+    ]
+  },
+  "exactPackageBoundary": {
+    "earlierPackage": "The preparation the owner approved is bound to baseCommit. The commit that adds this record changes HEAD, so that preparation is no longer usable and its approval does not transfer.",
+    "requirement": "Inspect, Plan and Prepare are run again against the commit that contains this record. Bootstrap Apply requires owner approval of that exact frozen final Plan, target identity, operation set and candidate identities, including the .gitattributes candidate.",
+    "recording": "A preparation's identities depend on the commit that contains this file, so they cannot be written here. They are recorded in the managerial system (ENT-197) and the package is held outside the repository."
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission or privacy rule.",
+      "handling": "Unchanged by this work. The project-local controls in docs/privacy-and-permissions.md continue to apply."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "dev-standards consumer bundle, neutral docs/project-instructions.md pointer and governance CI are not published.",
+      "reason": "They are Bootstrap Apply outputs and Apply is blocked at record time (see gates.bootstrapApply). They are not written by hand.",
+      "revisitTrigger": "Owner approval of the exact frozen package for the target state that contains this record."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "The owner chose the Protocol's controlled-integration path for this bounded bootstrap completion.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "The trust-relevant changes are the default-branch ruleset and the governance trust anchor. They receive field-by-field ruleset read-back, byte comparison of every published destination with its frozen candidate, the authenticated verifier on the worktree, and hosted verify runs on the branch, the pull request and the integrated main."
+  },
+  "gates": {
+    "preflightRecordAndPrepare": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-02",
+      "covers": "The commit that adds this record, its push to the existing focused branch, and Bootstrap Inspect, Plan and Prepare against the resulting target state.",
+      "basis": [
+        "The owner authorization recorded in ENT-197 provides for the minimum Preflight correction and a fresh Prepare.",
+        "Protocol, Project state, the related work units and the accepted Decisions were re-read and are consistent with that authorization.",
+        "Repository, remote branch and pull request match verifiedStartingState; no unrelated local change exists.",
+        "The change is this file only."
+      ]
+    },
+    "bootstrapApply": {
+      "result": "BLOCKED",
+      "evaluatedOn": "2026-10-02",
+      "satisfied": [
+        "The owner-approved OS execution identity is named in ENT-197.",
+        "The observation method is declared in this record."
+      ],
+      "unmetPrerequisites": [
+        "Owner approval of the exact frozen final Plan and candidate identities for the target state that contains this record.",
+        "The main ruleset is not yet created and verified.",
+        "The execution-time Gate, with the OS execution identity observation and comparison, is not yet recorded."
+      ],
+      "consequence": "Apply is not run. Its outputs are not imitated by hand."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope.",
+    "Declared Capabilities or Exceptions change.",
+    "The applicable baseline identity changes, or Bootstrap main no longer pins it.",
+    "HEAD stops descending from baseCommit.",
+    "The owner-approved OS execution identity changes, or the observation does not match it.",
+    "Project Operating Protocol semantics materially change before integration."
+  ]
+}
