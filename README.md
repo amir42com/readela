@@ -10,9 +10,11 @@ laid out left-to-right, list markers land on the wrong side and punctuation
 jumps to the wrong end. Readela decides the direction of each paragraph from
 its whole text and presents it accordingly, without changing the text.
 
-This repository holds an **evaluation build**. Publication through the Chrome
-Web Store and Firefox Add-ons is planned; nothing has been submitted, signed
-or published, and no release has been made.
+Readela is distributed through the Chrome Web Store and Firefox Add-ons
+(AMO). The dated evidence under `docs/evidence/` records which version was
+submitted to which store and what each store reported; the managerial system
+owns the current release status. The packages in this repository can also be
+built and loaded for development, as described below.
 
 ## What it does
 
@@ -115,7 +117,9 @@ no remote code or fonts, and stores only your preferences.
 | Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction and mark blocks for presentation. |
 | `storage` | Remember preferences locally. |
 
-Details: [docs/privacy-and-permissions.md](docs/privacy-and-permissions.md).
+Privacy policy: [docs/privacy-policy.md](docs/privacy-policy.md). Technical
+controls and how they are verified:
+[docs/privacy-and-permissions.md](docs/privacy-and-permissions.md).
 
 ## Limitations
 
@@ -145,6 +149,8 @@ Details: [docs/privacy-and-permissions.md](docs/privacy-and-permissions.md).
 npm test                 # core rules, stylesheet and site contract
 npm run build            # dist/chrome and dist/firefox
 npm run package          # build + archives in dist/packages
+npm run source-package   # source archive of the current commit, for review
+npm run store-images     # store listing images from the built extension
 npm run browsers:firefox # one-time: download Firefox for the tests into .cache/
 npm run test:e2e         # real Chrome and Firefox, temporary profiles
 ```
@@ -153,6 +159,33 @@ npm run test:e2e         # real Chrome and Firefox, temporary profiles
 Firefox in `.cache/` (or `READELA_FIREFOX`). It never uses an existing browser
 profile. Add `-- --live` to also open the real signed-out start pages; nothing
 is typed or sent there.
+
+### Reproducing the store packages
+
+The packages submitted to the stores are built from a tagged commit with the
+commands above; nothing is minified and no step is manual. To reproduce one:
+
+```sh
+npm ci            # installs exactly the versions in package-lock.json
+npm run package   # dist/chrome, dist/firefox and dist/packages/*.zip
+```
+
+- Requires Node.js 22.15 or newer and the npm that ships with it. The
+  packages were built on Windows 11 with Node.js 22.23.1 and rebuilt
+  byte-for-byte with Node.js 20.20.2; the bundler output does not depend on
+  the operating system.
+- `dist/firefox/` is the content of the Firefox package and `dist/chrome/`
+  the content of the Chrome package; the only difference is `manifest.json`.
+  Each has 12 files.
+- The archives are written by `scripts/lib/zip.mjs` with sorted entries and a
+  fixed timestamp, so the same files give the same archive bytes. If an
+  archive differs, compare the extracted files: they are what the browser
+  installs. Archive bytes can differ between zlib versions while the files are
+  identical.
+- `npm run source-package` writes `dist/packages/readela-<version>-source.zip`,
+  the tracked tree of the current commit, for the Firefox Add-ons source
+  review. `npm run store-images` regenerates `docs/store-images/` from the
+  built extension and the synthetic test conversations.
 
 Layout: `src/core` (portable rules), `src/page` (page integration and one
 adapter per site), `src/browser` (extension APIs), `src/ui` (popup). See

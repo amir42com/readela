@@ -13,6 +13,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "package": "node scripts/build.mjs --package",
+    "source-package": "node scripts/source-package.mjs",
+    "store-images": "node scripts/store-images.mjs",
     "icons": "node scripts/make-icons.mjs",
     "test": "node --test \"test/core/*.test.mjs\" \"test/page/*.test.mjs\"",
     "test:e2e": "node test/e2e/run.mjs",
