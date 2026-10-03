@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 3,
+  "mechanisms": {
+    "attr-local-commit-message": { "environment": "local", "evidence": ["scripts/hook-runner.mjs", "tests/hooks/hook-behavior.test.mjs"] },
+    "attr-local-staged-content": { "environment": "local", "evidence": ["scripts/hook-runner.mjs", "tests/hooks/pre-commit-runner.test.mjs"] },
+    "attr-ci-commit-message": { "environment": "ci", "evidence": ["scripts/ci-enforce.mjs", "tests/ci/ci-wrapper.test.mjs"] },
+    "attr-ci-pr-metadata": { "environment": "ci", "evidence": ["scripts/ci-enforce.mjs", "tests/engine/pr-coauthor.test.mjs"] },
+    "attr-ci-changed-content": { "environment": "ci", "evidence": ["scripts/ci-enforce.mjs", "tests/ci/ci-detection.test.mjs"] },
+    "sec-local-staged-git": { "environment": "local", "evidence": ["scripts/lib/staged-snapshot.mjs", "tests/sec/staged-scope.test.mjs"] },
+    "sec-local-message-stdin": { "environment": "local", "evidence": ["scripts/hook-runner.mjs", "tests/sec/commit-message-hook.test.mjs"] },
+    "sec-ci-range-git": { "environment": "ci", "evidence": ["scripts/ci-sec-scan.mjs", "tests/sec/range-isolation.test.mjs"] },
+    "sec-ci-message-stdin": { "environment": "ci", "evidence": ["scripts/lib/ci-message-scan.mjs", "tests/sec/ci-message-range.test.mjs"] },
+    "name-local-branch": { "environment": "local", "evidence": ["scripts/hook-runner.mjs", "tests/engine/naming.test.mjs"] },
+    "name-local-subject": { "environment": "local", "evidence": ["scripts/hook-runner.mjs", "tests/hooks/hook-behavior.test.mjs"] },
+    "name-ci-branch": { "environment": "ci", "evidence": ["scripts/ci-enforce.mjs", "tests/ci/ci-detection.test.mjs"] },
+    "name-ci-subject": { "environment": "ci", "evidence": ["scripts/ci-enforce.mjs", "tests/ci/ci-wrapper.test.mjs"] },
+    "acc-local-staged-content": { "environment": "local", "evidence": ["scripts/hook-runner.mjs", "tests/engine/accessibility.test.mjs"] },
+    "acc-ci-changed-content": { "environment": "ci", "evidence": ["scripts/ci-enforce.mjs", "tests/engine/accessibility.test.mjs"] }
+  },
+  "rules": {
+    "ATTR-001": {
+      "locations": {
+        "commit.subject": { "local": { "mechanism": "attr-local-commit-message" }, "ci": { "mechanism": "attr-ci-commit-message" } },
+        "commit.body": { "local": { "mechanism": "attr-local-commit-message" }, "ci": { "mechanism": "attr-ci-commit-message" } },
+        "commit.trailer": { "local": { "mechanism": "attr-local-commit-message" }, "ci": { "mechanism": "attr-ci-commit-message" } },
+        "pr.title": { "ci": { "mechanism": "attr-ci-pr-metadata" } },
+        "pr.body": { "ci": { "mechanism": "attr-ci-pr-metadata" } },
+        "file.content": { "local": { "mechanism": "attr-local-staged-content" }, "ci": { "mechanism": "attr-ci-changed-content" } },
+        "file.path": { "local": { "mechanism": "attr-local-staged-content" }, "ci": { "mechanism": "attr-ci-changed-content" } },
+        "package.metadata": { "local": { "mechanism": "attr-local-staged-content" }, "ci": { "mechanism": "attr-ci-changed-content" } }
+      }
+    },
+    "SEC-001": {
+      "locations": {
+        "file.content": { "local": { "mechanism": "sec-local-staged-git" }, "ci": { "mechanism": "sec-ci-range-git" } },
+        "commit.subject": { "local": { "mechanism": "sec-local-message-stdin" }, "ci": { "mechanism": "sec-ci-message-stdin" } },
+        "commit.body": { "local": { "mechanism": "sec-local-message-stdin" }, "ci": { "mechanism": "sec-ci-message-stdin" } }
+      }
+    },
+    "NAME-001": {
+      "locations": {
+        "git.branch": { "local": { "mechanism": "name-local-branch" }, "ci": { "mechanism": "name-ci-branch" } },
+        "commit.subject": { "local": { "mechanism": "name-local-subject" }, "ci": { "mechanism": "name-ci-subject" } }
+      }
+    },
+    "ACC-001": {
+      "locations": {
+        "file.content": { "local": { "mechanism": "acc-local-staged-content" }, "ci": { "mechanism": "acc-ci-changed-content" } }
+      }
+    }
+  }
+}

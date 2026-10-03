@@ -1,0 +1,287 @@
+{
+  "artifactSchemaVersion": 2,
+  "sourceRepository": "amir42com/dev-standards",
+  "policyRef": "v0.6.0",
+  "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+  "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+  "resolverVersion": 2,
+  "capabilities": [
+    "web-interface"
+  ],
+  "payload": {
+    "exceptions": [],
+    "rules": [
+      {
+        "conformance": {
+          "mode": "none"
+        },
+        "id": "ACC-001",
+        "non_bypassable": false,
+        "parameters": {},
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "cells": [
+            {
+              "environment": "local",
+              "location": "file.content"
+            },
+            {
+              "environment": "ci",
+              "location": "file.content"
+            }
+          ],
+          "state": "targeted"
+        }
+      },
+      {
+        "conformance": {
+          "mode": "review"
+        },
+        "id": "ACC-002",
+        "non_bypassable": false,
+        "parameters": {},
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "declared_surfaces": [
+            "file.content"
+          ],
+          "state": "unimplemented"
+        }
+      },
+      {
+        "conformance": {
+          "mode": "attestation"
+        },
+        "id": "ACC-003",
+        "non_bypassable": false,
+        "parameters": {},
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "declared_surfaces": [
+            "file.content"
+          ],
+          "state": "unimplemented"
+        }
+      },
+      {
+        "conformance": {
+          "mode": "review"
+        },
+        "id": "ACC-004",
+        "non_bypassable": false,
+        "parameters": {},
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "declared_surfaces": [
+            "file.content"
+          ],
+          "state": "unimplemented"
+        }
+      },
+      {
+        "conformance": {
+          "mode": "none"
+        },
+        "id": "ATTR-001",
+        "non_bypassable": true,
+        "parameters": {
+          "distinction": "A finding is a violation only when the text attributes authorship or provenance of the change itself. Text that discusses attribution or automation as a subject, without claiming it authored the change, is permitted.",
+          "permitted": "functional-or-subject-matter-reference",
+          "prohibited": "structural-authorship-or-provenance-attribution-of-the-change"
+        },
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "cells": [
+            {
+              "environment": "local",
+              "location": "commit.subject"
+            },
+            {
+              "environment": "ci",
+              "location": "commit.subject"
+            },
+            {
+              "environment": "local",
+              "location": "commit.body"
+            },
+            {
+              "environment": "ci",
+              "location": "commit.body"
+            },
+            {
+              "environment": "local",
+              "location": "commit.trailer"
+            },
+            {
+              "environment": "ci",
+              "location": "commit.trailer"
+            },
+            {
+              "environment": "ci",
+              "location": "pr.title"
+            },
+            {
+              "environment": "ci",
+              "location": "pr.body"
+            },
+            {
+              "environment": "local",
+              "location": "file.content"
+            },
+            {
+              "environment": "ci",
+              "location": "file.content"
+            },
+            {
+              "environment": "local",
+              "location": "file.path"
+            },
+            {
+              "environment": "ci",
+              "location": "file.path"
+            },
+            {
+              "environment": "local",
+              "location": "package.metadata"
+            },
+            {
+              "environment": "ci",
+              "location": "package.metadata"
+            }
+          ],
+          "state": "targeted"
+        }
+      },
+      {
+        "conformance": {
+          "mode": "attestation"
+        },
+        "id": "META-001",
+        "non_bypassable": true,
+        "parameters": {
+          "activation": "explicit-owner-approval-required-for-external-automated-review",
+          "permitted": [
+            "platform-native-required-identity",
+            "owner-approved-functional-reference",
+            "generic-policy-terminology"
+          ],
+          "prohibited": [
+            "optional-automated-tool-or-service-identity",
+            "bot-or-service-signature",
+            "account-quota-or-usage-message",
+            "unapproved-automated-review-output"
+          ]
+        },
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "declared_surfaces": [
+            "commit.subject",
+            "commit.body",
+            "commit.trailer",
+            "pr.title",
+            "pr.body",
+            "pr.comment",
+            "pr.review",
+            "issue.title",
+            "issue.body",
+            "issue.comment",
+            "release.metadata",
+            "workflow.message",
+            "changelog.entry",
+            "file.content",
+            "file.path",
+            "package.metadata"
+          ],
+          "state": "unimplemented"
+        }
+      },
+      {
+        "conformance": {
+          "mode": "none"
+        },
+        "id": "NAME-001",
+        "non_bypassable": false,
+        "parameters": {
+          "branch": "type-prefixed-kebab-case",
+          "commit_subject": "conventional-commits-style",
+          "covers": [
+            "git.branch",
+            "commit.subject"
+          ],
+          "excludes": [
+            "file-or-folder-naming"
+          ]
+        },
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "cells": [
+            {
+              "environment": "local",
+              "location": "git.branch"
+            },
+            {
+              "environment": "ci",
+              "location": "git.branch"
+            },
+            {
+              "environment": "local",
+              "location": "commit.subject"
+            },
+            {
+              "environment": "ci",
+              "location": "commit.subject"
+            }
+          ],
+          "state": "targeted"
+        }
+      },
+      {
+        "conformance": {
+          "mode": "none"
+        },
+        "id": "SEC-001",
+        "non_bypassable": true,
+        "parameters": {},
+        "severity": "error",
+        "status": "active",
+        "targeting": {
+          "cells": [
+            {
+              "environment": "local",
+              "location": "file.content"
+            },
+            {
+              "environment": "ci",
+              "location": "file.content"
+            },
+            {
+              "environment": "local",
+              "location": "commit.subject"
+            },
+            {
+              "environment": "ci",
+              "location": "commit.subject"
+            },
+            {
+              "environment": "local",
+              "location": "commit.body"
+            },
+            {
+              "environment": "ci",
+              "location": "commit.body"
+            }
+          ],
+          "state": "targeted"
+        }
+      }
+    ]
+  },
+  "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692"
+}

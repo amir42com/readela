@@ -1,0 +1,24 @@
+# Governance workflow published by Universal Project Bootstrap. It runs the
+# repository's vendored dev-standards verifier and nothing else. It proves the pinned
+# bundle's identity and bytes; it claims no behavioural enforcement or Conformance.
+name: dev-standards-verify
+
+permissions:
+  contents: read
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+      - name: dev-standards verifier
+        run: node .governance/dev-standards/verify-dev-standards.mjs

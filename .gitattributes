@@ -1,2 +1,9 @@
 * text=auto eol=lf
 *.png binary
+
+# Immutable dev-standards source pin.
+#
+# These files are byte-exact canonical evidence. They must never be line-ending
+# normalized, so their bytes stay identical on every platform and the recorded SHA-256
+# digests remain verifiable.
+.governance/dev-standards/** -text

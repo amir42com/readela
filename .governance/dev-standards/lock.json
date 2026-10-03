@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "sourceRepository": "amir42com/dev-standards",
+  "policyRef": "v0.6.0",
+  "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+  "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+  "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692"
+}

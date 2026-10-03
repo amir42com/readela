@@ -1,0 +1,31 @@
+{
+  "bundleFormatVersion": 2,
+  "generated": true,
+  "doNotEdit": true,
+  "sourceRepository": "amir42com/dev-standards",
+  "policyRef": "v0.6.0",
+  "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+  "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+  "files": [
+    {
+      "path": "policy/enforcement-coverage.json",
+      "sha256": "5dcc606828aaf817c9f06ef5087d85fb67e39d5ccd0d514e085b8877e0170217",
+      "bytes": 3950
+    },
+    {
+      "path": "policy/global-policy.yaml",
+      "sha256": "e6af7ee293ac38ede55717c0bc15d50447ad15eb45d7aa718c8e9068d3de58c6",
+      "bytes": 46809
+    },
+    {
+      "path": "schemas/global-policy.schema.json",
+      "sha256": "074a56f11c78436895d763b4178bd015b760210ff4dcab735ae5329af1ca0f7f",
+      "bytes": 14219
+    },
+    {
+      "path": "tools/gitleaks.lock.json",
+      "sha256": "3697887f18f5add814e1cecab25d6adb7c74634c189c411e87f0c8d1fb011302",
+      "bytes": 1248
+    }
+  ]
+}
