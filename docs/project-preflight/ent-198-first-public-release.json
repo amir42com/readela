@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-198-first-public-release.json",
+  "recordDate": "2026-10-03",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-198",
+    "relatedWorkUnits": ["ENT-196", "ENT-197", "ENT-199"],
+    "title": "First public release of Readela 0.2.0 through the Chrome Web Store and Firefox Add-ons (AMO)",
+    "authorizingDecisions": ["DEC-100", "DEC-102", "DEC-103", "DEC-104"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner execution authorization of 2026-10-03, recorded in the managerial work unit ENT-198. It authorizes the bounded release workflow for the 0.2.0 build already on main: this release Preflight and its Gates; the focused repository changes needed for truthful store readiness; final verification, build and hash evidence; integration through the protected main; and submission of the exact Gate-approved Chrome and Firefox artifacts to the already-selected Chrome Web Store and Firefox AMO routes when authenticated provider access and every mandatory prerequisite exist. No routine approval stop is required for those steps. It does not permit creating an owner identity or developer account where identity verification is required, exposing or persisting credentials, bypassing multi-factor authentication, incurring a fee or payment, accepting a developer agreement or legal attestation on the owner's behalf, making a legal or trademark claim, renaming the product, or broadening scope. Work stops at exactly such a boundary after every safe prior step is complete.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": [
+      "docs/project-preflight/ent-197-repository-establishment.json",
+      "docs/project-preflight/ent-198-claude-support.json",
+      "docs/project-preflight/ent-197-bootstrap-completion.json"
+    ],
+    "status": "All three remain the records for the work they cover and are not edited. Each places extension-store submission, release publication, signing and public distribution out of scope. This record covers that scope."
+  },
+  "baseCommit": "db7dcfeb782be38c427823a77e567717054973c3",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope expands outside the scope covered by the current Preflights: public store submission and release publication",
+      "the work changes a trust boundary: the first artifact distributed to the public, signed by Mozilla for Firefox and reviewed by Google for Chrome, with provider-side listing and privacy declarations that bind the project publicly"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"]; see capabilities.assessment.",
+      "baselineIdentityChanged": "No. The vendored dev-standards pin is v0.6.0 with the identities below; the verifier passed on baseCommit on 2026-10-03.",
+      "protocolChanged": "No. The revision is v1.23, the revision every earlier record was assessed under."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-03",
+    "main": "db7dcfeb782be38c427823a77e567717054973c3 locally and on the remote; clean worktree and index.",
+    "pullRequests": "amir42com/readela pull request 1 merged as the main commit above. No other pull request exists.",
+    "repositoryRuleset": "ENT-197 main protection, id 24401132, active on refs/heads/main only, no bypass actors: deletion, non_fast_forward, pull_request (0 approvals), required_status_checks strict with context verify from integration 15368.",
+    "hostedWorkflow": "dev-standards-verify; check verify succeeded on the push of main db7dcfe (run 37086008956).",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree; npm test: 23 tests passed.",
+    "product": "package.json version 0.2.0; Manifest V3; permissions [\"storage\"]; content-script matches exactly https://chatgpt.com/* and https://claude.ai/*; Firefox id readela@amir42.com with data_collection_permissions.required [\"none\"].",
+    "releases": "No Git tag, GitHub release, store listing, store submission, signed package or published artifact exists.",
+    "providerAccounts": "Not verified at record time. Whether a Chrome Web Store developer account and a Mozilla account with AMO access already exist for the owner is established only at the publication Gates.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed alone on a focused branch from baseCommit and integrated through the protected main before any other release-facing change is frozen.",
+      "A practical release name check for Readela and Readela by Amir42 (store searches, general software search, software-discovery surfaces, IP Australia's official trade mark search), recorded as dated evidence. It is not legal advice or trademark clearance.",
+      "Release-readiness repository changes on a second focused branch: a user-facing public privacy policy; a store listing kit with the shared product truth, provider-specific answers and reviewer notes; the AMO source-review package script and its build instructions; store images taken from the real extension on the synthetic test conversations; and only the minimal metadata corrections a truthful submission requires.",
+      "The existing verification run against those changes: dev-standards verifier, unit tests, real-browser checks in Chrome and Firefox, packaging, and the privacy, network and permission contract checks.",
+      "Integration of the release-readiness changes through one pull request with a green verify check and an integration Gate.",
+      "Freezing the final main commit for 0.2.0, building the Chrome package, the Firefox package and the AMO source archive from a clean clone, computing their SHA-256 digests, and retaining them with the exact source commit outside this repository under the project's evidence convention.",
+      "An execution-time publication Gate per provider, bound to the exact source commit, the exact artifact digests, the current Preflight, Decisions and Product Brief, green repository verification, the current ruleset, the name-check result, the current provider requirements, the exact target channel, the authenticated account state and listing metadata that corresponds to the exact artifact.",
+      "Submission of the exact Gate-approved artifacts and prepared metadata to the Chrome Web Store and to AMO for public listing, and verification of the resulting provider state.",
+      "A v0.2.0 Git tag or release only when it binds to the exact frozen source used for the store artifacts and is consistent with the repository's conventions.",
+      "Dated evidence under docs/evidence/ for results actually observed, and managerial reconciliation."
+    ],
+    "outOfScope": [
+      "Safari, the reading-position marker, per-site preferences, focus modes, other websites and any new product functionality.",
+      "Any broadening of permissions, match patterns or stored data; analytics, telemetry, remote code, bundled or downloaded fonts.",
+      "Product redesign, popup redesign, dependency upgrades, a new build system, unrelated refactors and cleanup.",
+      "Renaming the product, and any legal or trademark clearance claim.",
+      "Creating or registering a developer identity, paying a fee, accepting a developer agreement or legal attestation, completing identity or multi-factor verification, or handling credentials on the owner's behalf.",
+      "Changes to the amir42.com website repository.",
+      "Changes to declared Capabilities or Exceptions; changes to upstream dev-standards or Project Bootstrap; changes to the repository ruleset."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "assessment": "Publication does not add a Capability. There is still no backend or operated service, no data analysis or predictive model, and the Firefox listing targets desktop only; Android compatibility is not claimed. The Safari revisit trigger recorded in ent-198-claude-support.json is unchanged."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692",
+    "adoptedInTarget": true,
+    "verification": "node .governance/dev-standards/verify-dev-standards.mjs, locally and as the required verify check."
+  },
+  "publicIdentity": {
+    "source": "DEC-102 and DEC-103, and the Amir42 identity record for the mailbox; re-read on 2026-10-03.",
+    "productName": "Readela",
+    "publicPresentation": "Readela by Amir42",
+    "publisher": "Amir42",
+    "author": "Amir",
+    "website": "https://amir42.com",
+    "supportMailbox": "hello@amir42.com",
+    "supportMailboxNote": "The public mailbox. Admin identities are never used as public contacts.",
+    "license": "MIT",
+    "firefoxAddonId": "readela@amir42.com",
+    "version": "0.2.0",
+    "channels": ["Chrome Web Store", "Firefox Add-ons (AMO), listed, desktop"]
+  },
+  "providerRequirements": {
+    "verifiedOn": "2026-10-03",
+    "authority": "Official Google (developer.chrome.com) and Mozilla (extensionworkshop.com) documentation read on the date above. Dashboard wording is confirmed on the live dashboards at submission time; this record does not freeze it.",
+    "chromeWebStore": [
+      "Developer registration with a one-time fee and acceptance of the developer agreement and policies; publishing requires two-step verification on the account. Owner-only.",
+      "Store icon 128x128 PNG in the package (present: icons/icon-128.png); 1 to 5 screenshots at 1280x800 or 640x400; one 440x280 small promotional image; marquee image optional.",
+      "Privacy practices: a single-purpose statement, a justification for every permission and for site access, a remote-code declaration, user-data handling disclosures and the certifications, and a privacy-policy URL. Google states that handling must be disclosed even when data is processed or stored only locally, so Readela discloses its local handling of website content and does not claim that it handles no user data.",
+      "Submission enters review; an accepted item is not published until Google's review completes and the developer publishes within 30 days."
+    ],
+    "firefoxAmo": [
+      "A Mozilla account connected to AMO. Owner-only where account creation, e-mail confirmation or multi-factor verification is required.",
+      "Extensions whose packaged code is generated by a bundler must submit readable source with a README that lets a reviewer rebuild the package; Mozilla's reviewer environment is Ubuntu 24.04 with Node 24.14.0 and npm 11.9.0, and deviations must be documented.",
+      "Since 2025-11-03 every new extension must declare browser_specific_settings.gecko.data_collection_permissions; required [\"none\"] states that nothing is collected or transmitted and matches the project contract.",
+      "Listing metadata: name, summary, description, up to two categories, license, support e-mail and site, reviewer notes; a privacy policy is mandatory only when data leaves the device, and Readela provides one anyway. Submission is validated automatically, then reviewed; signing follows approval."
+    ]
+  },
+  "ordering": {
+    "contract": "Project Operating Protocol v1.23, governed install/deploy ordering for a prebuilt artifact.",
+    "sequence": [
+      "this record integrated into main",
+      "practical name check recorded",
+      "release-readiness changes integrated into main through a pull request with green verify and an integration Gate",
+      "final main commit frozen; Chrome package, Firefox package and AMO source archive built from a clean clone and hashed; a second clean build must reproduce the same bytes",
+      "execution-time publication Gate per provider, bound to the exact artifact and the current provider state",
+      "submission of the exact artifact; verification of the resulting provider state",
+      "close-out evidence and managerial reconciliation"
+    ],
+    "rebuildRule": "A rebuild after a publication Gate invalidates that Gate; the Gate is evaluated again against the new artifact before any submission."
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission, privacy or store-publication rule.",
+      "handling": "Unchanged. The project-local controls in docs/privacy-and-permissions.md apply; the public privacy policy added by this work restates them for readers of the store listings and must stay consistent with them under control 8."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "Practical name check not yet performed.",
+      "reason": "It is performed after this record is integrated, as the first release step, so that a material conflict stops the work before any release-facing change is frozen.",
+      "revisitTrigger": "Integration of this record."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "Provider account state unknown.",
+      "reason": "Whether the owner already holds a registered Chrome Web Store developer account and a Mozilla account with AMO access is observed only on the authenticated dashboards at the publication Gates.",
+      "revisitTrigger": "Each publication Gate."
+    },
+    {
+      "id": "OPEN-3",
+      "item": "Cross-environment reproducibility of the package bytes is not yet established.",
+      "reason": "The archive writer is deterministic and the bundler output is platform-independent by design, but the packages have so far been reproduced only on Windows. The AMO reviewer rebuilds on Linux with a newer Node.",
+      "revisitTrigger": "Release-readiness verification: reproduce the packages in a second environment or document the exact deterministic step."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "Product rigor with the exact-artifact identity discipline the published-artifact boundary calls for: every submitted file is bound by SHA-256 to one frozen source commit, every Gate names the artifact it assessed, and a published store version cannot be withdrawn and reused, only superseded.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": true,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "medium",
+      "operatedService": false
+    },
+    "targetedVerification": "The trust-relevant changes are the public artifacts and the public declarations about them. They receive: the full existing test run on the release-readiness head; a clean-clone build reproduced twice with equal digests; a check that the submitted listing and privacy statements equal the manifest and the privacy document of the exact artifact; and read-back of the provider's recorded version, identifier and status after each submission."
+  },
+  "gates": {
+    "preflightRecordIntegration": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-03",
+      "covers": "The commit that adds this record, its push on a focused branch from baseCommit, a pull request against main, and merge once the required verify check has succeeded on the exact head.",
+      "basis": [
+        "The owner authorization recorded in ENT-198 covers the release Preflight and its integration.",
+        "Protocol, Project state, ENT-196 to ENT-199, DEC-100, DEC-102, DEC-103 and DEC-104 and the two latest Updates were re-read and are consistent with that authorization.",
+        "Repository, remote and ruleset match verifiedStartingState; no unrelated local change exists.",
+        "The change is this file only."
+      ]
+    },
+    "releaseReadinessIntegration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "The pull request that carries the release-readiness changes, bound to its exact head, green verify, the current ruleset and this record. Recorded in dated evidence under docs/evidence/."
+    },
+    "publicationChromeWebStore": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Immediately before submission, bound to the exact frozen commit, the exact Chrome package digest, the authenticated account state and the prepared listing and privacy answers. Recorded in dated evidence."
+    },
+    "publicationFirefoxAmo": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Immediately before submission, bound to the exact frozen commit, the exact Firefox package digest, the exact source-archive digest, the authenticated account state and the prepared listing. Recorded in dated evidence."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope, or a provider requires a product or code change; such a change goes back through this Preflight path and a new Gate before resubmission.",
+    "Declared Capabilities or Exceptions change.",
+    "The applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "A material name conflict is found.",
+    "Two equivalent clean builds produce different package bytes without an explained cause.",
+    "Project Operating Protocol semantics materially change before publication."
+  ]
+}
