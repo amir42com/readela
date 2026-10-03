@@ -130,3 +130,88 @@ Observed, read-only, in the owner's browser on 2026-10-03:
 
 No store account, fee, terms, signing, submission or publication action was
 taken.
+
+## Release-readiness integration
+
+- Pull request 3 (`feat/ent-198-release-readiness`, head
+  `0bbaa92656210e07c607de6aa4eddb93f917f71b`): `verify` succeeded on the
+  push and on the pull request. Integration Gate: **PASS** (authorized
+  scope, documentation and listing assets only, product code unchanged,
+  verifier and tests green). Merged as
+  `95d80e89e8bb04b12af98c25c9794a2fd56aa2d8`; `verify` run `37088895800`
+  succeeded on that push of `main`.
+
+## Frozen source and final artifacts
+
+Frozen source: `main` `95d80e89e8bb04b12af98c25c9794a2fd56aa2d8`. Two
+independent clean clones of that commit were built on 2026-10-03 (Node.js
+22.23.1, `npm ci`, `npm test` 23/23, `npm run package`,
+`npm run source-package`) and produced identical archives:
+
+| File | SHA-256 |
+| --- | --- |
+| `readela-0.2.0-chrome.zip` | `d8674ab0a2c0519b2a2d3bf6be0470e73f430bdf62cc9fa35909686ae1a6b17a` |
+| `readela-0.2.0-firefox.zip` | `d74de1c18059d8241b5516df8b1f67d1926e5c5bd21c3a1af19dd227cf706307` |
+| `readela-0.2.0-source.zip` | `442fdc81c6d32ad890eace1a1e4a5e627287f620bce7ae1c2553b4099162bc1e` |
+
+The extracted Chrome and Firefox package contents equal the built `dist/`
+directories and differ from each other only in `manifest.json`. The archives,
+gate records and submission records are retained with checksums outside this
+repository under the project's evidence convention.
+
+## Publication Gates and provider submissions (2026-10-03)
+
+Both Gates were first evaluated **BLOCKED** at owner-only prerequisites
+(no registered Chrome Web Store developer account for the signed-in Google
+account; no Mozilla sign-in, then Mozilla's two-step-authentication
+requirement). The owner completed registration, the fee, sign-in and
+two-step authentication; both Gates were then re-evaluated against the
+frozen commit and the exact digests above and passed.
+
+### Firefox Add-ons (AMO)
+
+- Gate: **PASS**. Add-on slug `readela`, name "Readela by Amir42", GUID
+  `readela@amir42.com`, author shown as Amir42.
+- Version `0.2.0` (version id 6536763, file 5080906,
+  `readela_by_amir42-0.2.0.zip`, 13.5 KiB = the frozen Firefox package,
+  uploaded by the owner); source archive `readela-0.2.0-source.zip`
+  (383,224 bytes = the frozen archive) attached at the source-code step;
+  validation 0 errors and 1 informational warning about the Firefox for
+  Android minimum version (Android is not a declared target); compatibility
+  Firefox desktop 140.0 and up only; MIT License.
+- Listing entered through the authenticated session and read back: summary,
+  description, categories Appearance and Language Support, not experimental,
+  no payment, support e-mail `hello@amir42.com`, support site, homepage
+  `https://amir42.com`, the privacy policy text, reviewer notes with the
+  build instructions, the icon and three captioned screenshots.
+- Status read from the Status & Versions page: **Awaiting Review**. Not
+  published.
+
+### Chrome Web Store
+
+- Gate: **PASS**. Item `bmdgcjmdaliachiboghdeeodlkbjojlf`, "Readela by
+  Amir42", Publisher Amir42; package version `0.2.0` (the frozen Chrome
+  package, uploaded by the owner; Package tab: Extension, permissions storage
+  and host permission).
+- Google blocks browser automation on the Developer Dashboard, so the owner
+  entered every field from `docs/store-listing.md` while each saved page was
+  read back on screen: description, Category Accessibility, Language English,
+  store icon, four screenshots, small promo tile, homepage and support URLs,
+  no official URL, mature content off; Privacy: single purpose, storage and
+  host-permission justifications, remote code No, data usage "Website
+  content" only, all three certifications, privacy-policy URL; Distribution:
+  free of charge, Public, all regions; Test instructions saved.
+- Status after the owner's Submit for review: **Pending review**. Not
+  published.
+
+## Git release
+
+Annotated tag `v0.2.0` on exactly `95d80e89e8bb04b12af98c25c9794a2fd56aa2d8`
+and a GitHub Release carrying the three archives above with their digests;
+its notes state the store status as pending review. Tag references are not
+covered by the `main` ruleset.
+
+## Not yet done
+
+Neither store listing is public. Publication, the public URLs and the signed
+Firefox file are recorded only when the providers show them.
