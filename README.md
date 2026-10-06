@@ -66,8 +66,8 @@ npm run package
 This writes two loadable directories and two archives:
 
 ```
-dist/chrome/                              dist/packages/readela-0.2.0-chrome.zip
-dist/firefox/                             dist/packages/readela-0.2.0-firefox.zip
+dist/chrome/                              dist/packages/readela-0.2.1-chrome.zip
+dist/firefox/                             dist/packages/readela-0.2.1-firefox.zip
 ```
 
 ### Chrome — load unpacked (development install)

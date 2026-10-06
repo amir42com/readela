@@ -215,3 +215,22 @@ covered by the `main` ruleset.
 
 Neither store listing is public. Publication, the public URLs and the signed
 Firefox file are recorded only when the providers show them.
+
+## Publication observed (2026-10-06)
+
+Read from the public surfaces on 2026-10-06, without signing in:
+
+- Firefox Add-ons: `https://addons.mozilla.org/en-US/firefox/addon/readela/`
+  is public. The API reports status `public`, version `0.2.0` (version id
+  6536763, file 5080906, file status `public`), signed file
+  `readela-0.2.0.xpi`, 22,519 bytes, SHA-256
+  `79a2a55725d525f12b83700264a82572344d2d286e673999daf01042ecd801f3`
+  as reported by the provider. The listing name is "Readela"; the owner
+  changed it in the listing after approval, and the installed 0.2.0 package
+  still carries the manifest name "Readela by Amir42".
+- Chrome Web Store:
+  `https://chromewebstore.google.com/detail/bmdgcjmdaliachiboghdeeodlkbjojlf`
+  is public, title "Readela by Amir42", version `0.2.0`, publisher Amir42.
+
+The name is normalised by the 0.2.1 patch; see
+`2026-10-06-readela-0.2.1-naming.md`.

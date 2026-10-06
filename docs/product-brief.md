@@ -18,7 +18,7 @@ just to read it. Readela removes that step.
 | | |
 | --- | --- |
 | Product name | Readela |
-| Public presentation | Readela by Amir42 |
+| Store and installed-extension name | Readela (DEC-115); the publisher is shown separately. "Readela by Amir42" remains usable as descriptive prose. |
 | Publisher / developer | Amir42 |
 | Author | Amir |
 | Website | amir42.com |

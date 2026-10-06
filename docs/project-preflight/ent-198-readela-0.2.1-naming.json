@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-198-readela-0.2.1-naming.json",
+  "recordDate": "2026-10-06",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-198",
+    "title": "Readela 0.2.1: canonical name and store copy, metadata only",
+    "authorizingDecisions": ["DEC-115", "DEC-116"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-06 for the smallest 0.2.1 patch: version 0.2.1; manifest name Readela with short_name unchanged; the manifest description and the shared store description replaced by the owner's wording; verification, reproducible build and hashes; integration through the protected main; a v0.2.1 tag and release; submission of the exact verified artifacts as updates to the existing Chrome Web Store and Firefox Add-ons listings; evidence and managerial reconciliation. It stops at any owner-only provider action (credentials, multi-factor verification, terms, payment)."
+  },
+  "baseCommit": "8f2e88a2be6376339af35009380f17d1319c8e1f",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-198-first-public-release.json",
+    "reused": false,
+    "reason": "That record covers the 0.2.0 release with the presentation Readela by Amir42 and is not edited. This patch is a separately bounded piece of work under DEC-115 and DEC-116, so it carries its own assertion."
+  },
+  "scope": {
+    "inScope": [
+      "package.json and package-lock.json version 0.2.1.",
+      "src/manifest/base.json: name and description only.",
+      "docs/store-listing.md, the Product Brief identity row and the README package names, where they would otherwise contradict the package.",
+      "Dated evidence under docs/evidence/.",
+      "Verification, two clean builds with equal digests, tag v0.2.1 and a release on the frozen commit, and submission of those exact archives as updates to the two existing listings."
+    ],
+    "outOfScope": [
+      "Permissions, host matches, stored data, product behaviour, popup, site adapters, dependencies, build system.",
+      "New features, new sites, new browsers, new screenshots, a redesigned listing.",
+      "The v0.2.0 tag, release and archives.",
+      "Privacy, distribution and test-instruction declarations.",
+      "Capabilities, Exceptions, the dev-standards pin and the repository ruleset."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No. The project is in continuous work.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-06.",
+      "protocolChanged": "No. Revision v1.23, unchanged since the earlier records.",
+      "architectureOrTrustBoundaryChanged": "No. Same two stores, same publisher accounts, same permissions and host matches, same code; two manifest strings and the version change.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable. No parent Preflight is being worked under; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "A published store version can only be superseded, so the exact-artifact discipline of the 0.2.0 release is kept: every submitted file is bound by SHA-256 to one frozen commit and each publication Gate names the artifact it assessed."
+  },
+  "ordering": "This assertion integrated into main with the patch; that merge commit frozen; packages and source archive built from clean clones and hashed; a publication Gate per provider bound to the artifact and the live listing; submission; verification of the provider state; close-out evidence.",
+  "gates": {
+    "integration": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-06",
+      "basis": [
+        "Owner instruction of 2026-10-06 and DEC-115, DEC-116 (Accepted) cover the change.",
+        "Protocol, Project state and ENT-198 re-read on 2026-10-06 and consistent with the instruction.",
+        "main 8f2e88a locally and on the remote, clean; ruleset 24401132 active; tag v0.2.0 on 95d80e89e8bb04b12af98c25c9794a2fd56aa2d8.",
+        "Live listings observed on 2026-10-06: Firefox Add-ons readela 0.2.0 public, name Readela; Chrome Web Store item bmdgcjmdaliachiboghdeeodlkbjojlf public, title Readela by Amir42."
+      ]
+    },
+    "publication": "Evaluated per provider immediately before submission and recorded in dated evidence."
+  }
+}
