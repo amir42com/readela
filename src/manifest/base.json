@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Readela by Amir42",
+  "name": "Readela",
   "short_name": "Readela",
-  "description": "Makes mixed right-to-left and left-to-right text easier to read on ChatGPT and Claude, within the original page.",
+  "description": "Makes long and multilingual text easier to read on ChatGPT and Claude, with automatic text direction and comfortable typography.",
   "homepage_url": "https://amir42.com",
   "icons": {
     "16": "icons/icon-16.png",

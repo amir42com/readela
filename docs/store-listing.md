@@ -1,4 +1,4 @@
-# Store listing kit — Readela 0.2.0
+# Store listing kit — Readela 0.2.1
 
 One source for everything entered into the Chrome Web Store and Firefox
 Add-ons (AMO) dashboards. Every statement here must stay true of the packaged
@@ -10,8 +10,8 @@ confirmed on the live dashboards at submission time.
 
 | | |
 | --- | --- |
-| Name as shown | Readela by Amir42 (manifest `name`; `short_name` Readela) |
-| Version | 0.2.0 |
+| Name as shown | Readela (manifest `name` and `short_name`) |
+| Version | 0.2.1 |
 | Publisher / developer | Amir42 |
 | Author | Amir |
 | Homepage | https://amir42.com |
@@ -27,45 +27,35 @@ confirmed on the live dashboards at submission time.
 
 ### Short summary (one sentence)
 
-Makes mixed right-to-left and left-to-right text easier to read on ChatGPT and
-Claude, within the original page.
+Makes long and multilingual text easier to read on ChatGPT and Claude, with
+automatic text direction and comfortable typography.
 
 ### Description
 
-Readela makes multilingual answers easier to read on ChatGPT and Claude.
+In the dashboards each paragraph and each list item is entered as one line;
+the line breaks inside them below are only this file's wrapping.
 
-Answers that mix Persian, Arabic or Hebrew with English often come out with the
-wrong paragraph direction: a sentence that starts with an English word is laid
-out left-to-right, list markers land on the wrong side and punctuation jumps to
-the wrong end. Readela decides the direction of each paragraph from its whole
-text and presents it accordingly, without changing the text itself.
+Readela is a lightweight reading-comfort extension for ChatGPT and Claude. It
+makes long and multilingual responses easier to read without changing the
+underlying text.
 
 What it does
 
-- Reads each paragraph, heading, list, quotation and table right-to-left when
-  most of its words are in a right-to-left script, whatever the first word is.
-- Keeps lists and tables consistent as a unit: markers, indentation and column
-  order follow the text.
-- Leaves code, inline code, mathematics and web addresses left-to-right, in
-  their own font.
-- Lets you override the direction (automatic, right-to-left, left-to-right)
-  and choose a font, text size and line spacing from the toolbar popup.
-- Remembers your settings on this device, for both sites.
-- Off means off: the page returns exactly to the site's own presentation.
+- Fixes paragraph direction for languages written right-to-left, such as
+  Persian, Arabic and Hebrew, when mixed with English.
+- Keeps lists, tables, code, maths and links readable.
+- Lets you choose direction, font, text size and line spacing.
+- Remembers your settings locally and restores the site's original
+  presentation when turned off.
 
-What it does not do
+Privacy & trust
 
-- It does not send anything anywhere. Readela has no server, makes no network
-  request, and includes no analytics, advertising or remote code.
-- It does not store conversation content. The only thing it saves is your own
-  settings, in the browser's local extension storage.
-- It does not touch the message composer or any other editable field, and it
-  never changes the text you select or copy.
+- Open source under the MIT license: github.com/amir42com/readela
+- No server, analytics, advertising or remote code.
+- Conversation content is not stored or transmitted.
+- Only your Readela settings are stored locally in the browser.
 
-Works on chatgpt.com and claude.ai only. Font choices use fonts already
-installed on your device; nothing is downloaded. The source code is public
-under the MIT license at github.com/amir42com/readela, and the privacy policy
-is published there.
+Works on chatgpt.com and claude.ai.
 
 ### Core features (short list)
 
@@ -107,8 +97,8 @@ only the settings object is stored.
 
 | Field | Value |
 | --- | --- |
-| Title | from the manifest: Readela by Amir42 |
-| Summary | from the manifest description (112 characters) |
+| Title | from the manifest: Readela |
+| Summary | from the manifest description (128 characters) |
 | Description | the Description above |
 | Category | Accessibility (fallback: Functionality & UI) |
 | Language | English |
@@ -156,7 +146,7 @@ Reviewer notes above. No credentials are provided or needed for ChatGPT.
 
 | Field | Value |
 | --- | --- |
-| Name | Readela by Amir42 |
+| Name | Readela |
 | Add-on URL (slug) | readela |
 | Summary (max 250 characters) | the Short summary above |
 | Description | the Description above |
@@ -179,15 +169,15 @@ Reviewer notes above. No credentials are provided or needed for ChatGPT.
 The packaged `content.js` and `popup/popup.js` are produced by esbuild from the
 ES modules under `src/`, so the source archive is submitted with the package.
 
-- Archive: `dist/packages/readela-0.2.0-source.zip`, written by
+- Archive: `dist/packages/readela-0.2.1-source.zip`, written by
   `npm run source-package`: the complete tracked tree of the tagged commit
   (readable source, `package.json`, `package-lock.json`, build scripts, tests
   and documentation; no `node_modules`, caches or build output).
 - Build instructions for the reviewer:
 
   ```sh
-  unzip readela-0.2.0-source.zip
-  cd readela-0.2.0-source
+  unzip readela-0.2.1-source.zip
+  cd readela-0.2.1-source
   npm ci
   npm run package
   ```
@@ -195,7 +185,7 @@ ES modules under `src/`, so the source archive is submitted with the package.
   Node.js 22.15 or newer with its bundled npm; esbuild 0.28.2 is the only
   build-time dependency and is installed by `npm ci` from the lockfile. The
   result `dist/firefox/` (12 files) is the content of the submitted package;
-  `dist/packages/readela-0.2.0-firefox.zip` is the archive. Output is not
+  `dist/packages/readela-0.2.1-firefox.zip` is the archive. Output is not
   minified. The build was verified on Windows 11 with Node.js 22.23.1 and
   reproduced byte-for-byte with Node.js 20.20.2; the bundler output does not
   depend on the operating system. If the archive bytes differ in another

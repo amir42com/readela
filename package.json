@@ -1,6 +1,6 @@
 {
   "name": "readela",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Browser extension that makes multilingual text easier to read within the original page.",
   "author": "Amir",
