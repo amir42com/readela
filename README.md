@@ -9,8 +9,9 @@ paragraph direction: a Persian sentence that starts with an English word is
 laid out left-to-right, list markers land on the wrong side and punctuation
 jumps to the wrong end. Readela decides the direction of each paragraph from
 its whole text and presents it accordingly, without changing the text. Around
-that it offers warm reading colours, a packaged Persian and Arabic font, text
-size and line spacing, and a saved place for where you stopped.
+that it offers warm reading colours, a packaged reading font for Latin,
+Persian and Arabic text, text size and line spacing, and a saved place for
+where you stopped.
 
 Readela is distributed through the Chrome Web Store and Firefox Add-ons
 (AMO). The dated evidence under `docs/evidence/` records which version was
@@ -29,9 +30,10 @@ built and loaded for development, as described below.
   Your own messages, the site's navigation and controls, and code blocks stay
   as the site shows them. Links, inline code, lists, quotations and tables
   stay distinct; primary text is held at a contrast ratio of 10:1 or better.
-- **Font:** Original or Readela Sans. Persian and Arabic are shown in
-  Vazirmatn, which is packaged with the extension; other scripts use your
-  device's sans-serif fonts.
+- **Font:** Original or Readela Sans. Readela Sans shows Latin text in Inter
+  and Persian and Arabic in Vazirmatn, both packaged with the extension, with
+  their own italic and bold; other scripts use your device's sans-serif
+  fonts.
 - **Text size** (up to 140%) and **line spacing.**
 - **Text direction:** Original, Auto, RTL or LTR. Auto is the default:
   paragraphs, headings, lists, quotations and tables read right-to-left when
@@ -39,11 +41,16 @@ built and loaded for development, as described below.
   first word is. Lists and tables are decided as a unit, so markers,
   indentation and column order agree with the text.
 - **Saved place:** Save place, Return and Clear, one place per conversation,
-  kept on this device. Save place takes the first paragraph of a response in
-  view, or the paragraph you selected text in. Return goes back to it, also
-  when the site has not loaded that part of the conversation yet, and never
-  to a look-alike paragraph somewhere else: if the place cannot be found for
-  certain, nothing moves, the popup says so, and the place stays saved.
+  kept on this device. Save place takes the first paragraph of a response
+  that begins in view, below the site's header, or the paragraph you selected
+  text in. Alt+Shift+S on the page does the same without opening the popup,
+  except while you are typing. Return goes back to it, also when the site has
+  not loaded that part of the conversation yet, and never to a look-alike
+  paragraph somewhere else: if the place cannot be found for certain, nothing
+  moves, the popup says so, and the place stays saved. The popup shows
+  whether this conversation has a place and how many do, and a conversation
+  that has one gets a small bookmark in the site's own list. Up to 1000
+  conversations can have a place; none is ever removed to make room.
 - **Remembers your choices** on this device, for both sites.
 
 Code blocks, inline code, mathematics and web addresses stay left-to-right and
@@ -59,9 +66,9 @@ on Windows 11:
 | --- | --- | --- |
 | Synthetic conversation page: direction for Persian, Arabic, Hebrew, English, mixed | passed in both browsers | passed in both browsers (Persian, English, mixed) |
 | Synthetic conversation page: Paper and Night (who owns what, code blocks, links, lists, quotations, tables), Readela Sans | passed in both browsers, page light and dark | passed in both browsers (light and dark in Chrome, light in Firefox) |
-| Synthetic conversation page: saved place (identical paragraphs, routes, reload, browser restart, failed save) | passed in both browsers (failed save: Chrome) | passed in both browsers, including a long conversation of which only the part near the viewport is in the document |
+| Synthetic conversation page: saved place (identical paragraphs, routes, reload, browser restart, failed save, status and count, bookmark in the list, limit of 1000, Alt+Shift+S) | passed in both browsers (failed save: Chrome), including a long conversation laid out from its end that loads its earlier part a few turns at a time | passed in both browsers, including a long conversation of which only the part near the viewport is in the document, under a header that lies over the text |
 | Real start page, signed out, nothing sent | content script ran, nothing disturbed (a bot check in headless Chrome) | content script ran, nothing disturbed (sign-in page in Firefox, a bot check in headless Chrome) |
-| Real signed-in conversation | page structure read twice, without the text, to shape the adapters and the checks; the 0.3.0 extension was not run there by the automated checks | the same |
+| Real signed-in conversation | page structure read three times, without the text, to shape the adapters and the checks; the 0.3.0 extension was not run there by the automated checks | the same |
 
 The owner reported manually testing earlier builds on real ChatGPT and Claude
 conversations and finding them working correctly. Those are reports, not part
@@ -71,6 +78,8 @@ The minimum browser versions declared in the manifests (Chrome 121, Firefox
 140) have not been exercised. The exact cases, method and limits are in the
 dated evidence:
 
+- [docs/evidence/2026-10-10-readela-0.3.0-correction-2.md](docs/evidence/2026-10-10-readela-0.3.0-correction-2.md)
+  (the second correction; it supersedes the first where they differ)
 - [docs/evidence/2026-10-10-readela-0.3.0-correction.md](docs/evidence/2026-10-10-readela-0.3.0-correction.md)
 - [docs/evidence/2026-10-10-readela-0.3.0-implementation.md](docs/evidence/2026-10-10-readela-0.3.0-implementation.md)
   (the first 0.3.0 implementation; superseded by the correction where they differ)
@@ -133,8 +142,10 @@ On each site:
    own messages, code blocks, the composer and the site's controls stay as the
    site shows them, and no corner of another colour shows around a code block.
 5. Save a place, scroll far away, choose Return; reload and do it again; close
-   and reopen the browser and do it again. Try it in a long conversation, and
-   on a sentence that occurs more than once.
+   and reopen the browser and do it again. Try it in a long conversation, from
+   above and from below the place, and on a sentence that occurs more than
+   once. Try Alt+Shift+S on the page and in the composer, and look for the
+   bookmark beside the conversation in the site's list.
 6. Switch Readela off: the page returns to the site's own presentation.
 7. Open another conversation: the new one is handled without a reload.
 
@@ -151,11 +162,12 @@ information kept on your device, not encryption.
 | Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction, find the saved place and mark blocks for presentation. |
 | `storage` | Remember preferences and saved places locally. |
 
-One font file, Vazirmatn, is packaged with the extension and made available to
-those two sites so their pages can display it. It is distributed under the SIL
-Open Font License 1.1; the licence is in every package next to the font, and
-[src/fonts/README.md](src/fonts/README.md) records its source, version and
-digest.
+Three font files, Inter (upright and italic) and Vazirmatn, are packaged with
+the extension and made available to those two sites so their pages can display
+them. Both fonts are distributed under the SIL Open Font License 1.1; the
+licences are in every package next to the fonts, and
+[src/fonts/README.md](src/fonts/README.md) records their sources, versions
+and digests.
 
 Privacy policy: [docs/privacy-policy.md](docs/privacy-policy.md). Technical
 controls and how they are verified:
@@ -183,10 +195,19 @@ controls and how they are verified:
   the place is reported as not found and stays saved until you clear or
   replace it. A paragraph that has an identical twin right beside it with the
   same neighbours cannot be saved.
-- Return looks for a place that is not on the page for at most about twelve
+- Return looks for a place that is not on the page for at most about thirty
   seconds, and stops as soon as you scroll, click or type. In a very long
-  conversation on a slow connection that may not be enough; scroll nearer and
-  choose Return again.
+  conversation, or on a slow connection, that may not be enough; choose
+  Return again (what the site loaded meanwhile stays loaded), or scroll
+  nearer first.
+- Save place without a selection takes the first paragraph that begins in
+  view. When one long paragraph fills the screen it takes that one. To choose
+  exactly, select some text in the paragraph.
+- Alt+Shift+S is fixed and cannot be changed. It gives no message when a
+  place cannot be saved; the popup does.
+- The bookmark in the site's list appears on rows the adapter recognises.
+  Other lists of conversations (search results, project pages) are not
+  marked.
 - The saved place is shown visually; a screen reader is told about it in the
   popup, not in the page.
 - On Claude, only message content is handled. Right-to-left text there keeps
@@ -234,7 +255,7 @@ npm run package   # dist/chrome, dist/firefox and dist/packages/*.zip
   the operating system.
 - `dist/firefox/` is the content of the Firefox package and `dist/chrome/`
   the content of the Chrome package; they differ in `manifest.json` and in
-  how `content.css` names the packaged font. Each has 14 files.
+  how `content.css` names the packaged fonts. Each has 17 files.
 - The archives are written by `scripts/lib/zip.mjs` with sorted entries and a
   fixed timestamp, so the same files give the same archive bytes. If an
   archive differs, compare the extracted files: they are what the browser

@@ -13,6 +13,7 @@
 import {
   POSITION_STEPS,
   blockKind,
+  canSave,
   changesPage,
   colourAlpha,
   conversationId,
@@ -75,24 +76,47 @@ const ROUTE_CHECK_MS = 1000;
 // How long the place stays emphasised after Return.
 const FLASH_MS = 1800;
 
-// Return, when the place is in a response that is not on the page: the
+// Return, when the place is in a response that is not in the document: the
 // conversation's scrolling region is searched in at most this many stops and
 // this much time. One stop waits for the page to settle: at least the minimum,
 // a little longer for a first change to the document where none has come yet,
-// then until the document has been quiet for a moment, at most the maximum. A
-// conversation of a few hundred responses is covered by the stops; the time
-// keeps a slow page from holding the reader. Where five stops in a row bring
-// nothing new into the document, only the two ends of the conversation are
-// still tried. Nothing is reported as found unless the place itself is then
-// seen in view within the arrival time.
-const SEARCH_STEPS = 40;
-const SEARCH_MS = 12000;
+// then until the document has been quiet for a moment, at most the maximum.
+// At the beginning of what is loaded, the page is given GROW_MS to load what
+// came before.
+//
+// The time is what a long conversation needs on a site that loads its earlier
+// part a few turns at a time, each load a request of its own: thirty seconds
+// reach back in the order of a hundred turns. Nothing is reported as found
+// unless the place itself is then seen clearly in view within ARRIVE_MS.
+const SEARCH_STOPS = 90;
+const SEARCH_MS = 30000;
 const SETTLE_MIN_MS = 120;
 const SETTLE_WAIT_MS = 360;
 const SETTLE_MAX_MS = 700;
 const QUIET_MS = 100;
-const IDLE_STEPS = 5;
+const GROW_MS = 2500;
+const ROW_JUMPS = 10;
 const ARRIVE_MS = 2500;
+
+// A stretch of a walk where nothing is in the document: this share of a screen.
+const STRIDE = 0.8;
+// Turns further apart than this are not one unbroken run.
+const GAP = 32;
+
+// The reading area. A cover lies within COVER_REACH pixels of an edge of the
+// scrolling region and takes up at most COVER_SHARE of its height; what is
+// read begins SAFE_INSET pixels clear of it. LINE is the least of a block that
+// has to be in view for the block to count as there.
+const COVER_REACH = 8;
+const COVER_SHARE = 0.4;
+const SAFE_INSET = 8;
+const LINE = 24;
+
+// Saving from the keyboard: Alt+Shift+S, by the physical key.
+const QUICK_SAVE = Object.freeze({ code: "KeyS" });
+
+// Addresses of rows whose conversation key is remembered, at most.
+const ROW_MEMORY = 2000;
 
 // The reader taking over stops a search: these arrive only from real input.
 const TAKEOVER = ["wheel", "touchstart", "pointerdown", "keydown"];
@@ -142,6 +166,8 @@ export function createReader({
   let flashTimer = null;
   let search = null; // { stop } while a place is being searched for
   const turnKeys = new WeakMap(); // turn element -> { value, key }
+  const rowKeys = new Map(); // address of a row -> the key of its conversation, or null
+  let listening = false; // to the keyboard
 
   const isRendered = (element) => element.getClientRects().length > 0;
   const pause = (ms) => new Promise((resolve) => view.setTimeout(resolve, ms));
@@ -314,6 +340,19 @@ export function createReader({
     for (const [property, value] of Object.entries(values)) {
       if (root.style.getPropertyValue(property) !== value) root.style.setProperty(property, value);
     }
+  }
+
+  // The site's own font around the conversation, for a unit inside reading
+  // text that keeps the site's presentation while Readela Sans is on. The
+  // conversation region itself is never given a font, so what is read is the
+  // site's.
+  function measureFont() {
+    if (preferences.font === "page") {
+      if (root.style.getPropertyValue(SITE_PROPERTIES.font) !== "") removeProperties(root, [SITE_PROPERTIES.font]);
+      return;
+    }
+    const value = view.getComputedStyle(scopeElement()).fontFamily;
+    if (root.style.getPropertyValue(SITE_PROPERTIES.font) !== value) root.style.setProperty(SITE_PROPERTIES.font, value);
   }
 
   // Whether `element`, a root of response text by the adapter's word, is one
@@ -513,6 +552,16 @@ export function createReader({
       setMark(link, MARK.ltr, inMarkedBlock && isAddressText(link.textContent) ? "" : null);
     }
 
+    // A unit the site presents as a whole keeps its own typography.
+    if (site.capsule) {
+      const units = [...tree.querySelectorAll(site.capsule)];
+      if (tree.matches(site.capsule)) units.push(tree);
+      for (const unit of units) {
+        const ours = scope.contains(unit) && !unit.closest(site.exclude) && (!site.within || unit.closest(site.within) !== null);
+        setMark(unit, MARK.unit, ours ? "" : null);
+      }
+    }
+
     if (theming()) markSurfaces(tree, scope);
 
     // Then alignment reads, gathered before any further write.
@@ -584,11 +633,71 @@ export function createReader({
     return document.scrollingElement ?? root;
   }
 
-  // The part of the window in which the conversation is read.
+  // The conversation's scrolling region in one coordinate system. A site can
+  // lay the conversation out from its end (a reversed flex column); the
+  // browser then counts scrollTop from 0 at the end into negative numbers
+  // towards the beginning, and a positive value does nothing. Here a position
+  // is always the distance from the beginning of the conversation, whichever
+  // way the site lays it out.
+  function scrolling(scroller) {
+    const style = view.getComputedStyle(scroller);
+    const reversed =
+      scroller.scrollTop < -0.5 || (style.display.includes("flex") && style.flexDirection === "column-reverse");
+    const range = () => Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    const start = () => (reversed ? -range() : 0);
+    return {
+      range,
+      get offset() {
+        return scroller.scrollTop - start();
+      },
+      moveTo(offset) {
+        scroller.scrollTop = start() + Math.min(range(), Math.max(0, offset));
+      },
+      moveBy(distance, behavior = "auto") {
+        scroller.scrollBy({ top: distance, behavior });
+      },
+    };
+  }
+
+  // The part of the window in which the conversation can be read clearly: the
+  // scrolling region, less whatever the site keeps over its top and bottom
+  // edges, less a small inset. A cover is found from the page's geometry, not
+  // by asking what a pointer would hit: a header can lie over the text and let
+  // the pointer through. A cover is a positioned element that lies across an
+  // edge of the region, is a good part of its width and a small part of its
+  // height, and does not scroll with the conversation. Something painted
+  // behind the text can be taken for one; the only cost is a place a little
+  // further down.
   function readingArea() {
     const scroller = scrollerElement();
-    const frame = scroller === (document.scrollingElement ?? root) ? null : scroller.getBoundingClientRect();
-    return { top: Math.max(0, frame?.top ?? 0), bottom: Math.min(view.innerHeight, frame?.bottom ?? view.innerHeight) };
+    const page = scroller === (document.scrollingElement ?? root);
+    const frame = page
+      ? { top: 0, bottom: view.innerHeight, left: 0, right: view.innerWidth }
+      : scroller.getBoundingClientRect();
+    const edge = { top: Math.max(0, frame.top), bottom: Math.min(view.innerHeight, frame.bottom) };
+    const height = edge.bottom - edge.top;
+    const width = frame.right - frame.left;
+    let top = edge.top;
+    let bottom = edge.bottom;
+    if (height > 0 && width > 0) {
+      for (const element of document.body.querySelectorAll("*")) {
+        const box = element.getBoundingClientRect();
+        if (box.height < 4 || box.height > height * COVER_SHARE || box.width < width * 0.3) continue;
+        if (box.right <= frame.left + 16 || box.left >= frame.right - 16) continue;
+        const over = box.top <= edge.top + COVER_REACH && box.bottom > top;
+        const under = box.bottom >= edge.bottom - COVER_REACH && box.top < bottom;
+        if (!over && !under) continue;
+        const style = view.getComputedStyle(element);
+        const position = style.position;
+        if (position !== "fixed" && position !== "sticky" && position !== "absolute") continue;
+        if (style.visibility === "hidden" || style.opacity === "0") continue;
+        // What is placed in the conversation's own content moves with it.
+        if (position === "absolute" && (page || (scroller.contains(element) && element.offsetParent !== scroller))) continue;
+        if (over) top = Math.max(top, box.bottom);
+        else bottom = Math.min(bottom, box.top);
+      }
+    }
+    return { top: top + SAFE_INSET, bottom: bottom - SAFE_INSET, edge };
   }
 
   // Larger than a text kept only for screen readers, and not hidden.
@@ -719,25 +828,30 @@ export function createReader({
     }
   }
 
-  // Whether some of the block can be seen and is not under something the site
-  // keeps on top, such as a fixed header. Looked at down the visible part of
-  // the block, so a paragraph that begins above the reading area counts.
-  function unobscured(element, box, area) {
-    const x = Math.min(view.innerWidth - 1, Math.max(0, box.left + box.width / 2));
-    const last = Math.min(box.bottom, area.bottom) - 2;
-    for (let y = Math.max(box.top, area.top) + 3, looks = 0; y <= last && looks < 12; y += 14, looks += 1) {
-      const hit = document.elementFromPoint(x, y);
-      if (hit !== null && element.contains(hit)) return true;
-    }
-    return false;
+  // Whether a point of a block is the block's own on screen: nothing that takes
+  // the pointer (a menu, a dialog) lies over it there.
+  function shows(element, x, y) {
+    const hit = document.elementFromPoint(Math.min(view.innerWidth - 1, Math.max(0, x)), y);
+    return hit !== null && element.contains(hit);
   }
 
-  // The block to save: the readable block that holds a selection in view,
-  // otherwise the first readable block at the top of the reading area. Nothing
+  // Whether a block begins clearly in the reading area: its first line is
+  // below whatever covers the top, and at least a line of it is above the
+  // bottom.
+  function beginsIn(area, box) {
+    return box.top >= area.top - 0.5 && box.top <= area.bottom - Math.min(box.height, LINE);
+  }
+
+  // The block to save. A selection in view says exactly which: the readable
+  // block that holds it. Without one it is the first readable block that
+  // begins clearly in the reading area, so the reader sees all of what was
+  // saved; a block that merely reaches into view from above, under the site's
+  // header, is passed over. Only where no block begins in view (one long
+  // paragraph fills the screen) is it the block being read at the top. Nothing
   // is guessed about where the reader is looking.
   function blockToSave(found) {
     const area = readingArea();
-    const shown = (box) => box.bottom > area.top + 1 && box.top < area.bottom - 1;
+    const inSight = (box) => box.bottom > area.edge.top + 1 && box.top < area.edge.bottom - 1;
 
     const selection = document.getSelection?.();
     if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
@@ -745,18 +859,23 @@ export function createReader({
       for (const response of found) {
         if (!response.roots.some((part) => range.intersectsNode(part))) continue;
         const index = response.blocks.findIndex(({ element }) => range.intersectsNode(element));
-        if (index !== -1 && shown(response.blocks[index].element.getBoundingClientRect())) return { response, index };
+        if (index !== -1 && inSight(response.blocks[index].element.getBoundingClientRect())) return { response, index };
       }
     }
 
+    let reading = null;
     for (const response of found) {
-      if (!response.roots.some((part) => shown(part.getBoundingClientRect()))) continue;
+      if (!response.roots.some((part) => inSight(part.getBoundingClientRect()))) continue;
       for (const [index, { element }] of response.blocks.entries()) {
         const box = element.getBoundingClientRect();
-        if (shown(box) && unobscured(element, box, area)) return { response, index };
+        if (!inSight(box)) continue;
+        const x = box.left + box.width / 2;
+        if (beginsIn(area, box) && shows(element, x, box.top + Math.min(box.height / 2, 10))) return { response, index };
+        const fills = box.top < area.top && box.bottom > area.top + LINE;
+        if (reading === null && fills && shows(element, x, area.top + LINE / 2)) reading = { response, index };
       }
     }
-    return null;
+    return reading;
   }
 
   // Where a block is along the conversation, from 0 to 1.
@@ -764,18 +883,12 @@ export function createReader({
     const scroller = scrollerElement();
     if (!(scroller.scrollHeight > 0)) return 0;
     const frame = scroller === (document.scrollingElement ?? root) ? 0 : scroller.getBoundingClientRect().top;
-    return (element.getBoundingClientRect().top - frame + scroller.scrollTop) / scroller.scrollHeight;
-  }
-
-  function inView(element) {
-    if (!element.isConnected) return false;
-    const area = readingArea();
-    const box = element.getBoundingClientRect();
-    return box.height > 0 && box.bottom > area.top + 8 && box.top < area.bottom - 8;
+    return (element.getBoundingClientRect().top - frame + scrolling(scroller).offset) / scroller.scrollHeight;
   }
 
   function flash(element) {
     if (flashTimer !== null) view.clearTimeout(flashTimer);
+    for (const other of document.querySelectorAll(`[${MARK.flash}]`)) if (other !== element) setMark(other, MARK.flash, null);
     setMark(element, MARK.flash, "");
     flashTimer = view.setTimeout(() => {
       flashTimer = null;
@@ -793,20 +906,36 @@ export function createReader({
   }
 
   // Look through the conversation for the response a place was saved in, when
-  // that response is not on the page: a site can keep only the responses near
-  // the viewport in the document, or load earlier ones as the reader scrolls.
-  // The conversation's own scrolling region is moved in bounded stops, first
-  // towards where the place is expected, then outwards from there, and the
-  // page is asked again after each. The search ends when the place is found,
-  // when the reader does anything, when the conversation or Readela's state
-  // changes, and at its limits; unless it found the place or was taken over,
-  // it puts the conversation back where it was.
+  // that response is not in the document. A site can keep only the responses
+  // near the viewport in the document, and can load the earlier part of a
+  // conversation only when its beginning is scrolled into view.
+  //
+  // The conversation's own scrolling region is moved, and the page is asked
+  // again after each move:
+  //   1. where the site numbers its rows, a few jumps straight towards the
+  //      row the place was saved in;
+  //   2. then a walk in the direction the place is expected in, and after
+  //      that in the other, each from where the reader was. A walk goes one
+  //      stretch at a time. A stretch ends at the edge of what the site has
+  //      in the document on that side, so nothing lies between two stops that
+  //      was never in the document, and it is most of one screen where
+  //      nothing is. At the beginning the page is given a moment to load what
+  //      came before; if the conversation grows, the walk goes on.
+  //
+  // The search ends when the place is found, when the reader does anything,
+  // when the conversation or Readela's state changes, and at its limits.
+  // Unless it found the place or was taken over, it puts the conversation
+  // back where it was.
   async function searchFor(record) {
     const scroller = scrollerElement();
-    const range = () => scroller.scrollHeight - scroller.clientHeight;
-    if (!(range() > 0)) return { status: "absent" };
+    const page = scroller === (document.scrollingElement ?? root);
+    const motion = scrolling(scroller);
+    const frame = () => (page ? { top: 0, bottom: view.innerHeight } : scroller.getBoundingClientRect());
+    const screen = () => (page ? view.innerHeight : scroller.clientHeight);
 
-    const origin = scroller.scrollTop;
+    const origin = { offset: motion.offset, fromEnd: motion.range() - motion.offset };
+    const restore = () =>
+      motion.moveTo(origin.fromEnd < origin.offset ? motion.range() - origin.fromEnd : origin.offset);
     const route = conversation();
     let stopped = false;
     const stop = () => {
@@ -817,72 +946,121 @@ export function createReader({
     search = { stop };
 
     const began = Date.now();
-    const stride = Math.max(48, scroller.clientHeight * 0.8);
-    const tried = new Set([Math.round(origin / (stride / 2))]);
-    // A position not looked at yet, or null.
-    const offer = (value) => {
-      const top = Math.min(range(), Math.max(0, Math.round(value)));
-      const slot = Math.round(top / (stride / 2));
-      if (tried.has(slot)) return null;
-      tried.add(slot);
-      return top;
+    let stops = 0;
+    const spent = () => stops >= SEARCH_STOPS || Date.now() - began > SEARCH_MS;
+    let found = { status: "absent" };
+    // One stop: move, let the page settle, ask again. True while the search goes on.
+    const look = async (offset) => {
+      stops += 1;
+      motion.moveTo(offset);
+      await settle();
+      if (!live()) return false;
+      found = locate();
+      return found.status === "absent";
     };
 
-    // Towards the place by row number, where the site numbers its rows. The
-    // number only says which way to go and roughly how far.
-    const byOrder = () => {
+    // The rows the site numbers, and the one nearest to the saved row.
+    const nearestRow = () => {
       if (record.n === null) return null;
       const rows = responses().filter((response) => response.ordinal !== null);
       if (rows.length === 0) return null;
-      const nearest = rows.reduce((best, row) =>
-        Math.abs(row.ordinal - record.n) < Math.abs(best.ordinal - record.n) ? row : best,
+      const row = rows.reduce((best, other) =>
+        Math.abs(other.ordinal - record.n) < Math.abs(best.ordinal - record.n) ? other : best,
       );
-      const gap = record.n - nearest.ordinal;
-      if (gap === 0) return null;
-      const step = scroller.scrollTop + Math.sign(gap) * stride;
-      if (Math.abs(gap) <= 2) return offer(step);
-      const heights = rows.map((row) => row.holder.getBoundingClientRect().height);
-      const average = heights.reduce((sum, height) => sum + height, 0) / heights.length;
-      const from = nearest.holder.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-      return offer(from + gap * average * 0.8 - scroller.clientHeight / 4) ?? offer(step);
+      return { row, rows, gap: record.n - row.ordinal };
     };
 
-    // Outwards from where the place was when it was saved.
-    const centre = (record.p / POSITION_STEPS) * scroller.scrollHeight - scroller.clientHeight / 2;
-    let turn = 0;
-    const bySweep = () => {
+    // 1. By row number. The number only says which way to go and roughly how far.
+    const jump = async () => {
+      for (let jumps = 0; jumps < ROW_JUMPS && !spent(); jumps += 1) {
+        const near = nearestRow();
+        if (near === null || Math.abs(near.gap) <= 2) return true;
+        const heights = near.rows.map((row) => row.holder.getBoundingClientRect().height);
+        const average = heights.reduce((sum, height) => sum + height, 0) / heights.length;
+        const from = near.row.holder.getBoundingClientRect().top - frame().top + motion.offset;
+        if (!(await look(from + near.gap * average * 0.8 - screen() / 4))) return false;
+      }
+      return true;
+    };
+
+    // What the site has in the document around the viewport on one side: how
+    // far the unbroken run of turns reaches beyond the edge of the viewport.
+    const reach = (direction) => {
+      const edges = frame();
+      // Rows where the site numbers them, turns where it marks them, else the responses.
+      const part = site.order ?? site.turn;
+      const boxes = (part ? [...scopeElement().querySelectorAll(`[${part}]`)] : responses().map((response) => response.holder))
+        .filter(isRendered)
+        .map((element) => element.getBoundingClientRect())
+        .sort((first, second) => first.top - second.top);
+      let run = null;
+      for (const box of direction < 0 ? boxes.reverse() : boxes) {
+        if (run === null) {
+          if (box.bottom > edges.top && box.top < edges.bottom) run = box;
+        } else if (direction < 0 ? run.top - box.bottom <= GAP && box.top < run.top : box.top - run.bottom <= GAP && box.bottom > run.bottom) {
+          run = { top: Math.min(run.top, box.top), bottom: Math.max(run.bottom, box.bottom) };
+        }
+      }
+      if (run === null) return 0;
+      return Math.max(0, direction < 0 ? edges.top - run.top : run.bottom - edges.bottom);
+    };
+
+    // Whether the conversation grows at its beginning within a moment.
+    const grows = async () => {
+      const before = motion.range();
+      const until = Date.now() + GROW_MS;
+      while (live() && Date.now() < until) {
+        await pause(80);
+        if (motion.range() > before + 4) {
+          await settle();
+          return live();
+        }
+      }
+      return false;
+    };
+
+    // 2. A walk towards the beginning (-1) or the end (+1). True while the search goes on.
+    const walk = async (direction) => {
       for (;;) {
-        const distance = Math.ceil(turn / 2) * stride;
-        if (distance > Math.max(centre, range() - centre) + stride) return null;
-        const value = centre + (turn % 2 === 1 ? -distance : distance);
-        turn += 1;
-        if (value < -stride || value > range() + stride) continue;
-        const top = offer(value);
-        if (top !== null) return top;
+        if (spent()) return false;
+        const at = motion.offset;
+        const end = direction < 0 ? at <= 0.5 : at >= motion.range() - 0.5;
+        if (end) {
+          if (direction > 0 || !(await grows())) return live();
+          found = locate();
+          if (found.status !== "absent") return false;
+          continue;
+        }
+        const stretch = Math.max(screen() * STRIDE, reach(direction) + screen() * 0.6);
+        if (!(await look(at + direction * stretch))) return false;
       }
     };
 
-    const onPage = () => responses().map((response) => response.key ?? "").join(" ");
-    let seen = onPage();
-    let idle = 0;
-    let found = { status: "absent" };
+    // Which way first: by row number where there is one, otherwise by where
+    // the place was along the conversation when it was saved.
+    const first = () => {
+      const near = nearestRow();
+      if (near !== null && near.gap !== 0) return Math.sign(near.gap);
+      const here = (motion.offset + screen() / 2) / Math.max(1, scroller.scrollHeight);
+      return record.p / POSITION_STEPS < here ? -1 : 1;
+    };
+
     try {
-      for (let steps = 0; steps < SEARCH_STEPS && Date.now() - began < SEARCH_MS; steps += 1) {
-        // Where scrolling brings nothing new into the document, the ends of
-        // the conversation are the last places worth a look.
-        const next = idle < IDLE_STEPS ? (byOrder() ?? bySweep()) : (offer(0) ?? offer(range()));
-        if (next === null) break;
-        scroller.scrollTop = next;
-        await settle();
-        if (!live()) return { status: "stopped" };
-        found = locate();
-        if (found.status !== "absent") break;
-        const now = onPage();
-        idle = now === seen ? idle + 1 : 0;
-        seen = now;
+      if (motion.range() > 0) {
+        if (await jump()) {
+          const direction = first();
+          if (await walk(direction)) {
+            restore();
+            await settle();
+            if (live()) await walk(-direction);
+          }
+        }
       }
       if (!live()) return { status: "stopped" };
-      if (!found.element) scroller.scrollTop = origin;
+      if (!found.element) {
+        restore();
+        found = found.status === "absent" || spent() ? { status: "absent" } : found;
+      }
       return found;
     } finally {
       for (const name of TAKEOVER) view.removeEventListener(name, stop, { capture: true });
@@ -890,31 +1068,51 @@ export function createReader({
     }
   }
 
-  // Bring a place into view and confirm it is there. Returns what was found
-  // in view, or null: a place is reported as reached only when it is seen.
+  // Bring a place into view and confirm it is there to be read: its beginning
+  // a little below whatever covers the top of the reading area, with some of
+  // what precedes it still in view. Returns what was found there, or null: a
+  // place is reported as reached only when it is seen clearly.
   async function arrive(element, immediate) {
     const calm = immediate || view.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-    element.scrollIntoView({ block: "center", inline: "nearest", behavior: calm ? "auto" : "smooth" });
-    const began = Date.now();
-    let top = null;
-    let rested = false;
-    while (!rested && Date.now() - began < ARRIVE_MS) {
-      await pause(90);
+    const motion = scrolling(scrollerElement());
+    const put = (target, behavior) => {
+      const area = readingArea();
+      const box = target.getBoundingClientRect();
+      const room = area.bottom - area.top;
+      const lead = Math.min(room * 0.2, 120);
+      // A block taller than the room below the lead begins at the top of the area.
+      const want = area.top + (box.height > room - lead ? Math.min(lead, 4) : lead);
+      if (Math.abs(box.top - want) >= 1) motion.moveBy(box.top - want, behavior);
+      return area;
+    };
+    const rest = async (target) => {
+      const began = Date.now();
+      let top = null;
+      while (Date.now() - began < ARRIVE_MS) {
+        await pause(90);
+        if (preferences === null || !target.isConnected) return;
+        const now = target.getBoundingClientRect().top;
+        if (top !== null && Math.abs(now - top) < 1) return;
+        top = now;
+      }
+    };
+
+    put(element, calm ? "auto" : "smooth");
+    await rest(element);
+    // The page may have rendered the block again on the way, or moved it.
+    for (let tries = 0; tries < 3; tries += 1) {
       if (preferences === null) return null;
-      const now = inView(element) ? element.getBoundingClientRect().top : null;
-      rested = now !== null && top !== null && Math.abs(now - top) < 1;
-      top = now;
+      const again = locate();
+      if (!again.element) return null;
+      const area = readingArea();
+      if (beginsIn(area, again.element.getBoundingClientRect())) {
+        flash(again.element);
+        return again;
+      }
+      put(again.element, "auto");
+      await rest(again.element);
     }
-    if (!rested && element.isConnected) {
-      element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
-      await pause(90);
-    }
-    if (preferences === null) return null;
-    // The page may have rendered the block again on the way.
-    const again = locate();
-    if (!again.element || !inView(again.element)) return null;
-    flash(again.element);
-    return again;
+    return null;
   }
 
   /** Whether this conversation has a saved place. */
@@ -927,7 +1125,8 @@ export function createReader({
   /**
    * Save the place the reader is at as this conversation's saved place.
    * Nothing is shown and nothing is reported as saved before the browser has
-   * stored it.
+   * stored it. A conversation that has no place yet is refused when every
+   * place is in use; no other place is given up for it.
    */
   async function savePlace() {
     if (preferences === null) return { status: "off" };
@@ -945,6 +1144,7 @@ export function createReader({
     if (check.status !== "exact" || found[check.message] !== response || check.block !== index) {
       return { status: "ambiguous" };
     }
+    if (!canSave(marks, key)) return { status: "full" };
 
     search?.stop();
     let stored;
@@ -953,17 +1153,18 @@ export function createReader({
     } catch {
       return { status: "failed" };
     }
-    if (!samePlace(findMark(stored, key), record)) return { status: "failed" };
+    if (!samePlace(findMark(stored, key), record)) return { status: canSave(stored, key) ? "failed" : "full" };
     marks = stored;
     if (preferences === null) return { status: "saved" };
     watch();
-    locate();
-    return { status: "saved" };
+    markRows();
+    return { status: "saved", element: locate().element ?? null };
   }
 
   /**
    * Bring the saved place into view. Nothing is reported as reached unless the
-   * place is trusted and seen in view; a place that is not found stays saved.
+   * place is trusted and seen clearly in view; a place that is not found stays
+   * saved.
    */
   async function returnToPlace() {
     if (preferences === null) return { status: "off" };
@@ -995,7 +1196,88 @@ export function createReader({
     marks = stored;
     hidePlace();
     watch();
+    markRows();
     return { status: "none" };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Saved conversations in the site's own lists
+  //
+  // The one thing Readela does outside the conversation: the link of a
+  // conversation that has a saved place, in the sidebar or history the site
+  // shows, gets one attribute, and the stylesheet draws a small bookmark in
+  // the row from it. Only the link's address path is read, in memory, to
+  // derive the same key the place is stored under. No title, label or address
+  // is kept, and nothing about a row is changed or stored.
+
+  function rowKey(link) {
+    const address = link.getAttribute("href") ?? "";
+    if (rowKeys.has(address)) return rowKeys.get(address);
+    let key = null;
+    try {
+      const url = new URL(address, document.location.href);
+      const id = site.hosts.includes(url.hostname) ? conversationId(site.conversation, url.pathname) : null;
+      if (id !== null) key = conversationKey(site.id, id);
+    } catch {
+      // Not an address: no row of a conversation.
+    }
+    if (rowKeys.size >= ROW_MEMORY) rowKeys.clear();
+    rowKeys.set(address, key);
+    return key;
+  }
+
+  // The bookmark is drawn in the row a link sits in, which has to be the box
+  // the link is positioned in; where it is not, the row is left unmarked.
+  function sitsInRow(link) {
+    const row = link.offsetParent;
+    if (row === null || !row.contains(link)) return false;
+    return row.getBoundingClientRect().height <= link.getBoundingClientRect().height * 3 + 24;
+  }
+
+  function markRows() {
+    if (!site.rows) return;
+    const marked = document.querySelectorAll(`[${MARK.saved}]`);
+    if (preferences === null || marks.items.length === 0) {
+      for (const link of marked) link.removeAttribute(MARK.saved);
+      return;
+    }
+    const saved = new Set(marks.items.map((item) => item.k));
+    const wanted = new Set();
+    for (const link of document.querySelectorAll(site.rows)) {
+      const key = rowKey(link);
+      if (key === null || !saved.has(key)) continue;
+      if (!link.hasAttribute(MARK.saved) && !sitsInRow(link)) continue;
+      wanted.add(link);
+      setMark(link, MARK.saved, "");
+    }
+    for (const link of marked) if (!wanted.has(link)) link.removeAttribute(MARK.saved);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Saving from the keyboard
+  //
+  // One key, one action: Alt+Shift+S saves or updates the place, exactly as
+  // the popup's button does. It is read by the physical key, so it works in
+  // any keyboard layout. It is left alone while the reader is typing, and on
+  // a page that shows no conversation.
+
+  const TYPING_IN = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
+  const typingIn = (node) =>
+    node instanceof view.Element && (node.isContentEditable === true || node.closest(TYPING_IN) !== null);
+
+  function onKey(event) {
+    if (event.code !== QUICK_SAVE.code || !event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return;
+    if (event.repeat || event.isComposing || preferences === null) return;
+    if (typingIn(event.composedPath?.()[0] ?? event.target) || typingIn(document.activeElement)) return;
+    if (conversation() === null) return;
+    event.preventDefault();
+    savePlace().then(
+      (answer) => {
+        // The saved paragraph says so itself, for a moment.
+        if (answer.status === "saved" && answer.element) flash(answer.element);
+      },
+      () => {},
+    );
   }
 
   /** Take the stored places, at start and whenever they change in storage. */
@@ -1003,6 +1285,7 @@ export function createReader({
     marks = normalizeMarks(next);
     if (preferences === null) return;
     watch();
+    markRows();
     placeLookedAt = 0;
     keepPlace();
   }
@@ -1023,6 +1306,7 @@ export function createReader({
       }
       if (reading()) {
         if (theming()) measureSite();
+        measureFont();
         processTree(scope);
       }
     }
@@ -1033,6 +1317,8 @@ export function createReader({
       placeLookedAt = 0;
     }
     keepPlace();
+    // Rows come and go as the site's lists are scrolled; a second is soon enough.
+    markRows();
   }
 
   function flush() {
@@ -1139,6 +1425,9 @@ export function createReader({
     place = null;
     scopeSeen = null;
     routeSeen = null;
+    if (listening) view.removeEventListener("keydown", onKey, true);
+    listening = false;
+    markRows();
 
     for (const element of document.querySelectorAll(anyMark)) clearMarks(element);
     for (const name of Object.values(ROOT_MARKS)) setMark(root, name, null);
@@ -1169,9 +1458,13 @@ export function createReader({
     routeSeen = conversation();
     if (reading()) {
       if (theming()) measureSite();
+      measureFont();
       processTree(scopeSeen);
     }
     watch();
+    if (!listening) view.addEventListener("keydown", onKey, true);
+    listening = true;
+    markRows();
     placeLookedAt = 0;
     keepPlace();
   }

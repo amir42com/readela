@@ -17,8 +17,12 @@
 export const MARKS_KEY = "readela.marks";
 export const MARKS_VERSION = 2;
 
-/** Places kept at most; the oldest is dropped when another conversation gets one. */
-export const MARK_LIMIT = 100;
+/**
+ * Conversations that can have a saved place at one time. The bound keeps the
+ * stored object small; it is far above ordinary use. At the bound a place for
+ * a further conversation is refused. No place is ever dropped to make room.
+ */
+export const MARK_LIMIT = 1000;
 
 /** Kinds of readable block. */
 export const BLOCK_KINDS = Object.freeze(["p", "li", "h", "c", "o"]);
@@ -212,6 +216,8 @@ function validPlace(item) {
  * Return a valid places object for any input; malformed entries are dropped,
  * and so is every field that is not part of a place. Entries written in an
  * earlier format cannot be trusted under these rules and are dropped as well.
+ * An object that holds more places than the bound, which this code never
+ * writes, is read up to the bound.
  *
  * @param {unknown} raw
  * @returns {{ version: number, items: (ReturnType<typeof createPlace> & { k: string })[] }}
@@ -226,7 +232,7 @@ export function normalizeMarks(raw) {
     seen.add(place.k);
     valid.push(place);
   }
-  return { version: MARKS_VERSION, items: valid.slice(-MARK_LIMIT) };
+  return { version: MARKS_VERSION, items: valid.slice(0, MARK_LIMIT) };
 }
 
 /** The place saved for a conversation, or null. */
@@ -234,9 +240,24 @@ export function findMark(marks, key) {
   return normalizeMarks(marks).items.find((item) => item.k === key) ?? null;
 }
 
-/** Save `place` as the one place of the conversation `key`, as the newest entry. */
+/**
+ * Whether a place can be saved for the conversation `key`: it has one already,
+ * which would be replaced, or there is room for one more.
+ */
+export function canSave(marks, key) {
+  const { items } = normalizeMarks(marks);
+  return items.length < MARK_LIMIT || items.some((item) => item.k === key);
+}
+
+/**
+ * Save `place` as the one place of the conversation `key`, as the newest
+ * entry. Where there is no room (see `canSave`) nothing changes: no other
+ * place is given up for it.
+ */
 export function saveMark(marks, key, place) {
-  const others = normalizeMarks(marks).items.filter((item) => item.k !== key);
+  const current = normalizeMarks(marks);
+  if (!canSave(current, key)) return current;
+  const others = current.items.filter((item) => item.k !== key);
   return normalizeMarks({ version: MARKS_VERSION, items: [...others, { ...place, k: key }] });
 }
 

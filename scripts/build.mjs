@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 
-import { BUNDLED_FONT } from "../src/core/index.js";
+import { BUNDLED_FONTS, FONT_LICENCES } from "../src/core/index.js";
 import { buildCss } from "../src/page/style.js";
 import { createZip } from "./lib/zip.mjs";
 
@@ -25,13 +25,13 @@ const { version } = readJson(path.join(root, "package.json"));
 
 const BROWSERS = ["chrome", "firefox"];
 
-// How the content stylesheet names the packaged font. Chrome resolves a
+// How the content stylesheet names a packaged font. Chrome resolves a
 // relative address in a content stylesheet against the page, so the address
 // is spelled out with the extension's own identifier, which the browser fills
 // in. Firefox resolves it against the stylesheet, inside the extension.
 const FONT_URLS = {
-  chrome: `chrome-extension://__MSG_@@extension_id__/${BUNDLED_FONT.file}`,
-  firefox: BUNDLED_FONT.file,
+  chrome: (file) => `chrome-extension://__MSG_@@extension_id__/${file}`,
+  firefox: (file) => file,
 };
 
 async function buildFor(browser) {
@@ -59,10 +59,10 @@ async function buildFor(browser) {
   cpSync(path.join(source, "ui", "popup.html"), path.join(output, "popup", "popup.html"));
   cpSync(path.join(source, "ui", "popup.css"), path.join(output, "popup", "popup.css"));
   cpSync(path.join(source, "icons"), path.join(output, "icons"), { recursive: true });
-  // The packaged font with its licence; the notes about it stay in the source.
+  // The packaged fonts with their licences; the notes about them stay in the source.
   mkdirSync(path.join(output, "fonts"));
-  for (const name of [path.basename(BUNDLED_FONT.file), "OFL.txt"]) {
-    cpSync(path.join(source, "fonts", name), path.join(output, "fonts", name));
+  for (const file of [...BUNDLED_FONTS.map((font) => font.file), ...FONT_LICENCES]) {
+    cpSync(path.join(source, file), path.join(output, file));
   }
 
   const manifest = {

@@ -25,6 +25,15 @@
       nav { width: 220px; padding: 12px; }
       .column { flex: 1; min-width: 0; display: flex; flex-direction: column; max-width: 800px; }
       [data-autoscroll-container] { flex: 1; min-height: 0; overflow: hidden auto; }
+      .column { position: relative; }
+      .chat-header { position: absolute; z-index: 11; top: 0; left: 0; right: 0; height: 48px; padding: 0 16px; display: flex; align-items: center; pointer-events: none; }
+      .chat-header-band { position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 56px; background: #faf9f5; }
+      @media (prefers-color-scheme: dark) { .chat-header-band { background: #262624; } }
+      .row { position: relative; border-radius: 8px; }
+      .row:hover { background: #8882; }
+      .row-link { display: flex; align-items: center; padding: 2px; height: 32px; box-sizing: border-box; color: inherit; text-decoration: none; font-size: 14px; }
+      .row-link span { padding-left: 4px; overflow: hidden; white-space: nowrap; }
+
       [data-testid="transcript-sizer"] { position: relative; }
       [data-testid="transcript-row"] { position: absolute; left: 0; right: 0; padding: 0 16px; box-sizing: border-box; }
       .bubble { margin: 0 0 0 auto; max-width: 80%; padding: 8px 12px; background: rgb(20 20 19 / 0.06); border-radius: 12px; }
@@ -34,8 +43,16 @@
   </head>
   <body>
     <div class="shell">
-      <nav aria-label="Sidebar"><p>Long conversation</p></nav>
+      <nav aria-label="Sidebar">
+        <p>Long conversation</p>
+        <div id="c-rows">
+          <div data-row-key="chat:l-row-this"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="l-row-this" href="/chat/readela-long-fixture" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
+          <div data-row-key="chat:l-row-other"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="l-row-other" href="/chat/readela-fixture" draggable="false"><span data-row-label="iconless">TypeScript</span></a></div></div>
+        </div>
+      </nav>
       <div class="column" data-testid="chat-column">
+        <!-- The chat header lies over the top of the scrolling region and lets the pointer through. -->
+        <div class="chat-header" data-testid="chat-header" id="l-header"><div class="chat-header-band"></div><span id="l-header-title">Conversation</span></div>
         <div data-autoscroll-container="true" id="l-scroller">
           <div id="l-transcript" role="feed" aria-label="Conversation">
             <div data-testid="transcript-sizer" id="l-sizer"></div>

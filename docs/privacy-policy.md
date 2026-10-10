@@ -25,6 +25,13 @@ settings and, from version 0.3.0, the places you save, on your own device.
   also reads the conversation's address and the identifiers the site writes
   on its messages. Editable fields, such as the message composer, are never
   read.
+- **The list of your conversations (from version 0.3.0).** To show a small
+  bookmark beside the conversations in which you saved a place, Readela reads
+  the address of each conversation link in the site's own list and compares
+  its fingerprint with your saved places. It does not read their titles.
+- **One key combination (from version 0.3.0).** On a conversation page
+  Readela listens for Alt+Shift+S, which saves a place. It keeps no record of
+  the keys you press, and ignores the combination while you are typing.
 - **Processed in memory only.** The text is used at that moment, inside the
   page, and nothing readable is kept. Readela does not store, log, copy or
   transmit conversation content, page addresses or your browsing history.
@@ -42,9 +49,11 @@ the extension.
   text size and line spacing choices; from version 0.3.0 also the reading
   appearance. The same settings apply on both supported sites.
 - **Your saved places (from version 0.3.0):** only when you choose Save
-  place, Readela saves where you stopped in that conversation, at most 100
-  places and one per conversation. A saved place does not contain the text of
-  the paragraph, the title or the address of the conversation. It contains
+  place (in the popup or with Alt+Shift+S), Readela saves where you stopped
+  in that conversation, at most 1000 places and one per conversation. At that
+  number Readela tells you and saves no further conversation until you clear
+  one; it never removes a place by itself. A saved place does not contain the
+  text of the paragraph, the title or the address of the conversation. It contains
   short one-way fingerprints — of the conversation's identifier, of the
   message the paragraph is in, of the paragraph and of the paragraphs before
   and after it — and a few small numbers: the kind of paragraph, its position
@@ -63,9 +72,10 @@ No message content, site name, address or history is stored in readable form.
 - No advertising, tracking, profiling or fingerprinting of you or your device.
 - No remote or downloaded code; all code ships inside the extension package.
 - No downloaded fonts. Up to version 0.2.1 font choices use fonts already
-  installed on your device. From version 0.3.0 one open-source font,
-  Vazirmatn, ships inside the extension package for Persian and Arabic text;
-  it is loaded from the extension itself, never from the network.
+  installed on your device. From version 0.3.0 two open-source fonts ship
+  inside the extension package: Inter for Latin text and Vazirmatn for
+  Persian and Arabic text. They are loaded from the extension itself, never
+  from the network.
 - No accounts, sign-in or payment.
 - No sale, sharing or transfer of any information to anyone, and no use of
   any information for purposes unrelated to presenting the page.
@@ -77,8 +87,8 @@ No message content, site name, address or history is stored in readable form.
 | Access to `chatgpt.com` and `claude.ai` | To read the conversation text on those two sites and present it with the right direction, colours and typography. No other site is accessed. |
 | `storage` | To remember your settings and saved places on this device. |
 
-Nothing else is requested. From version 0.3.0 the packaged font file is made
-available to those two sites so their pages can display it; this is not a
+Nothing else is requested. From version 0.3.0 the packaged font files are made
+available to those two sites so their pages can display them; this is not a
 permission and gives the sites no information about you. The current manifest
 and source code are public, so these statements can be checked.
 

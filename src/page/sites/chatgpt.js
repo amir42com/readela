@@ -25,7 +25,10 @@ export const chatgpt = Object.freeze({
   // /c/<id>, also inside a project or a custom assistant: /g/<name>/c/<id>.
   conversation: Object.freeze([/(?:^|\/)c\/([0-9a-z][0-9a-z-]{7,})(?:\/|$)/i]),
 
-  // The conversation scrolls in a region of its own, not in the document.
+  // The conversation scrolls in a region of its own, not in the document. The
+  // region is laid out from its end: it opens on the last few turns, loads the
+  // ones before them when its beginning is scrolled into view, and keeps only
+  // the turns near the viewport in the document.
   scroller: "[data-app-action-timeline-scroll]",
 
   // The reader's own message: one bubble holding one text container, with no
@@ -42,4 +45,7 @@ export const chatgpt = Object.freeze({
 
   // A turn (the reader's message and the reply to it) carries the identifier.
   turn: "data-turn-key",
+
+  // The link of a conversation in the site's sidebar.
+  rows: "a[data-interactive-row-link][href]",
 });

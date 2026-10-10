@@ -4,8 +4,8 @@
 
 import { api } from "../browser/api.js";
 import { askPage } from "../browser/messages.js";
-import { loadPreferences, savePreferences } from "../browser/storage.js";
-import { resetPreferences } from "../core/index.js";
+import { loadPreferences, savePreferences, watchMarks } from "../browser/storage.js";
+import { MARK_LIMIT, resetPreferences } from "../core/index.js";
 
 const GROUPS = ["theme", "font", "size", "spacing", "direction"];
 
@@ -29,14 +29,16 @@ const HINTS = {
   },
 };
 
-// What is known about the conversation in the tab.
+// What is known about the conversation in the tab. Whether it has a saved
+// place is said in the line beside the heading, with the count of all of them.
 const PLACE_NOTES = {
   unavailable: "Open a ChatGPT or Claude conversation to save a place.",
   nowhere: "Open a conversation to save a place.",
   off: "Turn Readela on to use saved places.",
   none: "",
-  saved: "A place is saved in this conversation.",
+  saved: "",
 };
+const PLACE_STATES = { none: "Not saved here", saved: "Saved here" };
 
 // What an action did. Each is said only when the page reports it as true.
 const PLACE_RESULTS = {
@@ -45,6 +47,7 @@ const PLACE_RESULTS = {
     nothing: "No response paragraph is in view to save.",
     ambiguous: "This paragraph cannot be told apart from an identical one beside it. Choose another.",
     failed: "The place could not be saved. Nothing was changed.",
+    full: `All ${MARK_LIMIT} saved places are in use. Clear one to save this conversation.`,
   },
   go: {
     arrived: "Returned to your saved place.",
@@ -67,6 +70,7 @@ const stateNote = document.getElementById("state-note");
 const settings = document.getElementById("settings");
 const status = document.getElementById("status");
 const placeNote = document.getElementById("place-note");
+const placeState = document.getElementById("place-state");
 const placeButtons = {
   set: document.getElementById("place-save"),
   go: document.getElementById("place-return"),
@@ -76,6 +80,7 @@ const radios = Object.fromEntries(GROUPS.map((name) => [name, [...document.query
 
 let preferences;
 let place = "unavailable";
+let total = null; // conversations with a saved place, from what is stored
 
 // Requests to the page are answered one at a time and in the order they were
 // made, so a slow first report can never overwrite the result of a later action.
@@ -110,6 +115,9 @@ function renderPlace(message) {
   placeButtons.go.disabled = !(usable && saved);
   placeButtons.clear.disabled = !(usable && saved);
   placeNote.textContent = message ?? PLACE_NOTES[state] ?? "";
+  // The count is of what the browser has stored, never of what was asked for.
+  const count = total === null ? "" : `${total} total`;
+  placeState.textContent = [PLACE_STATES[state], count].filter(Boolean).join(" · ");
 }
 
 async function update(change, message = "") {
@@ -171,4 +179,13 @@ loadPreferences().then((stored) => {
   preferences = stored;
   render();
   refreshPlace();
+  // The stored places, now and whenever they change, here or in another tab.
+  // What an action reported stays on screen; the state beside it follows.
+  watchMarks(async (marks) => {
+    total = marks.items.length;
+    const before = acted;
+    const answer = known((await ask("status")).status);
+    if (before === acted) place = answer;
+    renderPlace(placeNote.textContent);
+  });
 });

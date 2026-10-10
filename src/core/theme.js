@@ -11,7 +11,8 @@
  * link           links in the text (also underlined, never colour alone)
  * rule           table lines and separators
  * quote          the bar of a quotation
- * code           background of inline code
+ * code           background of inline code, keyboard and sample text;
+ *                codeText is its text and codeLine the line around it
  * head           background of table header cells
  * selection      background of selected text; selectionText is its text
  * mark           the bar of the saved place; markTint is the saved block's background
@@ -25,6 +26,8 @@ export const THEMES = Object.freeze({
     rule: "#B9AE98",
     quote: "#7D6F59",
     code: "#EAE2D0",
+    codeText: "#14594E",
+    codeLine: "#C4B89E",
     head: "#ECE5D5",
     selection: "#F0D49A",
     selectionText: "#24201B",
@@ -39,6 +42,8 @@ export const THEMES = Object.freeze({
     rule: "#5E574D",
     quote: "#9A8E7C",
     code: "#322E29",
+    codeText: "#8FD6C4",
+    codeLine: "#5E574D",
     head: "#2E2A26",
     selection: "#54401E",
     selectionText: "#F6EFE2",

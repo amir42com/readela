@@ -3,8 +3,9 @@
 First prepared on 2026-10-02 for the first release and reconciled the same day
 with the owner's accepted decisions (DEC-100, DEC-102, DEC-103, DEC-104).
 Revised on 2026-10-10 for version 0.3.0 under DEC-116 and DEC-136 and the
-owner's instruction of that day, and again the same day under DEC-140 after
-the owner's first review of the 0.3.0 build. Approval of this brief and the
+owner's instruction of that day, again the same day under DEC-140 after the
+owner's first review of the 0.3.0 build, and again under DEC-141 and DEC-142
+after the second. Approval of this brief and the
 project's managerial status are tracked in the managerial system, not in this
 file.
 
@@ -52,7 +53,9 @@ Firefox builds come from one shared codebase.
    each.
 6. **Text direction:** Original, Auto, RTL or LTR.
 7. **Saved place.** Save place (Update place once one exists), Return and
-   Clear, one place per conversation.
+   Clear, one place per conversation; whether this conversation has one and
+   how many conversations do; a bookmark beside those conversations in the
+   site's own list; and Alt+Shift+S on the page to save.
 8. **Local persistence.** Choices and saved places are remembered on the
    device; choices are shared by both supported sites.
 
@@ -96,26 +99,53 @@ direction and alignment of blocks whose text calls for it.
   10:1 against every surface it sits on, secondary text at least 7:1. The
   themes are described as warm, comfortable reading colours and make no
   health claim. Readela is not a general dark-mode or site-recolouring tool.
-- **Readela Sans.** Persian and Arabic script is shown in Vazirmatn, which is
-  packaged with the extension, so it does not depend on fonts installed on the
-  device. Latin, Hebrew and every other script use the device's own sans-serif
-  fonts. Code keeps its monospaced font and mathematics its own.
+- **Readela Sans.** One choice, two packaged fonts: Latin and Latin Extended
+  text is shown in Inter, Persian and Arabic script in Vazirmatn, so neither
+  depends on fonts installed on the device and each script gets a font drawn
+  for it. Italic and bold are the fonts' own. Hebrew and every other script
+  use the device's own sans-serif fonts. Code, keyboard and sample text keep
+  their monospaced font, mathematics its own, and a unit the site presents as
+  a whole keeps the site's font. The popup names the choice Readela Sans and
+  nothing else.
 - **Text size** scales reading blocks to 110%, 125% or 140%. **Line spacing**
   is 1.6, 1.9 or 2.2.
 - **Saved place.** One place per conversation, in the text of a response.
   - *Saving.* Save place saves the readable paragraph that holds a selection
-    in view, otherwise the first readable paragraph of a response at the top
-    of the reading area that is not covered by something the site keeps on
-    top; a paragraph that begins above the area counts. Nothing is guessed
-    about where the reader is looking. Elements kept only for screen readers,
-    controls and the reader's own messages are never saved. The popup says
-    "Saves the first paragraph in view. Select text to choose another." A
-    paragraph that cannot be told from an identical one beside it is not
-    saved, and the popup says so.
+    in view. Without a selection it saves the first readable paragraph of a
+    response that begins clearly in the reading area, below whatever the site
+    keeps over the top of the conversation, so the reader sees the whole of
+    what was saved; a paragraph that only reaches into view from above is
+    passed over, unless it fills the screen and nothing begins in view.
+    Nothing is guessed about where the reader is looking. Elements kept only
+    for screen readers, controls and the reader's own messages are never
+    saved. The popup says "Saves the first paragraph in view. Select text to
+    choose another." and names the key combination. A paragraph that cannot
+    be told from an identical one beside it is not saved, and the popup says
+    so.
+  - *Saving from the keyboard.* Alt+Shift+S on a conversation page saves or
+    updates the place exactly as the popup's button does. It was chosen
+    because neither site and neither browser uses it, and it is read by the
+    physical key, so it works in a Persian keyboard layout. It does nothing
+    while the reader is typing. The saved paragraph shows the brief emphasis
+    once the place is stored.
+  - *Status and count.* Beside the Saved place heading the popup says
+    "Saved here" or "Not saved here" and the number of conversations that
+    have a place, for example "Saved here · 7 total". Both follow what the
+    browser has stored.
+  - *In the site's list.* A conversation that has a place gets a small filled
+    bookmark at the start of its row in the site's own list of conversations.
+    It is drawn beside the row and changes nothing in it.
+  - *Capacity.* A thousand conversations can have a place. At that number a
+    further conversation is refused and the popup says so; a conversation
+    that has a place can still update or clear it. No place is ever removed
+    to make room.
   - *Showing.* The saved paragraph gets a bar on its leading edge and a tinted
     background.
   - *Returning.* Return scrolls the place into view and emphasises it briefly;
-    with reduced motion the jump is immediate and nothing is animated. A place
+    with reduced motion the jump is immediate and nothing is animated. The
+    paragraph arrives below whatever the site keeps over the top of the
+    conversation, with some of what precedes it in view, and Return is
+    reported only once it is seen there. A place
     is trusted only inside the response it was saved in, which the site's own
     identifier for that response establishes where the site gives one; the
     same sentence in another response is never taken for it. If the saved
@@ -123,10 +153,12 @@ direction and alignment of blocks whose text calls for it.
     unchanged, the place is shown and reported as close to the saved place.
     Where the response is not on the page (the site has not loaded it, or
     keeps only what is near the viewport in the document), Return searches the
-    conversation in a bounded number of steps and a bounded time, stops as
-    soon as the reader scrolls, clicks or types, when the conversation changes
-    or Readela is turned off, and puts the conversation back where it was if
-    it finds nothing.
+    conversation in a bounded number of steps and a bounded time, towards
+    the beginning and towards the end, waiting where the site loads the
+    earlier part of a long conversation a piece at a time. It stops as soon
+    as the reader scrolls, clicks or types, when the conversation changes or
+    Readela is turned off, and puts the conversation back where it was if it
+    finds nothing.
   - *Truthful reports.* "Place saved" is said after the browser has stored it;
     "Returned to your saved place" after the place is seen in view; a place
     that is not found is reported as not found and still saved. A failed
@@ -190,8 +222,9 @@ submitted and what each store reported.
 
 - Custom fonts chosen by the reader, serif or Naskh font choices.
 - Notes, durable highlighting, read aloud, focus modes, translation.
-- Saved places in the reader's own messages; a sign in the site's sidebar or
-  history that a conversation has a saved place.
+- Saved places in the reader's own messages.
+- A list, a manager or a search of saved places; a floating or movable
+  Return control on the page; an entry in the browser's context menu.
 - Per-site preferences, other websites.
 - Safari and Microsoft Edge. Safari is an accepted planned public platform
   (DEC-104) and Edge a planned later one (DEC-116); nothing here implements
@@ -224,14 +257,21 @@ builds, on both supported sites:
    reader's own messages and unrecognised layouts unchanged, keep a code block
    whole with nothing of another colour around its corners, and keep links,
    inline code, list markers, quotations and tables distinct.
-10. Persian and Arabic text in Readela Sans is rendered with the packaged
-    font; Latin and Hebrew text is not.
+10. In Readela Sans, Persian and Arabic text is rendered with the packaged
+    Vazirmatn and Latin text with the packaged Inter, with true italic and
+    bold; Hebrew text, code and mathematics are not.
 11. The saved place is saved, shown, found again after a reload, a re-render
     and a restart of the browser, and under every route to its conversation;
     it is never confused with an identical paragraph elsewhere; it is found by
-    a bounded search when its response is not on the page; it is reported as
-    saved, reached, close or not found only when that is the truth; and a
-    place that is not found is kept.
+    a bounded search when its response is not on the page, whether it lies
+    before or after what is shown; the paragraph saved and the paragraph
+    returned to are clear of the site's header; it is reported as saved,
+    reached, close or not found only when that is the truth; and a place
+    that is not found is kept.
+12. The popup's status and count, and the bookmarks in the site's list, agree
+    with what is stored; the thousandth place is saved and a further one is
+    refused without removing any; the key combination saves only outside
+    fields that take text.
 
 ## Accepted owner decisions reflected here
 
@@ -244,11 +284,19 @@ builds, on both supported sites:
 - DEC-115: Readela as the store and installed-extension name.
 - DEC-116: Readela as a minimal reading-comfort product.
 - DEC-136: the 0.3.0 scope: independent reading aspects, reading themes, the
-  reading-position marker, simplified typography with bundled Vazirmatn, a
+  reading-position marker, simplified typography with a bundled font, a
   minimal popup.
 - DEC-140: the correction of 0.3.0 before integration: a saved place that is
   trusted only where it is certain, explicit ownership of reading surfaces,
   coherent code and semantic content, and a reading-first popup.
+- DEC-141 and DEC-142: the second correction of 0.3.0 before integration,
+  after the owner's review on the real sites: a saved place found again in a
+  long conversation from either end; saving and returning clear of the
+  site's header; the status and count, the bookmark in the site's list, the
+  capacity of a thousand without removal and the key combination; inline
+  code and wide tables that belong to the reading surface; and Readela Sans
+  as Inter with Vazirmatn. A context-menu entry and any floating control are
+  left out.
 
 ## Still separate from this brief
 

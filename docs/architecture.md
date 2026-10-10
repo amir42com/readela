@@ -11,7 +11,7 @@ src/page/      page integration          DOM reading and marking, site adapter
 src/browser/   browser integration       extension namespace, storage, messages
 src/ui/        popup                     controls over the shared preferences
 src/content/   content script entry      wires storage and messages -> page
-src/fonts/     packaged font             Vazirmatn and its licence
+src/fonts/     packaged fonts            Inter, Vazirmatn and their licences
 src/manifest/  base + per-browser keys
 ```
 
@@ -26,7 +26,7 @@ src/manifest/  base + per-browser keys
   unchanged mode.
 - `preferences.js` — the preference object (version 2), its validation
   (`normalizePreferences`, which is also the migration from version 1),
-  reset, `changesPage`, the description of the packaged font, and
+  reset, `changesPage`, the description of the packaged fonts, and
   `resolveTypography`, which turns choices into a font stack, a scale and a
   line height. The stored word for the unchanged state of every aspect is
   `"page"`; the popup calls it Original.
@@ -36,7 +36,7 @@ src/manifest/  base + per-browser keys
   reports for it.
 - `marker.js` — the saved place as data: fingerprints, the identity of a
   conversation, the record of a place, `locatePlace`, and the bounded list of
-  saved places. See "Saved place" below.
+  saved places with its rule at the limit (`canSave`). See "Saved place" below.
 
 Everything in and out is a string, number, boolean or plain object. The core
 is tested with Node's built-in test runner and nothing else.
@@ -49,7 +49,8 @@ is tested with Node's built-in test runner and nothing else.
 
   | Part of the page | Adapter field | Owner |
   | --- | --- | --- |
-  | Application shell: navigation, headers, the composer and every editable field, controls, dialogs | `exclude` | the site; never read or changed |
+  | Application shell: navigation, headers, the composer and every editable field, controls, dialogs | `exclude` | the site; never read or changed, with the one exception below |
+  | The links of conversations in the site's own lists | `rows` | the site; the address path of a link is read, and the link of a conversation with a saved place gets one attribute |
   | The conversation shown | `scope`, `conversation`, `scroller` | the site; read |
   | The reader's own message | `user`, `extraBlocks` | the site for its appearance, inside and out; direction and typography follow the reading settings |
   | The text of a response | `prose` | Readela, under Paper and Night; the only place a saved place can be |
@@ -103,13 +104,19 @@ decides everything:
 2. **Reading text** is the reading blocks directly on a surface and what is
    inside them. It takes the theme's text colour and gives up backgrounds made
    for the site's own theme. What a part of the text means stays visible
-   through one token each: links (also underlined), inline code, table lines
-   and header cells, the bar of a quotation, secondary text (list markers,
-   small and struck text, captions), highlighted text and selected text.
+   through tokens of its own: links (also underlined); inline code, keyboard
+   and sample text (a colour, a ground and a line of their own, drawn inside
+   the box so nothing moves); table lines and header cells; the bar of a
+   quotation; secondary text (list markers, small and struck text, captions);
+   highlighted text and selected text.
    Borders are recoloured only on tables and quotations, so the lines a
    formula is drawn with keep the text's colour; a formula keeps its own font.
 3. **A wrapper that only holds reading blocks** (around a table, say) is part
-   of the surface. Its scrolling is untouched.
+   of the surface, at whatever width the site gives it. Where it is wider than
+   the text, the outermost wrapper carries the surface with it: the surface's
+   ground, the surface's margin to its two sides and the surface's corners, so
+   no strip or square corner shows beyond the text. Wrappers inside it paint
+   nothing. Nothing is clipped and its scrolling is untouched.
 4. **Everything else in a response is a unit that stays the site's, whole**: a
    code block with its header, controls and syntax colours, a `pre`, a widget,
    an image. No rule for reading text reaches into it. The reader notes on the
@@ -136,9 +143,12 @@ when the site changes its theme.
 `--readela-*` custom properties in three places: on a list or quotation whose
 physical indentation has to be mirrored, on a rounded unit that keeps the
 site's presentation under a theme (its corner radii), and on the root element
-while a reading theme is on (the two measured site colours). No element is
-added, and no text node, element structure, page-owned attribute or page-owned
-style is written, which is what makes "off" exact.
+(the two measured site colours while a reading theme is on, the measured site
+font while Readela Sans is on). The attributes are on elements of the
+conversation, on the root element, and, as the one mark outside the
+conversation, on the sidebar links of conversations that have a saved place.
+No element is added, and no text node, element structure, page-owned attribute
+or page-owned style is written, which is what makes "off" exact.
 
 ### Saved place
 
@@ -184,33 +194,68 @@ was saved in.
   `ambiguous` (identical candidates), or `changed`. A position or a row number
   never decides; they are hints for where to look.
 
-**Saving.** The block is the readable block that holds a selection in view,
-otherwise the first readable block of a response at the top of the reading
-area that is not under something the site keeps on top; a paragraph that
-begins above the area counts. Readable means paragraph-like, with text, larger
-than an element kept only for screen readers, not hidden, and outside every
-kept unit. A place that could not be told from an identical one is not saved.
+**Saving.** A selection in view says exactly which block: the readable block
+that holds it. Without one, the block is the first readable block of a
+response that begins clearly in the reading area, so the reader sees all of
+what was saved; a block that only reaches into view from above is passed over.
+Only where no block begins in view (one long paragraph fills the screen) is it
+the block being read at the top. Readable means paragraph-like, with text,
+larger than an element kept only for screen readers, not hidden, and outside
+every kept unit. A place that could not be told from an identical one is not
+saved.
+
+**The reading area.** It is the conversation's scrolling region less whatever
+the site keeps over its top and bottom edges, less 8px. A cover is found from
+the page's geometry, not by asking what a pointer would hit, because a header
+can lie over the text and let the pointer through: a positioned element
+(fixed, sticky, or absolute outside the scrolled content) that lies within 8px
+of an edge of the region, spans at least 30% of its width and at most 40% of
+its height. No site's header height is written down anywhere. Something
+painted behind the text can be taken for a cover; the only cost is a place a
+little further down.
+
+**Capacity.** A thousand conversations can have a place. At the limit a place
+for a further conversation is refused; a conversation that has one can still
+move or clear it. No place is dropped to make room.
 
 **Returning.** Only when the reader chooses Return:
 
-1. If the place is on the page it is scrolled into view.
-2. If its response is not on the page, the conversation's own scrolling
-   region is searched: first towards the place by row number where the site
-   numbers rows, then outwards from where the place was when it was saved, in
-   stops of four fifths of the region's height. After each stop the reader
-   waits for the page to settle and asks again, reading only the responses'
-   identifiers until the right one is there.
-3. Limits: at most 40 stops and 12 seconds; a stop waits at least 120 ms, up
-   to 360 ms for a first change, then for 100 ms of quiet, at most 700 ms. If
-   five stops in a row bring nothing new into the document, only the two ends
-   of the conversation are still tried.
+1. If the place is in the document, it is brought into view.
+2. If its response is not in the document, the conversation's own scrolling
+   region is searched. Positions are distances from the beginning of the
+   conversation whichever way the site lays it out: a region laid out from its
+   end (ChatGPT) counts `scrollTop` from 0 at the end into negative numbers,
+   and a positive value does nothing there.
+   - Where the site numbers its rows (Claude), at most ten jumps go straight
+     towards the saved row; the number only says which way and roughly how
+     far.
+   - Then a walk in the direction the place is expected in (by row number, or
+     by where the place was when it was saved), and after that in the other,
+     each from where the reader was. A walk goes one stretch at a time. A
+     stretch ends at the edge of the unbroken run of turns the site has in the
+     document on that side, so nothing lies between two stops that was never
+     in the document; where nothing is, it is four fifths of a screen.
+   - At the beginning of what is loaded, the page is given 2.5 seconds to load
+     what came before (ChatGPT loads a few earlier turns each time its
+     beginning is shown). If the conversation grows, the walk goes on.
+   - After each stop the reader waits for the page to settle (at least 120 ms,
+     up to 360 ms for a first change, then 100 ms of quiet, at most 700 ms)
+     and asks again, reading only the turns' identifiers until the right one
+     is there.
+3. Limits: 90 stops and 30 seconds. Thirty seconds reach back in the order of
+   a hundred turns on a site that loads its earlier part a few turns at a
+   time; what was loaded stays loaded, so a second Return goes further.
 4. The search ends at once when the reader does anything (wheel, touch,
    pointer or key), when the conversation changes and when Readela is turned
    off; then nothing more is moved.
 5. Unless the place was found or the reader took over, the conversation is put
    back where it was.
-6. A return is reported only after the place has been looked up again and is
-   seen in view (within 2.5 seconds of scrolling to it).
+6. Arrival: the block is placed with its beginning a fifth of the reading area
+   (at most 120px) below the top of that area, so it is clear of the site's
+   header and some of what precedes it stays in view; a block taller than the
+   room begins at the top of the area. A return is reported only after the
+   place has been looked up again and begins clearly in the reading area; the
+   placement is corrected up to three times where the page moves it.
 
 A place that is not found stays saved. Nothing but Clear, or saving another
 place in the same conversation, removes it.
@@ -218,6 +263,27 @@ place in the same conversation, removes it.
 **Keeping it shown.** While a place is saved the mark is kept on its block: it
 is looked for again when its element is replaced, when the text in it changes,
 and when the conversation changes.
+
+**Saved conversations in the site's lists.** The link of a conversation that
+has a saved place gets `data-readela-saved`, and the stylesheet draws a small
+filled bookmark at the start of its row from it: a pseudo-element of the link,
+positioned in the row, taking no part in the row's layout and no pointer
+input. Rows are found by the hook the adapter names (`rows`); the address path
+of each link gives the conversation's identifier and from it the same key the
+place is stored under. No title, label or address is kept. Rows are looked at
+when a place is saved or cleared, when the stored places change, and once a
+second with the address check, so rows the site adds or renders again are
+marked without an observer of their own. A link whose row is not the box it is
+positioned in is left unmarked. Off removes every mark.
+
+**Saving from the keyboard.** Alt+Shift+S on a conversation page does what the
+popup's Save place does, through the same function. It is read in the content
+script by the physical key, so it works in any keyboard layout, needs no
+permission and registers nothing with the browser. It is ignored while the
+reader is typing (an input, a text area, a select, anything editable), while
+another modifier is held, and on a page that shows no conversation. When the
+place is stored, the saved paragraph shows the brief emphasis; when it is not,
+nothing on the page says anything.
 
 ## Browser integration (`src/browser/`)
 
@@ -250,31 +316,43 @@ Text size, Line spacing, Text direction), then the saved place, then Reset and
 the publisher and version. A selected choice is a raised segment with an
 outline and heavier text; the keyboard focus is a separate ring in the accent
 colour. The popup reads and writes the shared preferences and sends the
-saved-place requests. Its link to the publisher's site is an ordinary link that
-opens a new tab; nothing is requested until it is followed.
+saved-place requests. Beside the Saved place heading it says whether this
+conversation has a place and how many conversations have one; the count is
+read from what is stored and follows it. Its link to the publisher's site is
+an ordinary link that opens a new tab; nothing is requested until it is
+followed.
 
-## Packaged font
+## Packaged fonts
 
-`src/fonts/` holds the official Vazirmatn Non-Latin variable font and its
-licence; `src/fonts/README.md` records the upstream version, file and digests.
-The stylesheet declares one `@font-face` for Arabic-script characters only.
-The browser loads the file from the extension itself, and only when such text
-is shown in Readela Sans. For a page to use it, the file is the manifest's one
-web-accessible resource, limited to the two supported hosts.
+`src/fonts/` holds the official Inter variable fonts (upright and italic), the
+official Vazirmatn Non-Latin variable font and their licences;
+`src/fonts/README.md` records the upstream versions, files and digests. The
+stylesheet declares three `@font-face` rules, each limited by `unicode-range`
+to the characters of its own script: Inter for Latin and Latin Extended,
+Vazirmatn for Arabic script. A script is therefore never shown in the other's
+font, and text in neither falls through to the device's fonts. The browser
+loads a file from the extension itself, and only when such text is shown in
+Readela Sans. For a page to use them, the three files are the manifest's
+web-accessible resources, limited to the two supported hosts.
+
+Readela Sans applies to reading text. Code, keyboard input, sample text and
+mathematics are left to their own fonts, and a unit the site presents as a
+whole is given the site's own font back, which the reader measures on the
+conversation region.
 
 ## Browser differences
 
 | | Chrome | Firefox |
 | --- | --- | --- |
 | Manifest | `minimum_chrome_version` | `browser_specific_settings.gecko` (ID, minimum version, data-collection declaration); `author` and `developer`, which Chrome does not use |
-| Font address in `content.css` | spelled out with the extension's identifier (`__MSG_@@extension_id__`), because a relative address is resolved against the page | relative, because it is resolved against the stylesheet |
+| Font addresses in `content.css` | spelled out with the extension's identifier (`__MSG_@@extension_id__`), because a relative address is resolved against the page | relative, because it is resolved against the stylesheet |
 | Code | identical | identical |
 
 ## Build
 
 `scripts/build.mjs` bundles the content script and popup script into classic
 scripts (content scripts cannot be ES modules), writes `content.css` from
-`style.js`, copies static files, the font and its licence, and merges the
+`style.js`, copies static files, the fonts and their licences, and merges the
 manifest. Output is not minified. `scripts/lib/zip.mjs` writes deterministic
 archives.
 

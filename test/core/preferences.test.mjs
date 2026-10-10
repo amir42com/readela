@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  BUNDLED_FONT,
+  BUNDLED_FONTS,
   DEFAULT_PREFERENCES,
   changesPage,
   normalizePreferences,
@@ -77,10 +77,21 @@ test("typography choices resolve to presentation values", () => {
   });
   const stack = resolveTypography({ font: "sans" }).fontFamily;
   // The packaged face comes first; everything after it is a system font.
-  assert.ok(stack.startsWith(`"${BUNDLED_FONT.family}", system-ui`));
-  assert.match(stack, /sans-serif$/);
-  assert.doesNotMatch(stack, /Vazirmatn/, "no dependence on a font installed under that name");
-  // The packaged face covers Arabic-script characters and not Latin or Hebrew.
-  assert.match(BUNDLED_FONT.unicodeRange, /U\+0600-06FF/);
-  assert.doesNotMatch(BUNDLED_FONT.unicodeRange, /U\+00|U\+05/);
+  // The packaged faces come first, then system fonts only.
+  assert.ok(stack.startsWith(`"Readela Sans Arabic", "Readela Sans Latin", system-ui`));
+  // Each face is limited to its own script: Vazirmatn never shows Latin or
+  // Hebrew, Inter never shows Arabic script or Hebrew.
+  const [arabic, latin, italic] = BUNDLED_FONTS;
+  assert.deepEqual(BUNDLED_FONTS.map((font) => `${font.family} ${font.style} ${font.weight}`), [
+    "Readela Sans Arabic normal 100 900",
+    "Readela Sans Latin normal 100 900",
+    "Readela Sans Latin italic 100 900",
+  ]);
+  assert.match(arabic.unicodeRange, /U\+0600-06FF/);
+  assert.doesNotMatch(arabic.unicodeRange, /U\+00|U\+05/);
+  assert.match(latin.unicodeRange, /^U\+0000-02FF/);
+  assert.doesNotMatch(latin.unicodeRange, /U\+05|U\+06|U\+07|U\+FB|U\+FE7/);
+  assert.equal(italic.unicodeRange, latin.unicodeRange);
+  // An italic of its own for Latin text; none is claimed for Arabic script.
+  assert.equal(BUNDLED_FONTS.filter((font) => font.style === "italic").length, 1);
 });

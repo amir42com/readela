@@ -7,9 +7,16 @@
 //   name          display name
 //   hosts         exact host names served; the manifest matches exactly these
 //
-//   Application shell — the site's, never read or changed:
+//   Application shell — the site's, never read or changed, with one
+//   exception (rows):
 //   exclude       selector of navigation, headers, the composer and every
 //                 other editable field, controls and dialogs
+//   rows          optional selector of the links of conversations in the
+//                 site's own lists. The address path of a link is read to
+//                 see whether its conversation has a saved place; such a
+//                 link gets one attribute, from which a small bookmark is
+//                 drawn in its row. Nothing else about a row is read or
+//                 changed
 //
 //   Conversation:
 //   scope         selector of the region that holds a conversation. A site

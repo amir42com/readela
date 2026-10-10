@@ -33,6 +33,8 @@ const longSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "clau
 const FIXTURE_URL = "https://chatgpt.com/c/readela-fixture";
 const CLAUDE_FIXTURE_URL = "https://claude.ai/chat/readela-fixture";
 const LONG_FIXTURE_URL = "https://claude.ai/chat/readela-long-fixture";
+const chatgptLongSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "chatgpt-long-conversation.html"), "utf8");
+const CHATGPT_LONG_URL = "https://chatgpt.com/c/readela-long-fixture";
 // The single-page sites change the address without loading a document; a
 // reload at such an address is answered with the conversation it belongs to.
 const FIXTURES = {
@@ -40,6 +42,7 @@ const FIXTURES = {
   "https://chatgpt.com/g/g-p-0123456789abcdef-fixture-project/c/readela-fixture": fixtureSource,
   [CLAUDE_FIXTURE_URL]: claudeSource,
   [LONG_FIXTURE_URL]: longSource,
+  [CHATGPT_LONG_URL]: chatgptLongSource,
 };
 
 // A file inside the installed extension: never a network request.
@@ -305,6 +308,8 @@ const colours = (page, selectors) =>
         sheet: element.getAttribute("data-readela-sheet"),
         island: element.getAttribute("data-readela-island"),
         underline: style.textDecorationLine,
+        shadow: style.boxShadow,
+        font: style.fontFamily,
         radius: style.borderTopLeftRadius,
         overflow: `${style.overflowX} ${style.overflowY}`,
         edges: [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor].join(" | "),
@@ -351,7 +356,7 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
   const semantic = parts.semantic ? Object.values(parts.semantic) : [];
   const all = [
     ...new Set([
-      ...parts.text, parts.link, parts.inlineCode, parts.header, parts.sheet, parts.site, ...parts.outside, ...semantic,
+      ...parts.text, parts.link, parts.inlineCode, ...(parts.tokens ?? []), parts.header, parts.sheet, parts.site, ...parts.outside, ...semantic,
       ...units.flatMap((unit) => [unit.frame, unit.unit, ...unit.inside]),
       ...(parts.pre ? [parts.pre] : []),
     ]),
@@ -388,7 +393,21 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
     assert.ok(isColour(facts[parts.link].color, palette.link), `${label}: link colour ${facts[parts.link].color}`);
     assert.match(facts[parts.link].underline, /underline/, `${label}: links are underlined, not colour alone`);
     assert.ok(contrast(rgb(facts[parts.link].color), rgb(facts[parts.link].background)) >= 7, `${label}: link contrast`);
-    assert.ok(isColour(facts[parts.inlineCode].own, palette.code), `${label}: inline code background`);
+    // Inline code, a function name, a version, a key, sample output: each
+    // stands out from the sentence at a glance, by a colour, a ground and a
+    // line of its own, and keeps its monospaced font.
+    for (const selector of [parts.inlineCode, ...(parts.tokens ?? [])]) {
+      const token = facts[selector];
+      assert.ok(isColour(token.color, palette.codeText), `${label}: ${selector} text ${token.color}`);
+      assert.ok(isColour(token.own, palette.code), `${label}: ${selector} ground ${token.own}`);
+      assert.ok(token.shadow.includes("inset") && isColour(token.shadow, palette.codeLine), `${label}: ${selector} line ${token.shadow}`);
+      assert.ok(contrast(rgb(token.color), rgb(token.own)) >= 6, `${label}: ${selector} contrast`);
+      const apart = rgb(token.color).reduce((sum, value, index) => sum + Math.abs(value - hexRgb(palette.text)[index]), 0);
+      assert.ok(apart >= 90, `${label}: ${selector} is not the colour of the sentence (${apart})`);
+      assert.notEqual(token.own, facts[parts.text[0]].own, `${label}: ${selector} has a ground the sentence has not`);
+      assert.equal(token.font, original[selector].font, `${label}: ${selector} font`);
+      assert.match(token.font, /monospace/, `${label}: ${selector} is monospaced`);
+    }
     assert.ok(isColour(facts[parts.header].own, palette.head), `${label}: table header background`);
 
     if (parts.pre) {
@@ -445,7 +464,20 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
         const quote = style(selectors.quote);
         const sides = ["Left", "Right"].filter((side) => parseFloat(quote[`border${side}Width`]) > 0);
         const table = document.querySelector(selectors.tableScroll);
+        const frame = document.querySelector(selectors.tableFrame);
+        const frameBox = frame.getBoundingClientRect();
+        const sheetBox = frame.closest('[data-readela-sheet=""]').getBoundingClientRect();
+        const frameStyle = getComputedStyle(frame);
+        table.scrollLeft = 60;
+        const scrolled = table.scrollLeft;
+        table.scrollLeft = 0;
         return {
+          tableWider: frameBox.left <= sheetBox.left - 30 && frameBox.right >= sheetBox.right + 30,
+          tableShadow: frameStyle.boxShadow,
+          tableRadius: frameStyle.borderTopLeftRadius,
+          tableFrameOverflow: `${frameStyle.overflowX} ${frameStyle.overflowY}`,
+          tableScrolls: table.scrollWidth > table.clientWidth + 20 && scrolled === 60,
+          tableHeads: document.querySelectorAll(`${selectors.tableFrame} th`).length,
           marker: style(selectors.item, "::marker").color,
           quoteSides: sides.length,
           quoteBar: quote[`border${sides[0]}Color`],
@@ -483,6 +515,37 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
         { overflow: "auto", scroll: "inner", frame: "inner", unit: null },
         `${label}: table wrappers`,
       );
+      // A table wider than the text stays as wide and still scrolls sideways.
+      // It carries the reading surface with it: one ground, the surface's own
+      // margin to its sides, rounded corners, and nothing clipped.
+      assert.equal(extra.tableWider, true, `${label}: the table is wider than the text`);
+      assert.equal(extra.tableScrolls, true, `${label}: the table scrolls sideways`);
+      assert.equal(extra.tableHeads, 4, `${label}: the table has its headers`);
+      assert.ok(isColour(facts[names.tableFrame].own, palette.surface), `${label}: table ground ${facts[names.tableFrame].own}`);
+      assert.equal(facts[names.tableScroll].opacity, 0, `${label}: only the outermost wrapper paints`);
+      assert.equal(extra.tableShadow.match(/rgb/g)?.length, 2, `${label}: a margin on each side (${extra.tableShadow})`);
+      assert.ok(isColour(extra.tableShadow, palette.surface), `${label}: the margin is the surface's`);
+      assert.equal(extra.tableRadius, "4px", `${label}: rounded like the surface`);
+      assert.equal(extra.tableFrameOverflow, "visible visible", `${label}: nothing is clipped`);
+      {
+        // What the browser painted beside the table: the surface up to its
+        // margin on both sides, and the site's own page beyond it. No strip
+        // of another colour, and none left hanging out.
+        const beside = await page.evaluate((selector) => {
+          const frame = document.querySelector(selector);
+          frame.scrollIntoView({ block: "center" });
+          const box = frame.getBoundingClientRect();
+          return { left: box.left, right: box.right, y: box.top + box.height / 2 };
+        }, names.tableFrame);
+        for (const x of [beside.left - 5, beside.right + 4]) {
+          const painted = await pixelAt(page, x, beside.y);
+          assert.ok(near(painted, surface), `${label}: beside the table at ${Math.round(x)} is painted ${painted}, the surface is ${surface}`);
+        }
+        for (const x of [beside.left - 14, beside.right + 13]) {
+          const painted = await pixelAt(page, x, beside.y);
+          assert.ok(near(painted, rgb(site.surface)), `${label}: beyond the table's margin at ${Math.round(x)} is painted ${painted}, the page is ${rgb(site.surface)}`);
+        }
+      }
       // A row of controls inside a response shows no text of its own: it is
       // the site's, and nothing is painted behind it.
       assert.equal(facts[names.controls].opacity, 0, `${label}: nothing is painted behind the table's controls`);
@@ -550,9 +613,11 @@ const CHATGPT_PARTS = {
   sheet: "#md-fa",
   // The conversation region paints the page background: opaque black in the dark theme.
   site: "#main",
-  text: ["#p-en-start", "#h-fa", "#li-fa-1", "#quote-fa-p", "#td-fa", "#th-fa", "#math", "#inline-code", "#p-en", "#li-en-a"],
+  text: ["#p-en-start", "#h-fa", "#li-fa-1", "#quote-fa-p", "#td-fa", "#th-fa", "#math", "#p-en", "#li-en-a", "#p-tokens"],
   link: "#link-text",
   inlineCode: "#inline-code",
+  // A function name, a branch, a version, a key, sample output, and code in a table cell.
+  tokens: ["#token-fn", "#token-branch", "#token-version", "#token-kbd", "#token-samp", "#td-code"],
   pre: "#code-block",
   header: "#th-fa",
   units: [
@@ -588,7 +653,7 @@ const CLAUDE_PARTS = {
   name: "claude",
   sheet: "#c-markdown-fa",
   site: "body",
-  text: ["#c-p-en-start", "#c-h-fa", "#c-li-fa-1", "#c-quote-fa-p", "#c-th-fa", "#c-math", "#c-inline-code", "#c-p-en"],
+  text: ["#c-p-en-start", "#c-h-fa", "#c-li-fa-1", "#c-quote-fa-p", "#c-th-fa", "#c-math", "#c-p-en"],
   link: "#c-link-url",
   inlineCode: "#c-inline-code",
   header: "#c-th-fa",
@@ -813,6 +878,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       const selected = selection.toString();
       selection.removeAllRanges();
       const link = document.querySelector("#link-url");
+      link.scrollIntoView({ block: "center" });
       const box = link.getBoundingClientRect();
       return {
         sameText: document.querySelector("#main").textContent === original.querySelector("#main").textContent,
@@ -957,7 +1023,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await choose("spacing", "2.2");
     await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-spacing") === "2.2");
     const after = await inspect(page, ["#p-en-start", "#code", "#h-fa", "#li-fa-1", "#ul-fa", "#code-block"]);
-    assert.match(after["#p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, system-ui/);
+    assert.match(after["#p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, "?Readela Sans Latin"?, system-ui/);
     assert.notEqual(after["#p-en-start"].fontFamily, before["#p-en-start"].fontFamily);
     assert.equal(after["#code"].fontFamily, before["#code"].fontFamily);
     assert.equal(Number(after["#p-en-start"].zoom), 1.25);
@@ -977,22 +1043,91 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(widths.scroll, true, "no horizontal scrolling introduced");
   });
 
-  await step("Readela Sans shows Arabic-script text in the packaged font and leaves other scripts to system fonts", async () => {
+  await step("Readela Sans is Inter for Latin text and Vazirmatn for Arabic script, with a true italic; other scripts, code and mathematics keep their fonts", async () => {
     // Text is measured on a canvas that is never added to the page. A face
-    // that is in use changes the width of the text it covers and of no other.
+    // that is in use changes the width of the text it covers and of no other;
+    // an italic or a weight the font really has changes it again, while one
+    // the browser only imitates leaves the widths as they are.
     const measured = await page.evaluate(async () => {
       const context = document.createElement("canvas").getContext("2d");
       const width = (font, text) => {
         context.font = font;
         return context.measureText(text).width;
       };
-      const packaged = '40px "Readela Sans Arabic", monospace';
-      const differs = (text) => width(packaged, text) !== width("40px monospace", text);
-      const deadline = Date.now() + 8000;
-      while (!differs("سلام دنیا") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
-      return { persian: differs("سلام دنیا"), arabic: differs("مرحبا بالعالم"), latin: differs("Hello world 123"), hebrew: differs("שלום עולם") };
+      const uses = (family, text) => width(`40px "${family}", monospace`, text) !== width("40px monospace", text);
+      const latin = (style, text) => width(`${style} 40px "Readela Sans Latin", monospace`, text);
+      const arabic = (style, text) => width(`${style} 40px "Readela Sans Arabic", monospace`, text);
+      const samples = {
+        latin: "Hello world 123",
+        accented: "Zażółć gęślą jaźń",
+        persian: "سلام",
+        arabic: "مرحبا",
+        hebrew: "שלום",
+      };
+      const ready = () =>
+        uses("Readela Sans Latin", samples.latin) &&
+        uses("Readela Sans Arabic", samples.persian) &&
+        latin("italic 400", "emphasised words") !== latin("400", "emphasised words");
+      const deadline = Date.now() + 10000;
+      while (!ready() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      const facts = {};
+      for (const [name, text] of Object.entries(samples)) {
+        facts[name] = [uses("Readela Sans Latin", text) ? "Inter" : "-", uses("Readela Sans Arabic", text) ? "Vazirmatn" : "-"].join(" ");
+      }
+      facts.italic = latin("italic 400", "emphasised words") !== latin("400", "emphasised words");
+      facts.medium = latin("500", "strong words") !== latin("400", "strong words");
+      facts.bold = latin("700", "strong words") !== latin("500", "strong words");
+      facts.boldItalic = latin("italic 700", "both at once") !== latin("700", "both at once");
+      facts.arabicBold = arabic("700", "متن پررنگ") !== arabic("400", "متن پررنگ");
+      return facts;
     });
-    assert.deepEqual(measured, { persian: true, arabic: true, latin: false, hebrew: false });
+    assert.deepEqual(measured, {
+      latin: "Inter -",
+      accented: "Inter -",
+      persian: "- Vazirmatn",
+      arabic: "- Vazirmatn",
+      hebrew: "- -",
+      italic: true,
+      medium: true,
+      bold: true,
+      boldItalic: true,
+      arabicBold: true,
+    });
+
+    // What the choice touches and what it leaves alone, against Original.
+    const typography = (selectors) =>
+      page.evaluate(
+        (list) =>
+          Object.fromEntries(
+            list.map((selector) => {
+              const style = getComputedStyle(document.querySelector(selector));
+              return [selector, { family: style.fontFamily, style: style.fontStyle, weight: Number(style.fontWeight) }];
+            }),
+          ),
+        selectors,
+      );
+    const reading = ["#p-en", "#p-en-start", "#h-fa", "#li-fa-1", "#td-fa", "#link-text", "#en-em", "#en-strong", "#en-both", "#fa-strong", "#fa-latin", "#user-bubble"];
+    const own = ["#code", "#block-code", "#block-label", "#nested-code", "#nested-label", "#inline-code", "#token-fn", "#token-kbd", "#token-samp", "#td-code", "#math"];
+    await choose("font", "page");
+    await page.waitForFunction(() => !document.documentElement.hasAttribute("data-readela-font"));
+    const original = await typography([...reading, ...own]);
+    await choose("font", "sans");
+    await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-font") === "sans");
+    const sans = await typography([...reading, ...own]);
+    for (const selector of reading) {
+      assert.match(sans[selector].family, /^"?Readela Sans Arabic"?, "?Readela Sans Latin"?, system-ui/, selector);
+      assert.doesNotMatch(original[selector].family, /Readela Sans/, `Original leaves ${selector} to the page`);
+      assert.deepEqual(
+        { style: sans[selector].style, weight: sans[selector].weight },
+        { style: original[selector].style, weight: original[selector].weight },
+        `${selector} keeps its emphasis`,
+      );
+    }
+    for (const selector of own) assert.equal(sans[selector].family, original[selector].family, `${selector} keeps its own font`);
+    assert.equal(sans["#en-em"].style, "italic");
+    assert.ok(sans["#en-strong"].weight >= 600 && sans["#fa-strong"].weight >= 600);
+    await page.evaluate(() => document.querySelector("#p-type").scrollIntoView({ block: "center" }));
+    await page.screenshot({ path: path.join(results, `${name}-readela-sans.png`) });
   });
 
   await step("preferences persist: a reloaded page and a reopened popup show the saved choices", async () => {
@@ -1185,14 +1320,31 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     }));
   // The conversation scrolls in a region of its own; these move it at once.
   const scrollTop = (target = page, selector = "#scroller") => target.$eval(selector, (element) => element.scrollTop);
+  // To the start, to the end, or to a distance from the start. A region laid
+  // out from its end counts scrollTop from 0 at the end into negative numbers.
   const scrollTo = (value, target = page, selector = "#scroller") =>
     target.$eval(
       selector,
       (element, to) => {
-        element.scrollTop = to === "end" ? element.scrollHeight : to;
+        const range = element.scrollHeight - element.clientHeight;
+        const reversed = getComputedStyle(element).flexDirection === "column-reverse";
+        const offset = to === "start" ? 0 : to === "end" ? range : to;
+        element.scrollTop = reversed ? offset - range : offset;
       },
       value,
     );
+  const state = () => popup.$eval("#place-state", (element) => element.textContent);
+  const waitForState = async (text, timeout = 8000) => {
+    try {
+      await popup.waitForFunction(
+        (t) => document.querySelector("#place-state").textContent.startsWith(t),
+        { timeout, polling: 200 },
+        text,
+      );
+    } catch {
+      throw new Error(`the popup says "${await state()}" instead of "${text}"`);
+    }
+  };
   // Put a block `offset` pixels below the top edge of the scrolling region.
   const putAt = (id, offset, target = page, selector = "#scroller") =>
     target.evaluate(
@@ -1218,7 +1370,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
         if (element === null) return false;
         const frame = document.querySelector(s).getBoundingClientRect();
         const box = element.getBoundingClientRect();
-        return box.top >= Math.max(0, frame.top) && box.bottom <= Math.min(innerHeight, frame.bottom);
+        const covers = [...document.querySelectorAll(".bar, .chat-header-band")]
+          .map((cover) => cover.getBoundingClientRect())
+          .filter((cover) => cover.height > 0 && cover.top <= frame.top + 8 && cover.bottom > frame.top && cover.right > frame.left && cover.left < frame.right);
+        const clear = Math.max(0, frame.top, ...covers.map((cover) => cover.bottom));
+        return box.top >= clear + 7 && box.top <= Math.min(innerHeight, frame.bottom) - Math.min(box.height, 24);
       },
       id,
       selector,
@@ -1257,8 +1413,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
     assert.equal(
       await popup.$eval("#place-guide", (element) => element.textContent),
-      "Saves the first paragraph in view. Select text to choose another.",
+      "Saves the first paragraph in view. Select text to choose another. On the page: Alt+Shift+S.",
     );
+    assert.equal(await state(), "Not saved here · 0 total");
     assert.equal(await popup.$eval("#place-note", (element) => element.textContent), "", "nothing is claimed before anything is saved");
 
     await select("p-en");
@@ -1266,6 +1423,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForPlace(page, "p-en");
     await waitForNote("Place saved.");
     assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
+    assert.equal(await state(), "Saved here · 1 total");
 
     const shown = await bar("p-en");
     assert.equal(shown.width, 5, "a bar, not a hairline");
@@ -1292,32 +1450,55 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(await page.$eval("#main-kept", (element) => element.querySelector("[data-readela-mark], [data-readela-dir], [data-readela-top]")), null);
   });
 
-  await step("without a selection the first readable paragraph at the unobscured top is saved; there is one place per conversation", async () => {
+  await step("without a selection the first paragraph that begins clearly below the site's bar is saved; a selection says exactly which", async () => {
     await page.setViewport({ width: 1100, height: 520 });
     await page.evaluate(() => getSelection().removeAllRanges());
-    // At the very top the heading kept for screen readers comes first in the
-    // document. It is not something a reader reads, so the real heading is saved.
-    await scrollTo(0);
+    // At the very beginning the heading kept for screen readers comes first in
+    // the document. It is not something a reader reads, so the real heading is saved.
+    await scrollTo("start");
     assert.equal((await buttons()).save, "Update place");
     await placeButton("save");
     await waitForPlace(page, "h-fa");
     await waitForNote("Place saved.");
     assert.equal((await storedMarks()).items[0].t, "h");
+    assert.equal(await state(), "Saved here · 1 total", "an update does not add to the count");
 
     // The bar the site keeps on top covers the first paragraph and the top of
-    // the second, which is partly in view below it and is the one saved.
+    // the second. The second is technically in view and its beginning is not:
+    // the first paragraph that begins clearly below the bar is the one saved.
     await putAt("p-punct", 34);
     const under = await page.evaluate(() => {
       const edge = document.querySelector("#thread-bar").getBoundingClientRect().bottom;
       const box = (id) => document.getElementById(id).getBoundingClientRect();
-      return { first: box("p-en-start").bottom <= edge, second: box("p-punct").top < edge && box("p-punct").bottom > edge };
+      return {
+        first: box("p-en-start").bottom <= edge,
+        secondBegins: box("p-punct").top < edge,
+        secondShows: box("p-punct").bottom > edge,
+        thirdBegins: box("p-inline").top - edge,
+      };
     });
-    assert.deepEqual(under, { first: true, second: true });
+    assert.deepEqual({ ...under, thirdBegins: under.thirdBegins >= 8 }, { first: true, secondBegins: true, secondShows: true, thirdBegins: true });
+    await placeButton("save");
+    await waitForPlace(page, "p-inline");
+    assert.deepEqual(await places(page), ["p-inline:exact"]);
+    assert.equal((await storedMarks()).items.length, 1);
+
+    // A paragraph that begins just below the bar, inside the small margin kept
+    // clear of it, is passed over too; one that begins clear of the margin is taken.
+    await putAt("p-punct", 47);
+    await placeButton("save");
+    await waitForNote("Place saved.");
+    assert.deepEqual(await places(page), ["p-inline:exact"]);
+    await putAt("p-punct", 56);
     await placeButton("save");
     await waitForPlace(page, "p-punct");
-    assert.deepEqual(await places(page), ["p-punct:exact"]);
-    assert.equal((await storedMarks()).items.length, 1);
     assert.equal(parseFloat((await bar("p-punct")).right), -14, "on the leading edge of a right-to-left paragraph");
+
+    // A selection in view says exactly which paragraph, also one that begins under the bar.
+    await putAt("p-en-start", 30);
+    await page.evaluate(() => getSelection().selectAllChildren(document.querySelector("#p-en-start")));
+    await placeButton("save");
+    await waitForPlace(page, "p-en-start");
 
     // A selection in the reader's own message is not a response paragraph;
     // the bubble is the site's and nothing in it is saved or marked.
@@ -1327,6 +1508,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForPlace(page, "p-inline");
     assert.equal(await page.$eval("#user-bubble-frame", (element) => element.querySelector("[data-readela-mark]")), null);
     await page.evaluate(() => getSelection().removeAllRanges());
+    assert.equal(await state(), "Saved here · 1 total");
   });
 
   await step("identical paragraphs that cannot be told apart are not saved, and the place saved before is kept", async () => {
@@ -1345,8 +1527,15 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(await inView("p-inline"), false);
     await placeButton("return");
     await waitForNote("Returned to your saved place.");
-    // The popup said so after the fact: the place is in view already.
+    // The popup said so after the fact: the place is there to be read already,
+    // its beginning below the bar the site keeps on top and not far below it.
     assert.equal(await inView("p-inline"), true);
+    const landed = await page.evaluate(() => {
+      const bar = document.querySelector("#thread-bar").getBoundingClientRect().bottom;
+      const frame = document.querySelector("#scroller").getBoundingClientRect();
+      return { below: document.querySelector("#p-inline").getBoundingClientRect().top - bar, room: frame.bottom - bar };
+    });
+    assert.ok(landed.below >= 8 && landed.below <= landed.room * 0.25 + 12, `${landed.below}px below the bar, of ${landed.room}px`);
     const emphasis = await page.evaluate(() => {
       const element = document.querySelector("#p-inline");
       const style = getComputedStyle(element);
@@ -1381,7 +1570,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForPlace(page, "p-twin-again");
     await waitForNote("Place saved.");
     await page.evaluate(() => getSelection().removeAllRanges());
-    await scrollTo(0);
+    await scrollTo("start");
     await placeButton("return");
     await waitForNote("Returned to your saved place.");
     assert.deepEqual(await places(page), ["p-twin-again:exact"]);
@@ -1421,9 +1610,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await sleep(1600);
     assert.deepEqual(await places(page), ["p-twin-again:exact"]);
     await loadPopup(popup, popupAddress);
-    await waitForNote("A place is saved in this conversation.");
+    await waitForState("Saved here");
     assert.equal((await buttons()).save, "Update place");
-    await scrollTo(0);
+    await scrollTo("start");
     await placeButton("return");
     await waitForNote("Returned to your saved place.");
     assert.equal(await inView("p-twin-again"), true);
@@ -1443,7 +1632,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
     await waitForPlace(page, "p-twin-again");
     await loadPopup(popup, popupAddress);
-    await waitForNote("A place is saved in this conversation.");
+    await waitForState("Saved here");
     assert.equal((await storedMarks()).items.length, 1);
   });
 
@@ -1456,7 +1645,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     });
     await waitForPlace(page, "p-twin-again", "approximate");
     assert.match((await bar("p-twin-again")).image, /repeating-linear-gradient/, "an approximate place has a broken bar");
-    await scrollTo(0);
+    await scrollTo("start");
     await placeButton("return");
     await waitForNote("Returned close to your saved place. Its paragraph has changed.");
     assert.equal(await inView("p-twin-again"), true);
@@ -1468,7 +1657,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       neighbour.firstChild.data = "Something else stands here now.";
     });
     await waitForNoPlace(page);
-    await scrollTo(0);
+    await scrollTo("start");
     const before = await scrollTop();
     await placeButton("return");
     await waitForNote("Your saved place was not found. It is still saved.");
@@ -1537,7 +1726,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await choose("direction", "page");
     await page.waitForFunction(() => document.querySelector("[data-readela-dir], [data-readela-top]") === null);
     assert.deepEqual(await places(page), ["p-punct:exact"]);
-    assert.deepEqual(await footprint(page), { marked: 1, customProperties: 0 });
+    assert.deepEqual(await footprint(page), { marked: 2, customProperties: 0 }, "the place, and the bookmark on its conversation's row");
     // The saved place is still kept current.
     await rerender("p-punct");
     await waitForPlace(page, "p-punct");
@@ -1579,6 +1768,8 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
         await placeButton("save");
         await waitForNote("The place could not be saved. Nothing was changed.");
         assert.deepEqual(await places(page), [], "no place is shown for a save that did not happen");
+        assert.equal(await state(), "Not saved here · 0 total", "nor counted");
+        assert.deepEqual(await page.evaluate(() => document.querySelectorAll("[data-readela-saved]").length), 0, "nor marked in the sidebar");
         assert.deepEqual((await storedMarks()).items, []);
         assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
       } finally {
@@ -1596,6 +1787,478 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await page.evaluate(() => getSelection().removeAllRanges());
     });
   }
+
+  await step("a saved conversation is marked in the site's sidebar from its link's address alone, and the mark follows what is stored", async () => {
+    const rows = () => page.evaluate(() => [...document.querySelectorAll("[data-readela-saved]")].map((element) => element.id).sort());
+    const rowsAre = (ids) =>
+      page.waitForFunction(
+        (wanted) => [...document.querySelectorAll("[data-readela-saved]")].map((element) => element.id).sort().join() === wanted,
+        { timeout: 6000, polling: 100 },
+        [...ids].sort().join(),
+      );
+    const geometry = () =>
+      page.evaluate(() => {
+        const box = (selector) => JSON.stringify(document.querySelector(selector).getBoundingClientRect());
+        return { link: box("#row-this"), title: box("#row-this-title"), row: box("#row-this-frame") };
+      });
+    assert.deepEqual(await rows(), [], "nothing is saved, nothing is marked");
+    const before = await geometry();
+
+    await select("p-en");
+    await placeButton("save");
+    await waitForPlace(page, "p-en");
+    await waitForNote("Place saved.");
+    await rowsAre(["row-this"]);
+    await page.evaluate(() => getSelection().removeAllRanges());
+
+    // The mark is one attribute on the link; the bookmark is drawn from it.
+    const drawn = await page.evaluate(() => {
+      const link = document.querySelector("#row-this");
+      const mark = getComputedStyle(link, "::after");
+      const row = document.querySelector("#row-this-frame").getBoundingClientRect();
+      const under = document.elementFromPoint(row.left + 3, row.top + row.height / 2);
+      return {
+        attributes: link.getAttributeNames().filter((name) => name.startsWith("data-readela")),
+        content: mark.content,
+        position: mark.position,
+        size: `${parseFloat(mark.width)}x${parseFloat(mark.height)}`,
+        colour: mark.backgroundColor,
+        shape: mark.clipPath.startsWith("polygon("),
+        pointer: mark.pointerEvents,
+        siteOwn: getComputedStyle(link, "::before").position,
+        clickGoesTo: under?.id,
+        at: { x: row.left + 3, y: row.top + row.height / 2 - 2 },
+      };
+    });
+    assert.deepEqual(
+      { ...drawn, at: null },
+      {
+        attributes: ["data-readela-saved"], content: '""', position: "absolute", size: "6x11", colour: drawn.colour,
+        shape: true, pointer: "none", siteOwn: "absolute", clickGoesTo: "row-this", at: null,
+      },
+    );
+    assert.ok(isColour(drawn.colour, PAGE_MARK.mark), drawn.colour);
+    assert.ok(near(await pixelAt(page, drawn.at.x, drawn.at.y), hexRgb(PAGE_MARK.mark), 12), "the bookmark is painted at the start of the row");
+    assert.deepEqual(await geometry(), before, "the row is laid out as the site made it");
+    assert.doesNotMatch(JSON.stringify(await storedMarks()), /Hooks explained|project chat|Another chat|row-|\/c\//i, "no title, label or address is stored");
+    await page.screenshot({ path: path.join(results, `${name}-sidebar-saved.png`), clip: { x: 0, y: 0, width: 230, height: 260 } });
+
+    // Another conversation, listed in the sidebar under its project route.
+    await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-2"));
+    await loadPopup(popup, popupAddress);
+    await waitForState("Not saved here · 1 total");
+    await select("p-en");
+    await placeButton("save");
+    await waitForNote("Place saved.");
+    await rowsAre(["row-project", "row-this"]);
+    assert.equal(await state(), "Saved here · 2 total");
+    await page.evaluate(() => getSelection().removeAllRanges());
+
+    // A row that appears later, and a list the site renders again.
+    await page.evaluate(() => {
+      const list = document.querySelector("#rows");
+      const late = list.firstElementChild.cloneNode(true);
+      late.querySelector("a").id = "row-late";
+      late.querySelector("a").removeAttribute("data-readela-saved");
+      late.querySelector("[id$='-frame']")?.removeAttribute("id");
+      late.querySelector("span").removeAttribute("id");
+      list.append(late);
+    });
+    await rowsAre(["row-late", "row-project", "row-this"]);
+    await page.evaluate(() => {
+      const list = document.querySelector("#rows");
+      const again = [...list.children].map((item) => {
+        const copy = item.cloneNode(true);
+        for (const marked of copy.querySelectorAll("[data-readela-saved]")) marked.removeAttribute("data-readela-saved");
+        return copy;
+      });
+      list.replaceChildren(...again);
+    });
+    await rowsAre(["row-late", "row-project", "row-this"]);
+    assert.ok(!(await rows()).includes("row-page"), "a link that is no conversation is never marked");
+
+    // The place of this conversation is cleared somewhere else (another tab).
+    await popup.evaluate(async () => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      const marks = (await extension.storage.local.get("readela.marks"))["readela.marks"];
+      marks.items.pop();
+      await extension.storage.local.set({ "readela.marks": marks });
+    });
+    await rowsAre(["row-late", "row-this"]);
+    await waitForState("Not saved here · 1 total");
+    await waitForNoPlace(page);
+
+    // Off hides every bookmark and keeps what is stored; on brings them back.
+    await setPreference((p) => press(p, "#enabled"));
+    await rowsAre([]);
+    assert.equal((await storedMarks()).items.length, 1);
+    await setPreference((p) => press(p, "#enabled"));
+    await rowsAre(["row-late", "row-this"]);
+
+    // Clear removes it.
+    await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
+    await loadPopup(popup, popupAddress);
+    await waitForState("Saved here · 1 total");
+    await placeButton("clear");
+    await waitForNote("Saved place cleared.");
+    await rowsAre([]);
+    assert.equal(await state(), "Not saved here · 0 total");
+  });
+
+  await step("a thousand conversations can have a place; at the limit a new one is refused, none is dropped, and the popup says so", async () => {
+    const hex = (value) => value.toString(16).padStart(16, "0");
+    await popup.evaluate(async () => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      const key = (value) => value.toString(16).padStart(16, "0");
+      const items = Array.from({ length: 999 }, (_, index) => ({
+        k: key(index + 1), m: key(0xabc), s: null, t: "p", f: key(0xdef), i: 0, b: null, a: null, n: null, p: 500,
+      }));
+      await extension.storage.local.set({ "readela.marks": { version: 2, items } });
+    });
+    await loadPopup(popup, popupAddress);
+    await waitForState("Not saved here · 999 total");
+
+    // 999 saved: this conversation is the thousandth.
+    await select("p-en");
+    await placeButton("save");
+    await waitForPlace(page, "p-en");
+    await waitForNote("Place saved.");
+    assert.equal(await state(), "Saved here · 1000 total");
+    // At the limit a conversation that has a place can still move it.
+    await select("p-en-quote");
+    await placeButton("save");
+    await waitForPlace(page, "p-en-quote");
+    await waitForNote("Place saved.");
+    assert.equal(await state(), "Saved here · 1000 total");
+    assert.equal((await storedMarks()).items.length, 1000);
+
+    // Another conversation is refused, and nothing is given up for it.
+    await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-3"));
+    await loadPopup(popup, popupAddress);
+    await waitForState("Not saved here · 1000 total");
+    const full = await storedMarks();
+    await select("p-en");
+    await placeButton("save");
+    await waitForNote("All 1000 saved places are in use. Clear one to save this conversation.");
+    assert.deepEqual(await storedMarks(), full, "every place is as it was");
+    assert.equal(full.items[0].k, hex(1), "the oldest place is still there");
+    assert.deepEqual(await places(page), [], "nothing is shown for a place that was not saved");
+    assert.equal(await page.$eval("#row-other", (element) => element.hasAttribute("data-readela-saved")), false);
+    assert.equal(await state(), "Not saved here · 1000 total");
+
+    // Clearing one place makes room for one.
+    await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
+    await loadPopup(popup, popupAddress);
+    await waitForState("Saved here · 1000 total");
+    await placeButton("clear");
+    await waitForNote("Saved place cleared.");
+    assert.equal(await state(), "Not saved here · 999 total");
+    await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-3"));
+    await loadPopup(popup, popupAddress);
+    await waitForState("Not saved here · 999 total");
+    await select("p-en");
+    await placeButton("save");
+    await waitForNote("Place saved.");
+    assert.equal(await state(), "Saved here · 1000 total");
+    assert.equal(await page.$eval("#row-other", (element) => element.hasAttribute("data-readela-saved")), true);
+
+    await popup.evaluate(async () => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      await extension.storage.local.set({ "readela.marks": { version: 2, items: [] } });
+    });
+    await page.evaluate(() => {
+      history.pushState({}, "", "/c/readela-fixture");
+      getSelection().removeAllRanges();
+    });
+    await loadPopup(popup, popupAddress);
+    await waitForState("Not saved here · 0 total");
+    await waitForNoPlace(page);
+  });
+
+  await step("Alt+Shift+S saves or updates the place from the page exactly as the popup does, and is left alone while typing", async () => {
+    const chord = async () => {
+      await page.keyboard.down("Alt");
+      await page.keyboard.down("Shift");
+      await page.keyboard.press("KeyS");
+      await page.keyboard.up("Shift");
+      await page.keyboard.up("Alt");
+    };
+    const blur = () =>
+      page.evaluate(() => {
+        document.activeElement?.blur();
+        getSelection().removeAllRanges();
+      });
+    await front(page);
+    await page.setViewport({ width: 1100, height: 520 });
+    // What became of each press: whether the page's own handling was held back.
+    await page.evaluate(() => {
+      window.readelaKeys = [];
+      window.addEventListener("keydown", (event) => {
+        if (event.code === "KeyS") window.readelaKeys.push(event.defaultPrevented);
+      });
+    });
+    const presses = () => page.evaluate(() => window.readelaKeys);
+
+    // Without a selection: the same paragraph the popup's button takes, the
+    // first that begins clearly below the bar.
+    await blur();
+    await putAt("p-punct", 34);
+    await chord();
+    await waitForPlace(page, "p-inline");
+    assert.equal(await page.$eval("#p-inline", (element) => element.hasAttribute("data-readela-flash")), true, "the saved paragraph says so itself");
+    assert.deepEqual(await presses(), [true]);
+    assert.equal((await storedMarks()).items.length, 1);
+    assert.equal(await page.$eval("#row-this", (element) => element.hasAttribute("data-readela-saved")), true);
+    await waitForState("Saved here · 1 total");
+
+    // With a selection: that paragraph; an update, so the count stays.
+    await select("p-en");
+    await chord();
+    await waitForPlace(page, "p-en");
+    assert.equal((await storedMarks()).items.length, 1);
+    await waitForState("Saved here · 1 total");
+    const saved = JSON.stringify(await storedMarks());
+
+    // While typing the key is the page's: in the composer, a text area and an input.
+    const typed = await page.$eval("#composer-textarea", (element) => element.value);
+    for (const field of ["#composer-textarea", "#composer-input", "#prompt-textarea"]) {
+      await page.click(field);
+      await putAt("p-punct", 34);
+      await chord();
+    }
+    await sleep(600);
+    assert.equal(JSON.stringify(await storedMarks()), saved, "nothing was saved while typing");
+    assert.deepEqual(await presses(), [true, true, false, false, false]);
+    assert.deepEqual(await places(page), ["p-en:exact"]);
+    assert.equal(await page.$eval("#composer-textarea", (element) => element.value), typed, "and nothing was typed into the field by it");
+
+    if (input) {
+      // With reduced motion the confirmation does not move.
+      await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+      await blur();
+      await putAt("p-punct", 56);
+      await chord();
+      await waitForPlace(page, "p-punct");
+      const calm = await page.$eval("#p-punct", (element) => ({
+        flash: element.hasAttribute("data-readela-flash"),
+        animation: getComputedStyle(element).animationName,
+      }));
+      assert.deepEqual(calm, { flash: true, animation: "none" });
+      await page.emulateMediaFeatures([]);
+
+      // A save the browser refuses says nothing on the page. Nothing is stored
+      // beforehand, so the write cannot fit.
+      await page.waitForFunction(() => document.querySelector("[data-readela-flash]") === null, { timeout: 6000, polling: 100 });
+      await loadPopup(popup, popupAddress);
+      await placeButton("clear");
+      await waitForNote("Saved place cleared.");
+      await popup.evaluate(async () => {
+        const extension = globalThis.browser ?? globalThis.chrome;
+        const used = await extension.storage.local.getBytesInUse(null);
+        await extension.storage.local.set({ "readela.test.filler": "x".repeat(extension.storage.local.QUOTA_BYTES - used - 64) });
+      });
+      try {
+        await front(page);
+        await select("p-en-quote");
+        await chord();
+        await sleep(700);
+        assert.deepEqual((await storedMarks()).items, []);
+        assert.deepEqual(await places(page), [], "no place is shown for a save that did not happen");
+        assert.equal(await page.evaluate(() => document.querySelector("[data-readela-flash]")), null, "and no confirmation");
+        assert.equal(await page.evaluate(() => document.querySelectorAll("[data-readela-saved]").length), 0);
+      } finally {
+        await popup.evaluate(async () => {
+          const extension = globalThis.browser ?? globalThis.chrome;
+          await extension.storage.local.remove("readela.test.filler");
+        });
+      }
+      // With room again the same key saves.
+      await front(page);
+      await chord();
+      await waitForPlace(page, "p-en-quote");
+    }
+
+    // Off: the key does nothing, and is the page's again.
+    const stored = JSON.stringify(await storedMarks());
+    const count = (await presses()).length;
+    await setPreference((p) => press(p, "#enabled"));
+    await page.waitForFunction(() => document.querySelector("[data-readela-mark], [data-readela-dir]") === null);
+    await blur();
+    await select("p-twin");
+    await chord();
+    await sleep(600);
+    assert.equal(JSON.stringify(await storedMarks()), stored);
+    assert.deepEqual((await presses()).slice(count), [false]);
+    assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
+    await setPreference((p) => press(p, "#enabled"));
+    await page.waitForFunction(() => document.querySelector("[data-readela-mark]") !== null, { polling: 100 });
+
+    await blur();
+    await loadPopup(popup, popupAddress);
+    await waitForState("Saved here · 1 total");
+    await placeButton("clear");
+    await waitForNote("Saved place cleared.");
+    await page.setViewport({ width: 1100, height: 900 });
+  });
+
+  // -------------------------------------------------------------------------
+  // A long ChatGPT conversation: laid out from its end, opened on its last
+  // turns, earlier turns loaded when its beginning is shown, and only the
+  // turns near the viewport in the document.
+
+  const LT = "#lt-scroller";
+  const loadedFrom = () => page.evaluate(() => window.readelaLoadedFrom());
+  // Bring a turn into the document the way a reader would: by scrolling to it.
+  const showTurn = async (index) => {
+    await page.evaluate(async (wanted) => {
+      const scroller = document.querySelector("#lt-scroller");
+      const until = Date.now() + 20000;
+      while (window.readelaLoadedFrom() > wanted && Date.now() < until) {
+        scroller.scrollTop = -(scroller.scrollHeight - scroller.clientHeight);
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+    }, index);
+    await scrollTo((index - (await loadedFrom())) * 700 + 100, page, LT);
+    await page.waitForFunction((wanted) => document.querySelector(`#lt-same-${wanted}`) !== null, { polling: 100 }, index);
+  };
+  const openLong = async () => {
+    await page.goto(CHATGPT_LONG_URL, { waitUntil: "load" });
+    await page.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
+    await loadPopup(popup, popupAddress);
+  };
+
+  await step("ChatGPT, long conversation: a place far above is found from the end, where the site first has to load what came before", async () => {
+    await openLong();
+    await waitForState("Not saved here · 0 total");
+    // It opens at its end, on its last five turns; a positive scrollTop does nothing here.
+    assert.deepEqual(
+      await page.$eval(LT, (element) => {
+        const facts = [window.readelaLoadedFrom(), element.scrollTop];
+        element.scrollTop = 4000;
+        facts.push(element.scrollTop);
+        return facts;
+      }),
+      [35, 0, 0],
+    );
+
+    // The reader goes back to turn 7 and saves its closing line; the same
+    // sentence ends every reply.
+    await showTurn(6);
+    await select("lt-same-6");
+    await placeButton("save");
+    await waitForPlace(page, "lt-same-6");
+    await waitForNote("Place saved.");
+    await page.evaluate(() => getSelection().removeAllRanges());
+    assert.equal(await page.$eval("#lt-row-this", (element) => element.hasAttribute("data-readela-saved")), true);
+
+    // A fresh visit, not a reload (a browser can put a reloaded page back where
+    // it was scrolled to): the conversation is at its end again, and the place
+    // is in a turn that is not loaded.
+    await page.goto("about:blank");
+    await page.goto(CHATGPT_LONG_URL, { waitUntil: "load" });
+    await page.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
+    assert.equal(await loadedFrom(), 35);
+    assert.deepEqual(await places(page), []);
+    await loadPopup(popup, popupAddress);
+    await waitForState("Saved here · 1 total");
+    const began = Date.now();
+    await placeButton("return");
+    await waitForNote("Returned to your saved place.", 40000);
+    report.longReturnMs = Date.now() - began;
+    assert.deepEqual(await places(page), ["lt-same-6:exact"], "the same sentence in thirty other replies is not marked");
+    assert.equal(await inView("lt-same-6", page, LT), true, "the place is clearly in view below the bar");
+    assert.ok((await loadedFrom()) <= 6, "the earlier turns were loaded on the way");
+  });
+
+  await step("ChatGPT, long conversation: a place far below is found from above; what cannot be loaded is not found, safely; the reader can stop the search; a search ends at its limit of time", async () => {
+    // A recent place, then far up the conversation.
+    await scrollTo("end", page, LT);
+    await page.waitForFunction(() => document.querySelector("#lt-same-38") !== null, { polling: 100 });
+    await select("lt-same-38");
+    await placeButton("save");
+    await waitForPlace(page, "lt-same-38");
+    await waitForNote("Place saved.");
+    await page.evaluate(() => getSelection().removeAllRanges());
+    await showTurn(8);
+    await page.waitForFunction(() => !window.readelaTurns().includes(38), { polling: 100 });
+    await waitForNoPlace(page);
+    await placeButton("return");
+    await waitForNote("Returned to your saved place.", 40000);
+    assert.deepEqual(await places(page), ["lt-same-38:exact"]);
+    assert.equal(await inView("lt-same-38", page, LT), true);
+
+    // An old place again, and a site that does not load the earlier turns.
+    await showTurn(6);
+    await select("lt-same-6");
+    await placeButton("save");
+    await waitForPlace(page, "lt-same-6");
+    await waitForNote("Place saved.");
+    await page.goto("about:blank");
+    await page.goto(CHATGPT_LONG_URL, { waitUntil: "load" });
+    await page.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
+    await page.evaluate(() => {
+      window.readelaNeverLoad = true;
+    });
+    await loadPopup(popup, popupAddress);
+    await waitForState("Saved here · 1 total");
+    await placeButton("return");
+    await waitForNote("Your saved place was not found. It is still saved.", 40000);
+    assert.deepEqual(await places(page), [], "no other reply is marked");
+    assert.equal(await scrollTop(page, LT), 0, "the conversation is back at its end, where the reader was");
+    assert.equal((await storedMarks()).items.length, 1);
+    assert.equal(await state(), "Saved here · 1 total");
+
+    // The reader takes over while the search is under way.
+    await placeButton("return");
+    await waitForNote("Looking for your saved place");
+    await page.mouse.move(700, 300);
+    await page.mouse.wheel({ deltaY: -200 });
+    await waitForNote("Return was stopped. Your place is still saved.", 20000);
+    const where = await scrollTop(page, LT);
+    await sleep(900);
+    assert.equal(await scrollTop(page, LT), where, "nothing moves the conversation after the reader took over");
+    assert.equal((await storedMarks()).items.length, 1);
+
+    // A site that loads its earlier part too slowly for one search: the
+    // search ends at its limit of time, having moved nothing for good. What
+    // the site loaded meanwhile stays, so the next Return gets there.
+    await page.goto("about:blank");
+    await page.goto(CHATGPT_LONG_URL, { waitUntil: "load" });
+    await page.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
+    await page.evaluate(() => {
+      window.readelaLoadBatch = 1;
+      window.readelaLoadDelay = 900;
+    });
+    await loadPopup(popup, popupAddress);
+    await waitForState("Saved here · 1 total");
+    const limitBegan = Date.now();
+    await placeButton("return");
+    await waitForNote("Your saved place was not found. It is still saved.", 45000);
+    report.longLimitMs = Date.now() - limitBegan;
+    assert.ok(report.longLimitMs >= 29000 && report.longLimitMs < 36000, `the search ended after ${report.longLimitMs} ms`);
+    assert.deepEqual(await places(page), [], "no other reply is marked");
+    assert.equal(await scrollTop(page, LT), 0, "the conversation is back at its end, where the reader was");
+    assert.equal((await storedMarks()).items.length, 1);
+    const reached = await page.evaluate(() => window.readelaLoadedFrom());
+    assert.ok(reached < 30 && reached > 6, `the site loaded back to turn ${reached}, short of the place`);
+    await sleep(900);
+    assert.equal(await scrollTop(page, LT), 0, "and nothing moves it afterwards");
+    await page.evaluate(() => {
+      window.readelaLoadBatch = undefined;
+      window.readelaLoadDelay = 100;
+    });
+    await placeButton("return");
+    await waitForNote("Returned to your saved place.", 40000);
+    assert.deepEqual(await places(page), ["lt-same-6:exact"]);
+    assert.equal(await inView("lt-same-6", page, LT), true);
+
+    await placeButton("clear");
+    await waitForNote("Saved place cleared.");
+    await page.goto(FIXTURE_URL, { waitUntil: "load" });
+    await waitForMark(page, "#p-en-start", "rtl");
+    await loadPopup(popup, popupAddress);
+    await waitForState("Not saved here · 0 total");
+  });
 
   // Where real input cannot reach the extension page, these two checks run on
   // the stand-in rendering of the same popup files.
@@ -1748,7 +2411,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(Number(after["#c-user"].zoom), 1.25);
     assert.equal(Number(after["#c-ul-fa"].zoom), 1.25);
     assert.equal(Number(after["#c-li-fa-1"].zoom), 1);
-    assert.match(after["#c-p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, system-ui/);
+    assert.match(after["#c-p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, "?Readela Sans Latin"?, system-ui/);
     assert.equal(after["#c-code"].fontFamily, before["#c-code"].fontFamily);
     assert.equal(Number(after["#c-ui-p"].zoom), 1, "page text outside messages is not scaled");
     assert.equal(after["#c-ui-p"].fontFamily, before["#c-ui-p"].fontFamily);
@@ -1902,6 +2565,30 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(item.n, 1, "the row of the response");
     await claude.reload({ waitUntil: "load" });
     await waitForPlace(claude, "c-quote-fa-p");
+    // The chat header lies over the top of the transcript and lets the pointer
+    // through. A paragraph that begins under it is passed over all the same.
+    await claude.evaluate(() => getSelection().removeAllRanges());
+    await putAt("c-p-en-start", 40, claude, "#c-scroller");
+    const covered = await claude.evaluate(() => {
+      const band = document.querySelector("#c-header .chat-header-band").getBoundingClientRect();
+      const box = document.querySelector("#c-p-en-start").getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + 6);
+      return { begins: box.top < band.bottom, pointerSeesIt: hit?.id === "c-p-en-start" };
+    });
+    assert.deepEqual(covered, { begins: true, pointerSeesIt: true }, "under the header, and a hit test does not notice");
+    await placeButton("save", claude);
+    await waitForPlace(claude, "c-p-inline");
+    await waitForNote("Place saved.");
+    // Return from elsewhere lands it clear of that header.
+    await scrollTo("end", claude, "#c-scroller");
+    await placeButton("return", claude);
+    await waitForNote("Returned to your saved place.");
+    assert.equal(await inView("c-p-inline", claude, "#c-scroller"), true, "clear of the header");
+    assert.equal(await claude.$eval("#c-row-this", (element) => element.hasAttribute("data-readela-saved")), true);
+    assert.deepEqual(
+      await claude.evaluate(() => [...document.querySelectorAll("[data-readela-saved]")].map((element) => element.id)),
+      ["c-row-this"],
+    );
     // A selection in the reader's own message saves nothing there.
     await claude.evaluate(() => getSelection().selectAllChildren(document.querySelector("#c-user-rich-p")));
     await placeButton("save", claude);
@@ -1954,7 +2641,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       // Seen from here the same sentence is in view in another reply. It is not marked.
       assert.deepEqual(await places(claude), []);
       await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
-      await waitForNote("A place is saved in this conversation.");
+      await waitForState("Saved here");
       await placeButton("return", claude);
       await waitForNote("Returned to your saved place.", 20000);
       assert.deepEqual(await places(claude), ["l-same-21:exact"], `from ${from}`);
@@ -1997,7 +2684,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // Readela is turned off during the search.
     await awayFromPlace(0);
     await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
-    await waitForNote("A place is saved in this conversation.");
+    await waitForState("Saved here");
     await placeButton("return", claude);
     await waitForNote("Looking for your saved place");
     await onClaude((p) => press(p, "#enabled"));
@@ -2021,13 +2708,13 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       window.readelaNeverMount = 21;
     });
     await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
-    await waitForNote("A place is saved in this conversation.");
+    await waitForState("Saved here");
     const began = Date.now();
     await placeButton("return", claude);
     await waitForNote("Your saved place was not found. It is still saved.", 30000);
     const took = Date.now() - began;
     report.searchLimitMs = took;
-    assert.ok(took < 16000, `the search ended after ${took} ms`);
+    assert.ok(took < 34000, `the search ended after ${took} ms`);
     assert.deepEqual(await places(claude), [], "no other paragraph is marked");
     assert.equal(await scrollTop(claude, LONG), 0, "the conversation is back where the reader was");
     assert.equal((await storedMarks()).items.length, 1);
@@ -2208,9 +2895,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.deepEqual(unexpected, [], "every request seen on the fixture pages is a fixture document itself");
     // The only file a page takes from the extension is the packaged font.
     for (const url of requests.filter((entry) => EXTENSION_FILE.test(entry))) {
-      assert.match(url, /\/fonts\/Vazirmatn-NL-wght\.woff2$/, url);
+      assert.match(url, /\/fonts\/(?:Vazirmatn-NL-wght|InterVariable|InterVariable-Italic)\.woff2$/, url);
     }
-    assert.ok(requests.includes(FIXTURE_URL) && requests.includes(CLAUDE_FIXTURE_URL) && requests.includes(LONG_FIXTURE_URL));
+    assert.ok([FIXTURE_URL, CLAUDE_FIXTURE_URL, LONG_FIXTURE_URL, CHATGPT_LONG_URL].every((address) => requests.includes(address)));
     const stored = await popup.evaluate(async () => {
       const api = globalThis.browser ?? globalThis.chrome;
       return api.storage.local.get(null);
@@ -2360,7 +3047,7 @@ async function checkRestart(name) {
       () => document.querySelector("#p-twin-again")?.getAttribute("data-readela-mark") === "exact" && document.querySelectorAll("[data-readela-mark]").length === 1,
       { timeout: 8000, polling: 200 },
     );
-    await second.note("A place is saved in this conversation.");
+    await second.popup.waitForFunction(() => document.querySelector("#place-state").textContent === "Saved here · 1 total", { timeout: 15000, polling: 200 });
     await second.page.$eval("#scroller", (element) => {
       element.scrollTop = 0;
     });

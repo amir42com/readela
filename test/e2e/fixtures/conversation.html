@@ -15,7 +15,13 @@
       - a conversation opened earlier stays in the document, in a hidden
         container with a main element of its own, before the one shown;
       - the conversation scrolls in a region of its own, under a bar the site
-        keeps on top; the document itself does not scroll;
+        keeps on top; the document itself does not scroll. The region is a
+        flex column laid out from its end: its scrollTop is 0 at the end of
+        the conversation and negative above it;
+      - the sidebar lists conversations as links marked
+        data-interactive-row-link, each in a row it is positioned in, with a
+        pseudo-element of the site's own that widens the link's click area;
+      - a table is a wide block: its wrapper is wider than the reply text;
       - a turn carries data-turn-key and holds the reader's message and the
         reply as two units; each has a heading kept for screen readers;
       - the reader's message is a rounded bubble holding one text container;
@@ -34,13 +40,19 @@
       @media (prefers-color-scheme: dark) { body { color: #eee; background: #212121; } }
       .layout { display: flex; height: 100%; }
       nav { width: 200px; padding: 12px; }
+      .row { position: relative; padding: 8px 6px 8px 10px; border-radius: 10px; }
+      .row:hover { background: #8882; }
+      .row-link { display: flex; align-items: center; color: inherit; text-decoration: none; font-size: 14px; line-height: 20px; }
+      .row-link::before { content: ""; position: absolute; inset: 0; }
+      .row-link span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
       .page { flex: 1; min-width: 0; }
       main { display: flex; flex-direction: column; height: 100%; max-width: 760px; background: #fff; }
       @media (prefers-color-scheme: dark) { main { background: #000; } }
-      .scroll { flex: 1; min-height: 0; overflow-y: auto; }
+      .scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+      .content { flex: none; }
       .bar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; height: 44px; padding: 0 16px; align-items: center; background: inherit; background-color: #fff; border-bottom: 1px solid #8884; }
       @media (prefers-color-scheme: dark) { .bar { background-color: #000; } }
-      .thread { padding: 16px; }
+      .thread { padding: 16px 56px; }
       .turn { margin-bottom: 24px; }
       .unit { margin-bottom: 12px; }
       .plaintext { unicode-bidi: plaintext; }
@@ -61,8 +73,12 @@
       @media (prefers-color-scheme: dark) { a { color: #7ab7ff; } .secondary { color: #b4b4b4; } }
       th { text-align: left; background: #8882; }
       td, th { padding: 4px 8px; border: 1px solid #8884; white-space: nowrap; }
-      [data-markdown-table] { margin: 0 0 12px; }
-      .table-scroll { overflow-x: auto; }
+      [data-markdown-table] { position: relative; margin: 0 0 12px; }
+      [data-wide-block] { margin-inline: -40px; }
+      .table-scroll { display: flex; overflow: auto; }
+      .table-actions { position: absolute; top: -28px; right: 0; }
+      #table-fa { min-width: 900px; border-collapse: collapse; }
+      kbd, samp { font-family: ui-monospace, Consolas, monospace; }
       .katex { font-family: "Times New Roman", serif; }
       .frac-line { display: inline-block; width: 1em; border-bottom: 1px solid; }
       .sr-only { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
@@ -82,12 +98,18 @@
       <nav aria-label="Chat history">
         <p id="nav-title">React چیست</p>
         <button id="page-button" type="button">New chat</button>
+        <div role="list" id="rows">
+          <div role="listitem"><div class="row" role="group" id="row-this-frame"><a class="row-link" data-interactive-row-link="true" id="row-this" href="/c/readela-fixture" draggable="false"><span data-thread-title="true" id="row-this-title">Hooks explained</span></a></div></div>
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="row-project" href="/g/g-p-0123456789abcdef-fixture-project/c/readela-fixture-2" draggable="false"><span data-thread-title="true">A project chat</span></a></div></div>
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="row-other" href="/c/readela-fixture-3" draggable="false"><span data-thread-title="true">Another chat</span></a></div></div>
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="row-page" href="/gpts" draggable="false"><span data-thread-title="true">Not a conversation</span></a></div></div>
+        </div>
       </nav>
 
       <!-- A conversation opened earlier. The site keeps it in the document. -->
       <div class="page" data-app-shell-active-page="false" id="kept-page" style="display: none">
         <main id="main-kept">
-          <div class="scroll" data-app-action-timeline-scroll="" role="region" tabindex="0">
+          <div class="scroll" data-app-action-timeline-scroll="" role="region" tabindex="0"><div class="content">
             <div class="thread">
               <div class="turn" data-turn-key="turn-en">
                 <div class="unit" data-content-search-unit-key="fallback-turn-0:2:assistant">
@@ -98,13 +120,13 @@
                 </div>
               </div>
             </div>
-          </div>
+          </div></div>
         </main>
       </div>
 
       <div class="page" data-app-shell-active-page="true">
         <main id="main">
-          <div class="scroll" id="scroller" data-app-action-timeline-scroll="" role="region" aria-label="Conversation" tabindex="0">
+          <div class="scroll" id="scroller" data-app-action-timeline-scroll="" role="region" aria-label="Conversation" tabindex="0"><div class="content">
             <div class="bar" id="thread-bar" role="toolbar"><span id="thread-model">Model</span><button id="thread-share" type="button">Share</button></div>
             <div class="thread" id="thread">
 
@@ -152,12 +174,13 @@ if (count &gt; 10) { reset(); }</code></pre>
           </div>
           <p id="p-math" dir="auto" class="plaintext">فرمول <span class="katex" id="math">E = mc^2<span class="frac-line" id="math-line"></span></span> معروف است.</p>
           <p id="p-neutral" dir="auto">1,234.50</p>
+          <p id="p-fa-type" dir="auto">متن ساده، <em id="fa-em">تأکید</em> و <strong id="fa-strong">پررنگ</strong> با <span id="fa-latin">Latin</span> کنار هم.</p>
           <div data-markdown-table="" data-wide-block="" id="table-frame">
             <div class="table-actions" id="table-actions"><button id="table-copy" type="button">Copy table</button></div>
             <div class="table-scroll" id="table-scroll"><div id="table-inner">
               <table id="table-fa">
-                <thead><tr><th id="th-fa">نام Hook</th><th>کاربرد</th></tr></thead>
-                <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td></tr></tbody>
+                <thead><tr><th id="th-fa">نام Hook</th><th>کاربرد</th><th>نمونه</th><th>یادداشت</th></tr></thead>
+                <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td><td><code id="td-code">useMemo(fn, deps)</code></td><td>فقط وقتی لازم است</td></tr></tbody>
               </table>
             </div></div>
           </div>
@@ -186,6 +209,8 @@ if (count &gt; 10) { reset(); }</code></pre>
             </li>
           </ul>
           <p id="p-semantic" dir="auto">A <mark id="marked-text">highlighted phrase</mark>, a <del id="struck-text">struck phrase</del> and <small id="small-text">a small note</small> keep what they mean.</p>
+          <p id="p-tokens" dir="auto">Call <code id="token-fn">serialize()</code> on <code id="token-branch">main</code> at <code id="token-version">3.1.8</code>, press <kbd id="token-kbd">Ctrl</kbd> and expect <samp id="token-samp">FIX_REQUIRED</samp>.</p>
+          <p id="p-type" dir="auto">Plain words, <em id="en-em">emphasised words</em>, <strong id="en-strong">strong words</strong> and <strong><em id="en-both">both at once</em></strong>.</p>
           <p id="p-twin" dir="auto">This sentence appears in two different answers.</p>
                   </div>
                 </div>
@@ -219,11 +244,12 @@ if (count &gt; 10) { reset(); }</code></pre>
               </div>
 
             </div>
-          </div>
+          </div></div>
 
           <form id="composer-form">
             <div id="prompt-textarea" contenteditable="true"><p id="composer-p">React را توضیح بده</p></div>
             <textarea id="composer-textarea" aria-label="Message">سلام world</textarea>
+            <input id="composer-input" type="text" aria-label="Title" value="" />
             <button id="send-button" type="button">Send</button>
           </form>
         </main>

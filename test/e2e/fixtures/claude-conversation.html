@@ -10,7 +10,11 @@
       2026-10-10, by element and attribute names only:
 
       - the transcript scrolls in data-autoscroll-container; the document does
-        not scroll; there is no <main>;
+        not scroll; there is no <main>. The chat header is positioned over the
+        top of that region, with an opaque band behind it, and takes no
+        pointer input, so what is under it cannot be found by a hit test;
+      - the sidebar lists conversations as links marked data-row-main-button,
+        each in a row it is positioned in;
       - each message is a row (data-testid="transcript-row", data-index) and
         carries data-turn-key; messages are data-testid="assistant-message" or
         "user-message"; rendered Markdown sits in .standard-markdown (or
@@ -30,7 +34,16 @@
       .shell { display: flex; height: 100%; }
       nav { width: 220px; padding: 12px; }
       .column { flex: 1; min-width: 0; display: flex; flex-direction: column; max-width: 800px; }
-      [data-autoscroll-container] { flex: 1; min-height: 0; overflow: hidden auto; padding: 16px; }
+      [data-autoscroll-container] { flex: 1; min-height: 0; overflow: hidden auto; padding: 64px 16px 16px; }
+      .column { position: relative; }
+      .chat-header { position: absolute; z-index: 11; top: 0; left: 0; right: 0; height: 48px; padding: 0 16px; display: flex; align-items: center; pointer-events: none; }
+      .chat-header-band { position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 56px; background: #faf9f5; }
+      @media (prefers-color-scheme: dark) { .chat-header-band { background: #262624; } }
+      .row { position: relative; border-radius: 8px; }
+      .row:hover { background: #8882; }
+      .row-link { display: flex; align-items: center; padding: 2px; height: 32px; box-sizing: border-box; color: inherit; text-decoration: none; font-size: 14px; }
+      .row-link span { padding-left: 4px; overflow: hidden; white-space: nowrap; }
+
       [data-testid="transcript-row"] { position: relative; display: flow-root; margin-bottom: 16px; }
       .bubble { margin: 0 0 0 auto; max-width: 80%; padding: 8px 12px; background: rgb(20 20 19 / 0.06); border-radius: 12px; }
       @media (prefers-color-scheme: dark) { .bubble { background: color(srgb 1 1 1 / 0.05); } }
@@ -68,9 +81,17 @@
       <nav aria-label="Sidebar">
         <p id="c-nav-title">گفت‌وگو دربارهٔ React</p>
         <button id="c-page-button" type="button">New chat</button>
+        <div id="c-rows">
+          <div data-row-key="chat:c-row-this"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-this" href="/chat/readela-fixture" draggable="false"><span data-row-label="iconless">TypeScript</span></a></div></div>
+          <div data-row-key="chat:c-row-long"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-long" href="/chat/readela-long-fixture" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
+          <div data-row-key="chat:c-row-other"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-other" href="/chat/readela-fixture-9" draggable="false"><span data-row-label="iconless">Another</span></a></div></div>
+          <div data-row-key="chat:c-row-page"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-page" href="/recents" draggable="false"><span data-row-label="iconless">Recents</span></a></div></div>
+        </div>
       </nav>
 
       <div class="column" data-testid="chat-column">
+        <!-- The chat header lies over the top of the scrolling region and lets the pointer through. -->
+        <div class="chat-header" data-testid="chat-header" id="c-header"><div class="chat-header-band"></div><span id="c-header-title">Conversation</span></div>
         <div data-autoscroll-container="true" id="c-scroller">
           <div class="transcript" id="c-transcript" role="feed" aria-label="Conversation">
 

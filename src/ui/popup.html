@@ -73,13 +73,16 @@
       </fieldset>
 
       <section class="place" aria-labelledby="place-title">
-        <h2 id="place-title">Saved place</h2>
+        <div class="place-head">
+          <h2 id="place-title">Saved place</h2>
+          <p class="state" id="place-state" role="status" aria-live="polite"></p>
+        </div>
         <div class="actions">
           <button type="button" id="place-save" aria-describedby="place-guide">Save place</button>
           <button type="button" id="place-return" aria-label="Return to saved place">Return</button>
           <button type="button" id="place-clear" aria-label="Clear saved place">Clear</button>
         </div>
-        <p class="hint" id="place-guide">Saves the first paragraph in view. Select text to choose another.</p>
+        <p class="hint" id="place-guide">Saves the first paragraph in view. Select text to choose another. On the page: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>.</p>
         <p class="note" id="place-note" role="status" aria-live="polite"></p>
       </section>
 

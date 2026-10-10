@@ -48,4 +48,7 @@ export const claude = Object.freeze({
   // Every message carries the identifier; every row of the transcript its index.
   turn: "data-turn-key",
   order: "data-index",
+
+  // The link of a conversation in the site's sidebar and lists.
+  rows: "a[data-row-main-button][href]",
 });

@@ -5,7 +5,7 @@
 // the marks are removed. The build writes this text to `content.css`.
 
 import {
-  BUNDLED_FONT,
+  BUNDLED_FONTS,
   FONT_CHOICES,
   PAGE_MARK,
   SIZE_CHOICES,
@@ -23,6 +23,8 @@ export const MARK = Object.freeze({
   mirror: "data-readela-mirror",
   sheet: "data-readela-sheet",
   island: "data-readela-island",
+  unit: "data-readela-unit",
+  saved: "data-readela-saved",
   place: "data-readela-mark",
   flash: "data-readela-flash",
   font: "data-readela-font",
@@ -39,6 +41,7 @@ export const ELEMENT_MARKS = Object.freeze([
   MARK.mirror,
   MARK.sheet,
   MARK.island,
+  MARK.unit,
   MARK.place,
   MARK.flash,
 ]);
@@ -61,11 +64,16 @@ export const MIRROR_PROPERTIES = Object.freeze([
 ]);
 
 /**
- * Custom properties set on the root element while a reading theme is on: the
- * site's own background and text colour, as measured, for the parts of a
- * response that keep the site's presentation.
+ * Custom properties set on the root element, as measured from the site, for
+ * the parts of a response that keep the site's presentation: its own
+ * background and text colour while a reading theme is on, and its own font
+ * while Readela Sans is on.
  */
-export const SITE_PROPERTIES = Object.freeze({ surface: "--readela-site-surface", text: "--readela-site-text" });
+export const SITE_PROPERTIES = Object.freeze({
+  surface: "--readela-site-surface",
+  text: "--readela-site-text",
+  font: "--readela-site-font",
+});
 
 /**
  * Custom property set on a part of a response that keeps the site's
@@ -110,6 +118,8 @@ function themeRules() {
       `  --readela-rule: ${theme.rule};`,
       `  --readela-quote: ${theme.quote};`,
       `  --readela-code: ${theme.code};`,
+      `  --readela-code-text: ${theme.codeText};`,
+      `  --readela-code-line: ${theme.codeLine};`,
       `  --readela-head: ${theme.head};`,
       `  --readela-selection: ${theme.selection};`,
       `  --readela-selection-text: ${theme.selectionText};`,
@@ -124,6 +134,14 @@ function themeRules() {
     // gives it a margin of its own colour without moving anything.
     `${sheet} { background-color: var(--readela-surface) !important; color: var(--readela-text) !important; }`,
     `${sheet}:not([${MARK.sheet}="inner"]) { box-shadow: 0 0 0 0.625rem var(--readela-surface) !important; border-radius: 0.25rem !important; }`,
+    // A wrapper that holds reading blocks (around a table) is part of the
+    // surface at whatever width the site gives it. Where it is wider than the
+    // text, it carries the surface with it: the same margin to its sides and
+    // the same corners, so no strip or square corner shows beyond the text.
+    // Only the outermost wrapper paints; nothing is clipped, and it scrolls
+    // as the site made it.
+    `${themed} [${MARK.sheet}=""] > [${MARK.sheet}="inner"] { box-shadow: 0.625rem 0 0 var(--readela-surface), -0.625rem 0 0 var(--readela-surface) !important; border-radius: 0.25rem !important; }`,
+    `${themed} [${MARK.sheet}="inner"] [${MARK.sheet}="inner"] { background-color: transparent !important; }`,
 
     // Reading text takes the theme's colours whatever the site gave it, and
     // gives up backgrounds made for the site's own theme. What a part of the
@@ -132,7 +150,12 @@ function themeRules() {
     `:is(${prose}, ${prose} :not(${kept}, code, kbd, samp, th, mark))${unmarked} { background-color: transparent !important; }`,
     `${prose} :is(a, a *):not(${kept}) { color: var(--readela-link) !important; }`,
     `${prose} a:not(${kept}) { text-decoration-line: underline !important; }`,
+    // Inline code, keyboard and sample text: a colour, a ground and a line of
+    // their own, so a name or a version stands out from the sentence at a
+    // glance. The line is drawn inside the box, so nothing moves.
     `${prose} :is(code, kbd, samp):not(${kept})${unmarked} { background-color: var(--readela-code) !important; }`,
+    `${prose} :is(code, kbd, samp, code *, kbd *, samp *):not(${kept}) { color: var(--readela-code-text) !important; }`,
+    `${prose} :is(code, kbd, samp):not(${kept}) { border-color: transparent !important; box-shadow: inset 0 0 0 1px var(--readela-code-line) !important; }`,
     `${within}:is(table, thead, tbody, tfoot, tr, th, td):not(${kept}) { border-color: var(--readela-rule) !important; }`,
     `${within}:is(th):not(${kept})${unmarked} { background-color: var(--readela-head) !important; }`,
     `${within}:is(blockquote):not(${kept}) { border-color: var(--readela-quote) !important; }`,
@@ -154,6 +177,25 @@ function themeRules() {
     `${sheet} [${MARK.island}~="round"] { border-radius: var(${ISLAND_RADIUS}) !important; }`,
   );
   return rules;
+}
+
+// A conversation that has a saved place, in the site's own lists: a small
+// filled bookmark at the start of its row. The shape says it, not the colour
+// alone. It is drawn from the link without taking part in the row's layout
+// and takes no pointer input, so the row behaves as the site made it.
+function rowRules() {
+  const saved = `[${MARK.saved}]::after`;
+  return [
+    `${saved} {`,
+    `  content: "" !important; position: absolute !important; display: block !important;`,
+    `  inset-inline-start: 0 !important; inset-block-start: 50% !important;`,
+    `  inline-size: 0.375rem !important; block-size: 0.6875rem !important; margin: -0.34375rem 0 0 !important;`,
+    `  padding: 0 !important; border: 0 !important; border-radius: 1px !important; opacity: 1 !important;`,
+    `  background: ${PAGE_MARK.mark} !important; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 68%, 0 100%) !important;`,
+    `  transform: none !important; pointer-events: none !important;`,
+    `}`,
+    `@media (forced-colors: active) { ${saved} { forced-color-adjust: none !important; background: Highlight !important; } }`,
+  ];
 }
 
 function markRules() {
@@ -184,22 +226,29 @@ function markRules() {
 
 /**
  * @param {object} [options]
- * @param {string} [options.fontUrl] address of the packaged font as the
- *   stylesheet must name it; it differs between browsers, see the build.
+ * @param {(file: string) => string} [options.fontUrl] gives the address of a
+ *   packaged font as the stylesheet must name it; it differs between
+ *   browsers, see the build.
  */
-export function buildCss({ fontUrl = BUNDLED_FONT.file } = {}) {
-  const rules = [
-    // The packaged font, for Arabic-script characters only. It is fetched from
-    // the extension itself, and only when such text is shown in this family.
-    `@font-face {`,
-    `  font-family: "${BUNDLED_FONT.family}";`,
-    `  src: url("${fontUrl}") format("woff2");`,
-    `  font-weight: ${BUNDLED_FONT.weight};`,
-    `  font-style: normal;`,
-    `  font-display: swap;`,
-    `  unicode-range: ${BUNDLED_FONT.unicodeRange};`,
-    `}`,
+export function buildCss({ fontUrl = (file) => file } = {}) {
+  const rules = [];
+  // The packaged fonts, each for the characters of its own script only. A
+  // file is fetched from the extension itself, and only when such text is
+  // shown in Readela Sans.
+  for (const font of BUNDLED_FONTS) {
+    rules.push(
+      `@font-face {`,
+      `  font-family: "${font.family}";`,
+      `  src: url("${fontUrl(font.file)}") format("woff2");`,
+      `  font-weight: ${font.weight};`,
+      `  font-style: ${font.style};`,
+      `  font-display: swap;`,
+      `  unicode-range: ${font.unicodeRange};`,
+      `}`,
+    );
+  }
 
+  rules.push(
     // Base direction per marked block. `isolate` is the browser default for
     // block elements; stating it defeats first-strong (`plaintext`) handling
     // that would otherwise ignore the direction.
@@ -221,14 +270,20 @@ export function buildCss({ fontUrl = BUNDLED_FONT.file } = {}) {
     `  border-inline-start: var(--readela-border-start) !important;`,
     `  border-inline-end: var(--readela-border-end) !important;`,
     `}`,
-  ];
+  );
 
+  // Readela Sans is for reading text. Code, keyboard input and mathematics
+  // keep their fonts, and so does a unit the site presents as a whole.
+  const own = `${PROTECTED}, svg, [${MARK.unit}]`;
   for (const font of FONT_CHOICES) {
     const { fontFamily } = resolveTypography({ font });
     if (fontFamily === null) continue;
     const scope = `html[${MARK.font}="${font}"] [${MARK.top}]:not(pre)`;
     rules.push(
-      `${scope}, ${scope} :not(:is(${PROTECTED}, svg), :is(${PROTECTED}, svg) *) { font-family: ${fontFamily} !important; }`,
+      `${scope}:not([${MARK.unit}]), ${scope}:not([${MARK.unit}]) :not(:is(${own}), :is(${own}) *) { font-family: ${fontFamily} !important; }`,
+      // A unit inside reading text would take the reading font from the text
+      // around it; it is given the site's own font back.
+      `html[${MARK.font}="${font}"] [${MARK.top}] [${MARK.unit}] { font-family: var(${SITE_PROPERTIES.font}) !important; }`,
     );
   }
 
@@ -247,6 +302,6 @@ export function buildCss({ fontUrl = BUNDLED_FONT.file } = {}) {
     );
   }
 
-  rules.push(...themeRules(), ...markRules());
+  rules.push(...themeRules(), ...markRules(), ...rowRules());
   return `${rules.join("\n")}\n`;
 }

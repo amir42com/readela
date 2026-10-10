@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   MARK_LIMIT,
   blockKind,
+  canSave,
   conversationId,
   conversationKey,
   createPlace,
@@ -205,7 +206,7 @@ test("a block of another kind with the same text is not the saved block", () => 
   assert.deepEqual(locatePlace(place, [retyped]), { status: "changed" });
 });
 
-test("one place per conversation; saving again replaces it; the oldest is dropped at the limit", () => {
+test("one place per conversation; saving again replaces it", () => {
   const first = createPlace(known("turn-1", TEXTS), 1, 0.2);
   const second = createPlace(known("turn-1", TEXTS), 3, 0.6);
   let marks = saveMark(undefined, "a".repeat(16), first);
@@ -220,12 +221,48 @@ test("one place per conversation; saving again replaces it; the oldest is droppe
   assert.deepEqual(removeMark(marks, "a".repeat(16)).items.map((item) => item.k), ["b".repeat(16)]);
   // Removing a place that is not there changes nothing: a lookup never deletes.
   assert.deepEqual(removeMark(marks, "c".repeat(16)), marks);
+});
 
-  for (let index = 0; index < MARK_LIMIT + 5; index += 1) {
-    marks = saveMark(marks, index.toString(16).padStart(16, "0"), first);
-  }
-  assert.equal(marks.items.length, MARK_LIMIT);
-  assert.equal(findMark(marks, "b".repeat(16)), null, "the oldest places were dropped");
+test("a thousand conversations can have a place; at the limit a new one is refused and none is given up", () => {
+  assert.equal(MARK_LIMIT, 1000);
+  const place = createPlace(known("turn-1", TEXTS), 1, 0.2);
+  const other = createPlace(known("turn-1", TEXTS), 3, 0.6);
+  const key = (index) => index.toString(16).padStart(16, "0");
+
+  let marks;
+  for (let index = 0; index < 999; index += 1) marks = saveMark(marks, key(index), place);
+  assert.equal(marks.items.length, 999);
+  // 999 saved: one more conversation fits.
+  assert.equal(canSave(marks, key(999)), true);
+  marks = saveMark(marks, key(999), place);
+  assert.equal(marks.items.length, 1000);
+
+  // 1000 saved: a further conversation is refused, and every place is as it was.
+  const full = JSON.stringify(marks);
+  assert.equal(canSave(marks, "f".repeat(16)), false);
+  const refused = saveMark(marks, "f".repeat(16), place);
+  assert.equal(JSON.stringify(refused), full, "nothing was dropped to make room");
+  assert.equal(findMark(refused, "f".repeat(16)), null);
+  assert.ok(findMark(refused, key(0)) !== null, "the oldest place is still there");
+
+  // A conversation that has a place can still update it; the count stays.
+  assert.equal(canSave(marks, key(0)), true);
+  marks = saveMark(marks, key(0), other);
+  assert.equal(marks.items.length, 1000);
+  assert.equal(findMark(marks, key(0)).i, 3);
+  for (let index = 1; index < 1000; index += 1) assert.ok(findMark(marks, key(index)) !== null, key(index));
+
+  // Clearing one makes room for one.
+  marks = removeMark(marks, key(500));
+  assert.equal(marks.items.length, 999);
+  assert.equal(canSave(marks, "f".repeat(16)), true);
+  marks = saveMark(marks, "f".repeat(16), place);
+  assert.equal(marks.items.length, 1000);
+  assert.ok(findMark(marks, "f".repeat(16)) !== null);
+
+  // An object holding more than this code ever writes is read up to the limit.
+  const over = { version: 2, items: [...marks.items, { ...place, k: "e".repeat(16) }] };
+  assert.equal(normalizeMarks(over).items.length, 1000);
 });
 
 test("malformed stored places are dropped, and so is anything that is not part of a place", () => {

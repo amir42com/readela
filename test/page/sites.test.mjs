@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { BUNDLED_FONT } from "../../src/core/index.js";
+import { BUNDLED_FONTS, FONT_LICENCES } from "../../src/core/index.js";
 import { SITES, matchPatterns, siteFor } from "../../src/page/sites/index.js";
 
 const manifest = JSON.parse(readFileSync(new URL("../../src/manifest/base.json", import.meta.url), "utf8"));
@@ -19,7 +19,7 @@ test("every site adapter satisfies the site contract", () => {
     for (const required of ["scope", "exclude", "user", "prose", "capsule"]) {
       assert.ok(typeof site[required] === "string" && site[required].length > 0, `${site.name}.${required}`);
     }
-    for (const optional of ["within", "extraBlocks", "scroller", "turn", "order"]) {
+    for (const optional of ["within", "extraBlocks", "scroller", "turn", "order", "rows"]) {
       if (optional in site) assert.ok(typeof site[optional] === "string" && site[optional].length > 0, `${site.name}.${optional}`);
     }
     assert.ok(site.conversation.length > 0, `${site.name}.conversation`);
@@ -46,6 +46,7 @@ test("the test conversations carry the hooks each adapter names, as observed on 
       'data-markdown-copy="code-block"',
       "data-turn-key=",
       "data-app-action-timeline-scroll",
+      "data-interactive-row-link=",
     ],
     claude: [
       'data-testid="assistant-message"',
@@ -55,12 +56,13 @@ test("the test conversations carry the hooks each adapter names, as observed on 
       "data-turn-key=",
       "data-index=",
       'data-autoscroll-container="true"',
+      "data-row-main-button=",
     ],
   };
   for (const site of SITES) {
     for (const hook of hooks[site.id]) assert.ok(pages[site.id].includes(hook), `${site.name} fixture has ${hook}`);
     // The hook each adapter relies on is one the fixture was checked for above.
-    const named = [site.user, site.prose, site.capsule, site.scroller, site.turn, site.order].filter(Boolean).join(" ");
+    const named = [site.user, site.prose, site.capsule, site.scroller, site.turn, site.order, site.rows].filter(Boolean).join(" ");
     for (const hook of hooks[site.id]) {
       const word = hook.replace(/=.*$/, "");
       if (word.startsWith("data-") && !/testid/.test(word)) assert.ok(named.includes(word), `${site.name} adapter names ${word}`);
@@ -83,10 +85,29 @@ test("the manifest requests exactly the supported hosts and nothing broader", ()
   }
 });
 
-test("the one web-accessible resource is the packaged font, for the supported hosts only", () => {
-  assert.deepEqual(manifest.web_accessible_resources, [{ resources: [BUNDLED_FONT.file], matches: matchPatterns() }]);
-  assert.ok(existsSync(new URL(`../../src/${BUNDLED_FONT.file}`, import.meta.url)), "the font is in the source tree");
-  assert.ok(existsSync(new URL("../../src/fonts/OFL.txt", import.meta.url)), "its licence travels with it");
+test("the web-accessible resources are the packaged fonts and nothing else, for the supported hosts only", () => {
+  const fonts = BUNDLED_FONTS.map((font) => font.file);
+  assert.deepEqual(fonts, ["fonts/Vazirmatn-NL-wght.woff2", "fonts/InterVariable.woff2", "fonts/InterVariable-Italic.woff2"]);
+  assert.deepEqual(manifest.web_accessible_resources, [{ resources: fonts, matches: matchPatterns() }]);
+  for (const file of fonts) assert.ok(existsSync(new URL(`../../src/${file}`, import.meta.url)), `${file} is in the source tree`);
+  // Each font travels with its licence, and the notes say where each came from.
+  assert.deepEqual(FONT_LICENCES, ["fonts/OFL.txt", "fonts/Inter-LICENSE.txt"]);
+  for (const file of FONT_LICENCES) {
+    const licence = readFileSync(new URL(`../../src/${file}`, import.meta.url), "utf8");
+    assert.match(licence, /SIL OPEN FONT LICENSE Version 1\.1/i, file);
+  }
+  const notes = readFileSync(new URL("../../src/fonts/README.md", import.meta.url), "utf8");
+  for (const word of ["Vazirmatn", "v33.003", "Inter", "4.1", "InterVariable.woff2", "InterVariable-Italic.woff2"]) {
+    assert.ok(notes.includes(word), `the font notes name ${word}`);
+  }
+});
+
+test("the sidebar is marked only through the hook each adapter names, on the links of conversations", () => {
+  for (const site of SITES) {
+    assert.match(site.rows, /^a\[data-[a-z-]+\]\[href\]$/, site.name);
+    // A row is a link; the application shell stays excluded from everything else.
+    assert.ok(site.exclude.includes("nav") && site.exclude.includes("aside"), site.name);
+  }
 });
 
 test("the popup names one outside address, the publisher's, as a link that asks for nothing until it is followed", () => {

@@ -24,7 +24,7 @@
   "permissions": ["storage"],
   "web_accessible_resources": [
     {
-      "resources": ["fonts/Vazirmatn-NL-wght.woff2"],
+      "resources": ["fonts/Vazirmatn-NL-wght.woff2", "fonts/InterVariable.woff2", "fonts/InterVariable-Italic.woff2"],
       "matches": ["https://chatgpt.com/*", "https://claude.ai/*"]
     }
   ],

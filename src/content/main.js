@@ -27,5 +27,5 @@ if (site !== null) {
     go: reader.returnToPlace,
     clear: reader.clearPlace,
   };
-  answerMarkRequests(async (request) => ({ ...(await actions[request]()), site: site.name }));
+  answerMarkRequests(async (request) => ({ status: (await actions[request]()).status, site: site.name }));
 }
