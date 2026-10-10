@@ -39,11 +39,13 @@ async function buildFor(browser) {
   rmSync(output, { recursive: true, force: true });
   mkdirSync(path.join(output, "popup"), { recursive: true });
 
-  // One classic script per entry: content scripts cannot be ES modules.
+  // One classic script per entry: content scripts cannot be ES modules, and
+  // the background component is one plain file in both browsers.
   // Output is left unminified so the shipped code stays inspectable.
   await build({
     entryPoints: {
       content: path.join(source, "content", "main.js"),
+      background: path.join(source, "background", "main.js"),
       "popup/popup": path.join(source, "ui", "popup.js"),
     },
     outdir: output,

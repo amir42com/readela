@@ -12,7 +12,10 @@
  * rule           table lines and separators
  * quote          the bar of a quotation
  * code           background of inline code, keyboard and sample text;
- *                codeText is its text and codeLine the line around it
+ *                codeText is its text and codeLine the line around it. One
+ *                family on both themes and every site: the text at 7:1 or
+ *                better on its ground, the line at 3:1 or better against
+ *                the surface, the ground tinted away from the surface
  * head           background of table header cells
  * selection      background of selected text; selectionText is its text
  * mark           the bar of the saved place; markTint is the saved block's background
@@ -25,9 +28,9 @@ export const THEMES = Object.freeze({
     link: "#1A456F",
     rule: "#B9AE98",
     quote: "#7D6F59",
-    code: "#EAE2D0",
-    codeText: "#14594E",
-    codeLine: "#C4B89E",
+    code: "#D9E6DA",
+    codeText: "#08453C",
+    codeLine: "#5F8676",
     head: "#ECE5D5",
     selection: "#F0D49A",
     selectionText: "#24201B",
@@ -41,9 +44,9 @@ export const THEMES = Object.freeze({
     link: "#E8BC7C",
     rule: "#5E574D",
     quote: "#9A8E7C",
-    code: "#322E29",
-    codeText: "#8FD6C4",
-    codeLine: "#5E574D",
+    code: "#1D3B37",
+    codeText: "#8FE8D2",
+    codeLine: "#468378",
     head: "#2E2A26",
     selection: "#54401E",
     selectionText: "#F6EFE2",

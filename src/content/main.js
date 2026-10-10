@@ -1,5 +1,6 @@
 // Content script entry: connects stored preferences and saved places to the
-// page reader, and answers the popup's saved-place requests.
+// page reader, and answers the saved-place requests of the popup and of the
+// browser's bookmark command.
 
 import { isExtensionAlive } from "../browser/api.js";
 import { answerMarkRequests } from "../browser/messages.js";
@@ -26,6 +27,7 @@ if (site !== null) {
     set: reader.savePlace,
     go: reader.returnToPlace,
     clear: reader.clearPlace,
+    quick: reader.quickSave,
   };
   answerMarkRequests(async (request) => ({ status: (await actions[request]()).status, site: site.name }));
 }

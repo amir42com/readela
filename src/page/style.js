@@ -24,6 +24,7 @@ export const MARK = Object.freeze({
   sheet: "data-readela-sheet",
   island: "data-readela-island",
   unit: "data-readela-unit",
+  token: "data-readela-token",
   saved: "data-readela-saved",
   place: "data-readela-mark",
   flash: "data-readela-flash",
@@ -42,6 +43,7 @@ export const ELEMENT_MARKS = Object.freeze([
   MARK.sheet,
   MARK.island,
   MARK.unit,
+  MARK.token,
   MARK.place,
   MARK.flash,
 ]);
@@ -87,6 +89,11 @@ export const TEXT_BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, dt, dd, th, td, capti
 
 /** Code, keyboard input and mathematics keep their own order, font and direction. */
 export const PROTECTED = "pre, code, kbd, samp, var, math, .katex, mjx-container";
+
+// Inline code as the reader sees it: the elements made for it, and whatever
+// a site renders as inline code without one, which the reader marks.
+const TOKENS = `code, kbd, samp, [${MARK.token}]`;
+const IN_TOKENS = TOKENS.split(", ").map((token) => `${token} *`).join(", ");
 
 const CONTAINERS = "ul, ol, table, blockquote";
 
@@ -147,15 +154,18 @@ function themeRules() {
     // gives up backgrounds made for the site's own theme. What a part of the
     // text means stays visible: each kind has a token of its own.
     `:is(${prose}, ${prose} :not(${kept}, a, a *)) { color: var(--readela-text) !important; }`,
-    `:is(${prose}, ${prose} :not(${kept}, code, kbd, samp, th, mark))${unmarked} { background-color: transparent !important; }`,
+    `:is(${prose}, ${prose} :not(${kept}, ${TOKENS}, th, mark))${unmarked} { background-color: transparent !important; }`,
     `${prose} :is(a, a *):not(${kept}) { color: var(--readela-link) !important; }`,
     `${prose} a:not(${kept}) { text-decoration-line: underline !important; }`,
-    // Inline code, keyboard and sample text: a colour, a ground and a line of
-    // their own, so a name or a version stands out from the sentence at a
-    // glance. The line is drawn inside the box, so nothing moves.
-    `${prose} :is(code, kbd, samp):not(${kept})${unmarked} { background-color: var(--readela-code) !important; }`,
-    `${prose} :is(code, kbd, samp, code *, kbd *, samp *):not(${kept}) { color: var(--readela-code-text) !important; }`,
-    `${prose} :is(code, kbd, samp):not(${kept}) { border-color: transparent !important; box-shadow: inset 0 0 0 1px var(--readela-code-line) !important; }`,
+    // Inline code, keyboard and sample text, on every site alike: a colour, a
+    // ground and a line of their own, so a name, a command or a version is
+    // told from the sentence at a glance. The line is drawn inside the box,
+    // so nothing moves.
+    `${prose} :is(${TOKENS}):not(${kept})${unmarked} { background-color: var(--readela-code) !important; }`,
+    `${prose} :is(${TOKENS}, ${IN_TOKENS}):not(${kept}) { color: var(--readela-code-text) !important; }`,
+    `${prose} :is(${TOKENS}):not(${kept}) { border-color: transparent !important; box-shadow: inset 0 0 0 1px var(--readela-code-line) !important; }`,
+    // The shape says it where colours are the system's.
+    `@media (forced-colors: active) { ${prose} :is(${TOKENS}):not(${kept}) { outline: 1px solid CanvasText !important; outline-offset: -1px !important; } }`,
     `${within}:is(table, thead, tbody, tfoot, tr, th, td):not(${kept}) { border-color: var(--readela-rule) !important; }`,
     `${within}:is(th):not(${kept})${unmarked} { background-color: var(--readela-head) !important; }`,
     `${within}:is(blockquote):not(${kept}) { border-color: var(--readela-quote) !important; }`,
@@ -189,11 +199,14 @@ function rowRules() {
     `${saved} {`,
     `  content: "" !important; position: absolute !important; display: block !important;`,
     `  inset-inline-start: 0 !important; inset-block-start: 50% !important;`,
-    `  inline-size: 0.375rem !important; block-size: 0.6875rem !important; margin: -0.34375rem 0 0 !important;`,
+    `  inline-size: 0.5rem !important; block-size: 0.875rem !important; margin: -0.4375rem 0 0 !important;`,
     `  padding: 0 !important; border: 0 !important; border-radius: 1px !important; opacity: 1 !important;`,
     `  background: ${PAGE_MARK.mark} !important; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 68%, 0 100%) !important;`,
     `  transform: none !important; pointer-events: none !important;`,
     `}`,
+    // Where a site's row leaves no room before its text, the bookmark sits
+    // on the row's edge instead. The same bookmark, a little further out.
+    `[${MARK.saved}="edge"]::after { inset-inline-start: -0.25rem !important; }`,
     `@media (forced-colors: active) { ${saved} { forced-color-adjust: none !important; background: Highlight !important; } }`,
   ];
 }
@@ -273,8 +286,9 @@ export function buildCss({ fontUrl = (file) => file } = {}) {
   );
 
   // Readela Sans is for reading text. Code, keyboard input and mathematics
-  // keep their fonts, and so does a unit the site presents as a whole.
-  const own = `${PROTECTED}, svg, [${MARK.unit}]`;
+  // keep their fonts, and so do a unit the site presents as a whole and what
+  // a site renders as inline code.
+  const own = `${PROTECTED}, svg, [${MARK.unit}], [${MARK.token}]`;
   for (const font of FONT_CHOICES) {
     const { fontFamily } = resolveTypography({ font });
     if (fontFamily === null) continue;

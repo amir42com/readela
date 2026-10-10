@@ -12,26 +12,27 @@ controls behind it are in
 Readela works entirely inside your browser. It reads the text of the
 conversation shown on `chatgpt.com` and `claude.ai` to decide which direction
 each paragraph should be read in and, from version 0.3.0, to find the place
-you saved. It changes only how that text is presented. It does not send
+you bookmarked. It changes only how that text is presented. It does not send
 anything anywhere and it does not keep any of the text. It saves your own
-settings and, from version 0.3.0, the places you save, on your own device.
+settings and, from version 0.3.0, your bookmarks, on your own device.
 
 ## What Readela reads, and what happens to it
 
 - **Website content.** On `chatgpt.com` and `claude.ai`, Readela reads the
   text of the conversation on the page (messages, headings, lists, quotations,
   tables) so it can count the words in each writing script, choose a reading
-  direction and, from version 0.3.0, recognise a saved paragraph. For that it
+  direction and, from version 0.3.0, recognise a bookmarked paragraph. For that it
   also reads the conversation's address and the identifiers the site writes
   on its messages. Editable fields, such as the message composer, are never
   read.
 - **The list of your conversations (from version 0.3.0).** To show a small
-  bookmark beside the conversations in which you saved a place, Readela reads
-  the address of each conversation link in the site's own list and compares
-  its fingerprint with your saved places. It does not read their titles.
-- **One key combination (from version 0.3.0).** On a conversation page
-  Readela listens for Alt+Shift+S, which saves a place. It keeps no record of
-  the keys you press, and ignores the combination while you are typing.
+  bookmark beside the conversations you bookmarked, Readela reads the address
+  of each conversation link in the site's own list and compares its
+  fingerprint with your bookmarks. It does not read their titles.
+- **No keys.** Readela does not read what you type or which keys you press.
+  From version 0.3.0 you may give its bookmark command a keyboard shortcut in
+  your browser's own shortcut settings; the browser keeps that shortcut and
+  tells Readela only that the command was given.
 - **Processed in memory only.** The text is used at that moment, inside the
   page, and nothing readable is kept. Readela does not store, log, copy or
   transmit conversation content, page addresses or your browsing history.
@@ -48,11 +49,12 @@ the extension.
 - **Your settings:** whether Readela is on, the direction mode, and your font,
   text size and line spacing choices; from version 0.3.0 also the reading
   appearance. The same settings apply on both supported sites.
-- **Your saved places (from version 0.3.0):** only when you choose Save
-  place (in the popup or with Alt+Shift+S), Readela saves where you stopped
-  in that conversation, at most 1000 places and one per conversation. At that
-  number Readela tells you and saves no further conversation until you clear
-  one; it never removes a place by itself. A saved place does not contain the
+- **Your bookmarks (from version 0.3.0):** only when you choose Bookmark (in
+  the popup, or with the shortcut you gave the command), Readela saves where
+  you stopped in that conversation, at most 1000 bookmarks and one per
+  conversation. At that number Readela tells you and bookmarks no further
+  conversation until you remove one; it never removes a bookmark by itself. A
+  bookmark does not contain the
   text of the paragraph, the title or the address of the conversation. It contains
   short one-way fingerprints — of the conversation's identifier, of the
   message the paragraph is in, of the paragraph and of the paragraphs before
@@ -60,8 +62,11 @@ the extension.
   in the message, the message's row number where the site gives one, and
   roughly how far along the conversation it is. A fingerprint cannot be turned
   back into text. It is matching information kept on your device, not
-  encryption. Clear removes the saved place of a conversation; a place that
-  cannot be found is kept until you clear or replace it.
+  encryption. On Claude a bookmark also holds a fingerprint of the address of
+  the conversation's row in the sidebar, so that the row can be marked; it
+  can be added once when the sidebar shows which row that is. Remove deletes
+  the bookmark of a conversation; a bookmark that cannot be found is kept
+  until you remove or replace it.
 
 No message content, site name, address or history is stored in readable form.
 
@@ -85,11 +90,14 @@ No message content, site name, address or history is stored in readable form.
 | Permission | Why Readela needs it |
 | --- | --- |
 | Access to `chatgpt.com` and `claude.ai` | To read the conversation text on those two sites and present it with the right direction, colours and typography. No other site is accessed. |
-| `storage` | To remember your settings and saved places on this device. |
+| `storage` | To remember your settings and bookmarks on this device. |
 
 Nothing else is requested. From version 0.3.0 the packaged font files are made
 available to those two sites so their pages can display them; this is not a
-permission and gives the sites no information about you. The current manifest
+permission and gives the sites no information about you. Also from version
+0.3.0 Readela declares one command, to bookmark, which has no keyboard
+shortcut unless you give it one in your browser; a small background part of
+the extension passes that command to the page and does nothing else. The current manifest
 and source code are public, so these statements can be checked.
 
 ## Store disclosures

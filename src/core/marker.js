@@ -1,4 +1,5 @@
-// The saved place: where a reader stopped in one conversation.
+// The saved place (the reader's bookmark): where a reader stopped in one
+// conversation.
 //
 // Portable: plain data in, plain data out. A saved place never holds readable
 // text or an address. It holds local matching metadata: one-way fingerprints
@@ -98,6 +99,18 @@ export function conversationKey(site, id) {
  */
 export function messageKey(identifier) {
   return typeof identifier === "string" && identifier.trim() !== "" ? hash(`message\n${identifier.trim()}`) : null;
+}
+
+/**
+ * Fingerprint of the address path of a conversation's row in a site's own
+ * list, for a site whose rows carry an address that does not name the
+ * conversation the page shows.
+ *
+ * @param {string} site the site adapter's id
+ * @param {string} path the address path of the row's link
+ */
+export function rowFingerprint(site, path) {
+  return hash(`row\n${site}\n${path}`);
 }
 
 /** The kind of a readable block, from its element name. */
@@ -209,7 +222,11 @@ function validPlace(item) {
   if (!isOptionalFingerprint(m) || !isOptionalFingerprint(s) || (m === null) === (s === null)) return null;
   if (!isOptionalFingerprint(b) || !isOptionalFingerprint(a)) return null;
   if (!(n === null || isCount(n)) || !isCount(p) || p > POSITION_STEPS) return null;
-  return { k, m, s, t, f, i, b, a, n, p };
+  const place = { k, m, s, t, f, i, b, a, n, p };
+  // The row of the conversation in the site's list, where the site needs it
+  // (see `rowFingerprint`). Most places have none.
+  if (isFingerprint(item.r)) place.r = item.r;
+  return place;
 }
 
 /**
@@ -238,6 +255,23 @@ export function normalizeMarks(raw) {
 /** The place saved for a conversation, or null. */
 export function findMark(marks, key) {
   return normalizeMarks(marks).items.find((item) => item.k === key) ?? null;
+}
+
+/**
+ * The stored places by conversation, and the rows some of them name, for a
+ * reader that asks often: built once from a places object that is already
+ * valid, so asking costs the same however many places there are.
+ *
+ * @param {ReturnType<typeof normalizeMarks>} marks
+ */
+export function indexMarks(marks) {
+  const byKey = new Map();
+  const rows = new Set();
+  for (const item of marks.items) {
+    byKey.set(item.k, item);
+    if (item.r) rows.add(item.r);
+  }
+  return { byKey, rows, size: byKey.size, full: byKey.size >= MARK_LIMIT };
 }
 
 /**
@@ -270,5 +304,5 @@ export function removeMark(marks, key) {
 /** Whether two places are the same record. */
 export function samePlace(first, second) {
   if (first === null || second === null) return first === second;
-  return ["k", "m", "s", "t", "f", "i", "b", "a", "n", "p"].every((field) => (first[field] ?? null) === (second[field] ?? null));
+  return ["k", "m", "s", "t", "f", "i", "b", "a", "n", "p", "r"].every((field) => (first[field] ?? null) === (second[field] ?? null));
 }

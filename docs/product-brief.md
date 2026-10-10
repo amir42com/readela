@@ -4,8 +4,9 @@ First prepared on 2026-10-02 for the first release and reconciled the same day
 with the owner's accepted decisions (DEC-100, DEC-102, DEC-103, DEC-104).
 Revised on 2026-10-10 for version 0.3.0 under DEC-116 and DEC-136 and the
 owner's instruction of that day, again the same day under DEC-140 after the
-owner's first review of the 0.3.0 build, and again under DEC-141 and DEC-142
-after the second. Approval of this brief and the
+owner's first review of the 0.3.0 build, again under DEC-141 and DEC-142
+after the second, and on 2026-10-11 by the owner's instruction after the
+third. Approval of this brief and the
 project's managerial status are tracked in the managerial system, not in this
 file.
 
@@ -52,12 +53,16 @@ Firefox builds come from one shared codebase.
 5. **Text size and line spacing:** Original or one of three bounded choices
    each.
 6. **Text direction:** Original, Auto, RTL or LTR.
-7. **Saved place.** Save place (Update place once one exists), Return and
-   Clear, one place per conversation; whether this conversation has one and
-   how many conversations do; a bookmark beside those conversations in the
-   site's own list; and Alt+Shift+S on the page to save.
-8. **Local persistence.** Choices and saved places are remembered on the
+7. **Bookmark.** Bookmark (Update once one exists), Return and Remove, one
+   bookmark per conversation; how many conversations have one; a bookmark
+   beside those conversations in the site's own list; and a command for the
+   same action that has a keyboard shortcut only if the reader gives it one
+   in the browser.
+8. **Local persistence.** Choices and bookmarks are remembered on the
    device; choices are shared by both supported sites.
+9. **Low, bounded cost.** Readela is meant to stay switched on. Off, and
+   with nothing to keep current, it does no work in a page; otherwise what it
+   does follows what changed, not a clock.
 
 The popup presents them in this order: reading comes first, and direction is
 one reading setting among the others.
@@ -108,9 +113,10 @@ direction and alignment of blocks whose text calls for it.
   a whole keeps the site's font. The popup names the choice Readela Sans and
   nothing else.
 - **Text size** scales reading blocks to 110%, 125% or 140%. **Line spacing**
-  is 1.6, 1.9 or 2.2.
-- **Saved place.** One place per conversation, in the text of a response.
-  - *Saving.* Save place saves the readable paragraph that holds a selection
+  is 1.5, 1.75 or 2.0.
+- **Bookmark.** One per conversation, in the text of a response. The code and
+  the technical documents call it the saved place.
+  - *Saving.* Bookmark saves the readable paragraph that holds a selection
     in view. Without a selection it saves the first readable paragraph of a
     response that begins clearly in the reading area, below whatever the site
     keeps over the top of the conversation, so the reader sees the whole of
@@ -118,27 +124,30 @@ direction and alignment of blocks whose text calls for it.
     passed over, unless it fills the screen and nothing begins in view.
     Nothing is guessed about where the reader is looking. Elements kept only
     for screen readers, controls and the reader's own messages are never
-    saved. The popup says "Saves the first paragraph in view. Select text to
-    choose another." and names the key combination. A paragraph that cannot
-    be told from an identical one beside it is not saved, and the popup says
-    so.
-  - *Saving from the keyboard.* Alt+Shift+S on a conversation page saves or
-    updates the place exactly as the popup's button does. It was chosen
-    because neither site and neither browser uses it, and it is read by the
-    physical key, so it works in a Persian keyboard layout. It does nothing
-    while the reader is typing. The saved paragraph shows the brief emphasis
-    once the place is stored.
-  - *Status and count.* Beside the Saved place heading the popup says
-    "Saved here" or "Not saved here" and the number of conversations that
-    have a place, for example "Saved here · 7 total". Both follow what the
-    browser has stored.
-  - *In the site's list.* A conversation that has a place gets a small filled
-    bookmark at the start of its row in the site's own list of conversations.
-    It is drawn beside the row and changes nothing in it.
-  - *Capacity.* A thousand conversations can have a place. At that number a
-    further conversation is refused and the popup says so; a conversation
-    that has a place can still update or clear it. No place is ever removed
-    to make room.
+    saved. The popup says only "Marks your reading position in this
+    conversation."; the rest is in the button's tooltip. A paragraph that
+    cannot be told from an identical one beside it is not saved, and the
+    popup says so.
+  - *The command.* Readela declares one command to the browser, to bookmark
+    or update, with no key. The reader may give it a key in the browser's own
+    shortcut settings, which the popup opens; the browser checks the key and
+    holds it. The command does exactly what the popup's button does, and the
+    bookmarked paragraph shows the brief emphasis once the place is stored.
+    Readela ships no default key and listens for none in the page: a key it
+    chose could already be the reader's, a site's or an assistive tool's.
+  - *The total.* Beside the Bookmark heading the popup shows the number of
+    conversations that have one, on both sites together, for example
+    "7 total". It follows what the browser has stored. Whether this
+    conversation has one is said by the buttons: Bookmark with Return and
+    Remove unavailable, or Update with both available.
+  - *In the site's list.* A conversation that has a bookmark gets a small
+    filled bookmark, about 8 by 14 pixels, at the start of its row in the
+    site's own list of conversations, the same on both sites. It is drawn
+    beside the row and changes nothing in it.
+  - *Capacity.* A thousand conversations can have a bookmark. At that number
+    a further conversation is refused and the popup says so; a conversation
+    that has one can still update or remove it. None is ever removed to make
+    room.
   - *Showing.* The saved paragraph gets a bar on its leading edge and a tinted
     background.
   - *Returning.* Return scrolls the place into view and emphasises it briefly;
@@ -150,7 +159,7 @@ direction and alignment of blocks whose text calls for it.
     identifier for that response establishes where the site gives one; the
     same sentence in another response is never taken for it. If the saved
     paragraph has changed but the paragraphs on either side of it are
-    unchanged, the place is shown and reported as close to the saved place.
+    unchanged, the place is shown and reported as close to the bookmark.
     Where the response is not on the page (the site has not loaded it, or
     keeps only what is near the viewport in the document), Return searches the
     conversation in a bounded number of steps and a bounded time, towards
@@ -159,18 +168,18 @@ direction and alignment of blocks whose text calls for it.
     as the reader scrolls, clicks or types, when the conversation changes or
     Readela is turned off, and puts the conversation back where it was if it
     finds nothing.
-  - *Truthful reports.* "Place saved" is said after the browser has stored it;
-    "Returned to your saved place" after the place is seen in view; a place
+  - *Truthful reports.* "Bookmarked" is said after the browser has stored it;
+    "Returned to your bookmark" after the place is seen in view; a place
     that is not found is reported as not found and still saved. A failed
-    lookup never removes a place: it is kept until the reader replaces or
-    clears it. A wrong place is never shown in order to show something.
+    lookup never removes a bookmark: it is kept until the reader replaces or
+    removes it. A wrong place is never shown in order to show something.
   - *Same conversation, any route.* A conversation opened directly and the
     same conversation opened inside a project are one conversation; different
     conversations never share a place.
   - A place survives re-rendering, reloads, leaving the conversation and
     restarting the browser. Readela never scrolls by itself.
 - **Reset** returns every reading aspect to its default, keeps the on/off
-  state and keeps the saved places. It is a quiet button and asks for no
+  state and keeps the bookmarks. It is a quiet button and asks for no
   confirmation.
 - **Popup.** A selected choice is shown by its own outline, fill and heavier
   text, without an underline; the keyboard focus is a separate ring. The
@@ -203,12 +212,13 @@ browser versions, sites and cases were exercised and how.
 
 Readela works locally: no backend, no telemetry, no remote code, no upload of
 conversation content and no network request. It stores the preferences and the
-saved places, and a saved place holds one-way fingerprints and a few small
+bookmarks, and a bookmark holds one-way fingerprints and a few small
 numbers, never readable text, a title or an address. These are matching
 information kept on the device, not anonymisation or encryption. It requests
 access to `chatgpt.com` and `claude.ai` and to extension storage, and
-nothing else. One font file is packaged with the extension and
-made available to those two sites. Details and the reason for each entry are
+nothing else. Three font files are packaged with the extension and made
+available to those two sites. One command is declared to the browser, with
+no key, and a background component that only passes it to the page. Details and the reason for each entry are
 in [privacy-and-permissions.md](privacy-and-permissions.md).
 
 ## Distribution
@@ -222,9 +232,10 @@ submitted and what each store reported.
 
 - Custom fonts chosen by the reader, serif or Naskh font choices.
 - Notes, durable highlighting, read aloud, focus modes, translation.
-- Saved places in the reader's own messages.
-- A list, a manager or a search of saved places; a floating or movable
-  Return control on the page; an entry in the browser's context menu.
+- Bookmarks in the reader's own messages.
+- A list, a manager, a search, names or per-site counts of bookmarks; a
+  removal of all at once; a floating or movable control on the page; an
+  entry in the browser's context menu; a key recorder of Readela's own.
 - Per-site preferences, other websites.
 - Safari and Microsoft Edge. Safari is an accepted planned public platform
   (DEC-104) and Edge a planned later one (DEC-116); nothing here implements
@@ -251,7 +262,7 @@ builds, on both supported sites:
 7. The popup is operable by keyboard with a visible focus indicator and meets
    text contrast in light and dark themes.
 8. The extension makes no network request and stores only the preferences and
-   the saved places.
+   the bookmarks.
 9. Paper and Night colour the text of responses only, hold primary reading text
    at 10:1 or better with the site in a light and in a dark theme, leave the
    reader's own messages and unrecognised layouts unchanged, keep a code block
@@ -260,7 +271,7 @@ builds, on both supported sites:
 10. In Readela Sans, Persian and Arabic text is rendered with the packaged
     Vazirmatn and Latin text with the packaged Inter, with true italic and
     bold; Hebrew text, code and mathematics are not.
-11. The saved place is saved, shown, found again after a reload, a re-render
+11. A bookmark is saved, shown, found again after a reload, a re-render
     and a restart of the browser, and under every route to its conversation;
     it is never confused with an identical paragraph elsewhere; it is found by
     a bounded search when its response is not on the page, whether it lies
@@ -268,10 +279,14 @@ builds, on both supported sites:
     returned to are clear of the site's header; it is reported as saved,
     reached, close or not found only when that is the truth; and a place
     that is not found is kept.
-12. The popup's status and count, and the bookmarks in the site's list, agree
-    with what is stored; the thousandth place is saved and a further one is
-    refused without removing any; the key combination saves only outside
-    fields that take text.
+12. The popup's total and its buttons, and the bookmarks in the lists of both
+    sites, agree with what is stored; the thousandth bookmark is saved and a
+    further one is refused without removing any; the command bookmarks as the
+    popup does and has no key until the reader gives it one.
+13. Off, and with nothing to keep current, Readela runs nothing in a page; a
+    settled page runs nothing either where the browser reports changes of
+    address, and one small comparison a second elsewhere, none while out of
+    view; memory does not grow over a long run.
 
 ## Accepted owner decisions reflected here
 
@@ -297,6 +312,15 @@ builds, on both supported sites:
   code and wide tables that belong to the reading surface; and Readela Sans
   as Inter with Vazirmatn. A context-menu entry and any floating control are
   left out.
+- The owner's instruction of 2026-10-11 after the third review, to be
+  recorded as a Decision in the managerial system: the feature is called
+  Bookmark, with Bookmark or Update, Return and Remove and the total only;
+  line spacing is 1.5, 1.75 and 2.0; the fixed key is removed in favour of
+  one browser-managed command without a default key, for which a minimal
+  background component is allowed; the Claude sidebar bookmark is fixed and
+  the bookmark is a little larger; inline code is stronger and the same on
+  both sites; and low, bounded resource use is a requirement of release
+  quality.
 
 ## Still separate from this brief
 

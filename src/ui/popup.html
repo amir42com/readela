@@ -54,9 +54,9 @@
           <legend>Line spacing</legend>
           <div class="segments">
             <label><input type="radio" name="spacing" value="page" /><span>Original</span></label>
-            <label><input type="radio" name="spacing" value="1.6" /><span>1.6</span></label>
-            <label><input type="radio" name="spacing" value="1.9" /><span>1.9</span></label>
-            <label><input type="radio" name="spacing" value="2.2" /><span>2.2</span></label>
+            <label><input type="radio" name="spacing" value="1.5" /><span>1.5</span></label>
+            <label><input type="radio" name="spacing" value="1.75" /><span>1.75</span></label>
+            <label><input type="radio" name="spacing" value="2.0" /><span>2.0</span></label>
           </div>
         </fieldset>
 
@@ -74,15 +74,19 @@
 
       <section class="place" aria-labelledby="place-title">
         <div class="place-head">
-          <h2 id="place-title">Saved place</h2>
-          <p class="state" id="place-state" role="status" aria-live="polite"></p>
+          <h2 id="place-title">Bookmark</h2>
+          <p class="state" id="place-total"></p>
         </div>
         <div class="actions">
-          <button type="button" id="place-save" aria-describedby="place-guide">Save place</button>
-          <button type="button" id="place-return" aria-label="Return to saved place">Return</button>
-          <button type="button" id="place-clear" aria-label="Clear saved place">Clear</button>
+          <button type="button" id="place-save" aria-describedby="place-guide" title="Bookmarks the first paragraph in view, or the paragraph you selected text in.">Bookmark</button>
+          <button type="button" id="place-return" aria-label="Return to bookmark">Return</button>
+          <button type="button" id="place-clear" aria-label="Remove bookmark">Remove</button>
         </div>
-        <p class="hint" id="place-guide">Saves the first paragraph in view. Select text to choose another. On the page: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>.</p>
+        <p class="hint" id="place-guide">Marks your reading position in this conversation.</p>
+        <p class="shortcut" id="shortcut" hidden>
+          <span id="shortcut-state"></span>
+          <button type="button" id="shortcut-set" class="quiet" title="Opens your browser's own shortcut settings."></button>
+        </p>
         <p class="note" id="place-note" role="status" aria-live="polite"></p>
       </section>
 

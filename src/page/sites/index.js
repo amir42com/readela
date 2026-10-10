@@ -17,6 +17,13 @@
 //                 link gets one attribute, from which a small bookmark is
 //                 drawn in its row. Nothing else about a row is read or
 //                 changed
+//   rowShown      optional selector that the link of the conversation now
+//                 shown matches, by the site's own marking. Needed where a
+//                 row's address does not name the conversation: a
+//                 fingerprint of that row's address path is then kept with
+//                 the place
+//   rowPlacement  optional: "edge" where a row leaves no room for the
+//                 bookmark before its text
 //
 //   Conversation:
 //   scope         selector of the region that holds a conversation. A site
@@ -43,6 +50,9 @@
 //   capsule       selector of units inside a response that keep the site's
 //                 presentation as a whole (a code block with its header and
 //                 controls). A `pre` element always does
+//   token         optional selector of inline code the site renders without
+//                 a code, kbd or samp element. It is presented as inline
+//                 code and not counted as words of the sentence
 //   turn          optional name of the attribute by which the site identifies
 //                 a turn or message; the element carrying it holds the
 //                 response, and its value must survive a reload

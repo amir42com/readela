@@ -45,7 +45,7 @@ test("the only resources the stylesheet names are the packaged fonts, and nothin
 test("Readela Sans leaves code, mathematics and units of the site's to their own fonts", () => {
   const rule = buildCss().split("\n").find((line) => line.startsWith('html[data-readela-font="sans"]'));
   assert.ok(rule.includes('"Readela Sans Arabic", "Readela Sans Latin", system-ui'));
-  for (const kept of ["pre", "code", "kbd", "samp", "math", ".katex", "mjx-container", "svg", "[data-readela-unit]"]) {
+  for (const kept of ["pre", "code", "kbd", "samp", "math", ".katex", "mjx-container", "svg", "[data-readela-unit]", "[data-readela-token]"]) {
     assert.ok(rule.includes(kept), kept);
   }
   assert.ok(rule.includes("[data-readela-top]:not(pre):not([data-readela-unit])"));
@@ -59,9 +59,18 @@ test("a saved conversation's row gets a small bookmark that takes no part in the
   for (const part of ["position: absolute", "pointer-events: none", "clip-path: polygon(", `background: ${PAGE_MARK.mark}`, 'content: ""']) {
     assert.ok(rule.includes(part), part);
   }
-  // Nothing else is said about a row: no colour, size or position of the row itself.
+  // About 8 by 14 pixels, centred on the row, in units that follow the page.
+  assert.ok(rule.includes("inline-size: 0.5rem") && rule.includes("block-size: 0.875rem") && rule.includes("margin: -0.4375rem 0 0"));
+  // Nothing else is said about a row: no colour, size or position of the row
+  // itself. One placement differs by site, and nothing else does.
   const rows = css.split("\n").filter((line) => line.includes("data-readela-saved"));
-  assert.ok(rows.every((line) => line.includes("[data-readela-saved]::after")), "only the bookmark is styled");
+  assert.ok(rows.every((line) => /\[data-readela-saved(="edge")?\]::after/.test(line)), "only the bookmark is styled");
+  assert.deepEqual(
+    rows.filter((line) => line.includes('="edge"')),
+    ['[data-readela-saved="edge"]::after { inset-inline-start: -0.25rem !important; }'],
+  );
+  // Where colours are the system's, the shape is still drawn.
+  assert.ok(css.includes("@media (forced-colors: active) { [data-readela-saved]::after { forced-color-adjust: none !important; background: Highlight !important; } }"));
 });
 
 test("every rule is keyed on a Readela mark, so the sheet is inert on an unmarked page", () => {
@@ -92,8 +101,10 @@ test("what a part of the text means keeps a token of its own, and a unit that st
   // list markers and highlighted text each have their rule.
   for (const [needle, token] of [
     [":is(a, a *)", "--readela-link"],
-    [":is(code, kbd, samp):not([data-readela-island], [data-readela-island] *, pre, pre *, svg *):not([data-readela-mark])", "--readela-code"],
-    [":is(code, kbd, samp, code *, kbd *, samp *)", "--readela-code-text"],
+    // Inline code is one thing on every site: the elements made for it and
+    // what a site renders as inline code, which the reader marks.
+    [":is(code, kbd, samp, [data-readela-token]):not([data-readela-island], [data-readela-island] *, pre, pre *, svg *):not([data-readela-mark])", "--readela-code"],
+    [":is(code, kbd, samp, [data-readela-token], code *, kbd *, samp *, [data-readela-token] *)", "--readela-code-text"],
     ["box-shadow: inset 0 0 0 1px", "--readela-code-line"],
     [":is(table, thead, tbody, tfoot, tr, th, td)", "--readela-rule"],
     [":is(th)", "--readela-head"],
@@ -111,8 +122,12 @@ test("what a part of the text means keeps a token of its own, and a unit that st
   const borders = css.split("\n").filter((line) => line.includes("border-color") && line.includes("data-readela-top"));
   assert.deepEqual(
     borders.map((line) => line.match(/:is\(([^)]*)\):not\(/)?.[1]),
-    ["code, kbd, samp", "table, thead, tbody, tfoot, tr, th, td", "blockquote"],
+    ["code, kbd, samp, [data-readela-token]", "table, thead, tbody, tfoot, tr, th, td", "blockquote"],
   );
+  // No colour of a site's is written anywhere: every colour is a token.
+  assert.doesNotMatch(css.replace(/@font-face \{[^}]*\}/g, ""), /rgb\(|hsl\(|oklch\(|color\(/);
+  // With the system's colours, inline code keeps an outline of its own.
+  assert.ok(css.includes(":is(code, kbd, samp, [data-readela-token]):not([data-readela-island], [data-readela-island] *, pre, pre *, svg *) { outline: 1px solid CanvasText !important; outline-offset: -1px !important; } }"));
   // A table wider than the text carries the surface with it, to its sides
   // only, and only its outermost wrapper paints. Nothing is clipped.
   assert.ok(css.includes('[data-readela-sheet=""] > [data-readela-sheet="inner"] { box-shadow: 0.625rem 0 0 var(--readela-surface), -0.625rem 0 0 var(--readela-surface) !important; border-radius: 0.25rem !important; }'));

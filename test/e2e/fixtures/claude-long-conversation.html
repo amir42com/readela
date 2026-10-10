@@ -22,7 +22,11 @@
       body { margin: 0; font: 16px/1.65 system-ui, sans-serif; color: #141413; background: #faf9f5; overflow: hidden; }
       @media (prefers-color-scheme: dark) { body { color: #f0eee6; background: #262624; } }
       .shell { display: flex; height: 100%; }
-      nav { width: 220px; padding: 12px; }
+      nav { width: 220px; padding: 12px 0; }
+      nav > p, nav > button { margin-left: 12px; }
+      /* The list clips 4px in; a row begins 8px in and its text 6px further. */
+      #c-rows { margin: 0 4px; padding: 0 4px; overflow: hidden auto; }
+      [data-selected] > .row-link, .row[data-selected] { background: rgb(128 128 128 / 0.15); }
       .column { flex: 1; min-width: 0; display: flex; flex-direction: column; max-width: 800px; }
       [data-autoscroll-container] { flex: 1; min-height: 0; overflow: hidden auto; }
       .column { position: relative; }
@@ -46,8 +50,8 @@
       <nav aria-label="Sidebar">
         <p>Long conversation</p>
         <div id="c-rows">
-          <div data-row-key="chat:l-row-this"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="l-row-this" href="/chat/readela-long-fixture" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
-          <div data-row-key="chat:l-row-other"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="l-row-other" href="/chat/readela-fixture" draggable="false"><span data-row-label="iconless">TypeScript</span></a></div></div>
+          <div data-row-key="chat:l-row-this" data-multiselect-row=""><div class="row" data-row="" data-selected="focused"><a class="row-link" data-row-main-button="" id="l-row-this" href="/chat/readela-long-fixture" aria-current="page" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
+          <div data-row-key="cowork:cse_01ReadelaFixtureThis0000aa" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="l-row-other" href="/cowork/cse_01ReadelaFixtureThis0000aa" draggable="false"><span data-row-label="iconless">TypeScript</span></a></div></div>
         </div>
       </nav>
       <div class="column" data-testid="chat-column">

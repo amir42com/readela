@@ -22,6 +22,11 @@
     }
   },
   "permissions": ["storage"],
+  "commands": {
+    "bookmark": {
+      "description": "Bookmark the reading position, or update the bookmark"
+    }
+  },
   "web_accessible_resources": [
     {
       "resources": ["fonts/Vazirmatn-NL-wght.woff2", "fonts/InterVariable.woff2", "fonts/InterVariable-Italic.woff2"],

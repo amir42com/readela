@@ -5,7 +5,7 @@
 // Text elsewhere on the page (start screen, settings, project pages) is left
 // alone. Either hook is enough on its own for direction and typography, which
 // tolerates one of them being renamed. The hooks were observed on the site on
-// 2026-10-10.
+// 2026-10-10 and 2026-10-11.
 
 import { NEVER_TOUCHED } from "./common.js";
 
@@ -49,6 +49,14 @@ export const claude = Object.freeze({
   turn: "data-turn-key",
   order: "data-index",
 
-  // The link of a conversation in the site's sidebar and lists.
-  rows: "a[data-row-main-button][href]",
+  // The link of a conversation in the site's sidebar and lists. Most carry
+  // an address that does not name the conversation the page then shows
+  // (/cowork/cse_<id> for a conversation shown at /chat/<uuid>), so the row
+  // the site marks as the one shown is what ties a row to a conversation.
+  // The site's own navigation uses the same link hook; rows of conversations
+  // are the ones under a row key. A link fills its row and its text begins
+  // 6px in, so the bookmark sits on the row's edge.
+  rows: "[data-row-key] a[data-row-main-button][href]",
+  rowShown: '[aria-current="page"]',
+  rowPlacement: "edge",
 });

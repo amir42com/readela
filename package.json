@@ -20,6 +20,7 @@
     "test:e2e": "node test/e2e/run.mjs",
     "test:e2e:chrome": "node test/e2e/run.mjs --browser chrome",
     "test:e2e:firefox": "node test/e2e/run.mjs --browser firefox",
+    "perf": "node test/perf/run.mjs",
     "browsers:firefox": "node test/e2e/install-firefox.mjs"
   },
   "devDependencies": {

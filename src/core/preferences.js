@@ -13,7 +13,11 @@ export const DIRECTION_MODES = Object.freeze(["page", "auto", "rtl", "ltr"]);
 export const THEME_CHOICES = Object.freeze(["page", "paper", "night"]);
 export const FONT_CHOICES = Object.freeze(["page", "sans"]);
 export const SIZE_CHOICES = Object.freeze(["page", "110", "125", "140"]);
-export const SPACING_CHOICES = Object.freeze(["page", "1.6", "1.9", "2.2"]);
+export const SPACING_CHOICES = Object.freeze(["page", "1.5", "1.75", "2.0"]);
+
+// Line spacing as earlier builds of this version stored it, and what each
+// value is read as now.
+const EARLIER_SPACING = Object.freeze({ "1.6": "1.5", "1.9": "1.75", "2.2": "2.0" });
 
 /**
  * Defaults: Readela is on, direction is decided per paragraph, and colours and
@@ -52,7 +56,7 @@ export function normalizePreferences(raw) {
     theme: pick(source.theme, THEME_CHOICES, DEFAULT_PREFERENCES.theme),
     font: pick(source.font, FONT_CHOICES, DEFAULT_PREFERENCES.font),
     size: pick(source.size, SIZE_CHOICES, DEFAULT_PREFERENCES.size),
-    spacing: pick(source.spacing, SPACING_CHOICES, DEFAULT_PREFERENCES.spacing),
+    spacing: pick(EARLIER_SPACING[source.spacing] ?? source.spacing, SPACING_CHOICES, DEFAULT_PREFERENCES.spacing),
   };
 }
 

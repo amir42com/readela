@@ -56,6 +56,10 @@ const flag = (name) => args.includes(name);
 const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const selected = option("--browser") ? [option("--browser")] : ["chrome", "firefox"];
 const headless = !flag("--headed");
+// Firefox before version 147 has no Navigation API, and Readela then compares
+// the address on a beat. With this flag Firefox is started without that API,
+// so the path those versions take is the one that is run.
+const withoutNavigation = flag("--without-navigation");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -110,6 +114,7 @@ async function start(name, firefoxScheme = "light", userDataDir = undefined) {
     extraPrefsFirefox: {
       "extensions.webextensions.uuids": JSON.stringify({ [FIREFOX_ADDON_ID]: FIREFOX_UUID }),
       "layout.css.prefers-color-scheme.content-override": firefoxScheme === "dark" ? 0 : 1,
+      ...(withoutNavigation ? { "dom.navigation.webidl.enabled": false } : {}),
     },
   });
   await browser.installExtension(extensionPath);
@@ -1020,8 +1025,8 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     before = await inspect(page, ["#p-en-start", "#code", "#h-fa", "#li-fa-1"]);
     await choose("font", "sans");
     await choose("size", "125");
-    await choose("spacing", "2.2");
-    await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-spacing") === "2.2");
+    await choose("spacing", "2.0");
+    await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-spacing") === "2.0");
     const after = await inspect(page, ["#p-en-start", "#code", "#h-fa", "#li-fa-1", "#ul-fa", "#code-block"]);
     assert.match(after["#p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, "?Readela Sans Latin"?, system-ui/);
     assert.notEqual(after["#p-en-start"].fontFamily, before["#p-en-start"].fontFamily);
@@ -1032,7 +1037,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(Number(after["#li-fa-1"].zoom), 1, "scale is applied once, on the outermost block");
     assert.equal(
       Math.round(parseFloat(after["#p-en-start"].lineHeight) / parseFloat(after["#p-en-start"].fontSize) * 10) / 10,
-      2.2,
+      2,
     );
     const widths = await page.evaluate(() => ({
       paragraph: document.querySelector("#p-en-start").getBoundingClientRect().right,
@@ -1041,6 +1046,42 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     }));
     assert.ok(widths.paragraph <= widths.main + 1, "scaled text still fits its column");
     assert.equal(widths.scroll, true, "no horizontal scrolling introduced");
+  });
+
+  await step("line spacing is 1.5, 1.75 or 2.0 for reading text in every script, and an earlier choice is read as the one beside it", async () => {
+    const ratio = (fact) => Math.round((parseFloat(fact.lineHeight) / parseFloat(fact.fontSize)) * 100) / 100;
+    // A paragraph that begins with an English word, an English one, a Persian
+    // heading, a list item, a quotation and a table cell.
+    const reading = ["#p-en-start", "#p-en", "#h-fa", "#li-fa-1", "#quote-fa-p", "#td-fa", "#p-tokens"];
+    // What keeps its own: a code block, its code, and a formula's own box.
+    const kept = ["#code-block", "#code", "#block-code"];
+    await choose("spacing", "page");
+    await page.waitForFunction(() => !document.documentElement.hasAttribute("data-readela-spacing"));
+    const original = await inspect(page, [...reading, ...kept]);
+    assert.deepEqual(
+      await popup.evaluate(() => [...document.querySelectorAll('input[name="spacing"]')].map((input) => `${input.value}:${input.parentElement.textContent.trim()}`)),
+      ["page:Original", "1.5:1.5", "1.75:1.75", "2.0:2.0"],
+    );
+    for (const spacing of ["1.5", "1.75", "2.0"]) {
+      await choose("spacing", spacing);
+      await page.waitForFunction((value) => document.documentElement.getAttribute("data-readela-spacing") === value, {}, spacing);
+      const facts = await inspect(page, [...reading, ...kept]);
+      for (const selector of reading) assert.equal(ratio(facts[selector]), Number(spacing), `${selector} at ${spacing}`);
+      for (const selector of kept) assert.equal(facts[selector].lineHeight, original[selector].lineHeight, `${selector} keeps its own spacing at ${spacing}`);
+    }
+    // A choice stored by an earlier build of this version is read as the one beside it.
+    for (const [earlier, now] of [["1.6", "1.5"], ["1.9", "1.75"], ["2.2", "2.0"]]) {
+      await popup.evaluate(async (value) => {
+        const extension = globalThis.browser ?? globalThis.chrome;
+        const stored = (await extension.storage.local.get("readela.preferences"))["readela.preferences"];
+        await extension.storage.local.set({ "readela.preferences": { ...stored, spacing: value } });
+      }, earlier);
+      await page.waitForFunction((value) => document.documentElement.getAttribute("data-readela-spacing") === value, {}, now);
+      await loadPopup(popup, popupUrl);
+      assert.equal((await picked(popup)).spacing, now, earlier);
+    }
+    assert.equal(ratio((await inspect(page, ["#p-en-start"]))["#p-en-start"]), 2);
+    await choose("spacing", "2.0");
   });
 
   await step("Readela Sans is Inter for Latin text and Vazirmatn for Arabic script, with a true italic; other scripts, code and mathematics keep their fonts", async () => {
@@ -1138,11 +1179,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       font: document.documentElement.getAttribute("data-readela-font"),
       spacing: document.documentElement.getAttribute("data-readela-spacing"),
     }));
-    assert.deepEqual(rootMarks, { font: "sans", spacing: "2.2" });
+    assert.deepEqual(rootMarks, { font: "sans", spacing: "2.0" });
     await loadPopup(popup, popupUrl);
     await popup.waitForFunction(() => document.querySelector('input[name="size"]:checked')?.value === "125");
     assert.deepEqual(await picked(popup), {
-      direction: "auto", theme: "page", font: "sans", size: "125", spacing: "2.2", enabled: true,
+      direction: "auto", theme: "page", font: "sans", size: "125", spacing: "2.0", enabled: true,
     });
     await front(page);
   });
@@ -1229,7 +1270,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     });
     assert.equal(
       await popup.$eval("#status", (element) => element.textContent),
-      "Settings were reset. Your saved places are kept.",
+      "Settings were reset. Your bookmarks are kept.",
     );
   });
 
@@ -1292,14 +1333,15 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     );
   const waitForNoPlace = (target) =>
     target.waitForFunction(() => document.querySelector("[data-readela-mark]") === null, { timeout: 8000, polling: 200 });
+  const SAVED = ["Bookmarked.", "Bookmark updated."];
   const waitForNote = async (text, timeout = 8000) => {
     try {
       // Polled on a timer: the popup's tab is not always the one in front,
       // and a tab in the background gets no animation frames to poll on.
       await popup.waitForFunction(
-        (t) => document.querySelector("#place-note").textContent.startsWith(t),
+        (wanted) => wanted.some((t) => document.querySelector("#place-note").textContent.startsWith(t)),
         { timeout, polling: 200 },
-        text,
+        [text].flat(),
       );
     } catch {
       const shown = await popup.$eval("#place-note", (element) => element.textContent);
@@ -1333,11 +1375,16 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       },
       value,
     );
-  const state = () => popup.$eval("#place-state", (element) => element.textContent);
+  const state = () =>
+    popup.evaluate(() => [document.querySelector("#place-save").textContent, document.querySelector("#place-total").textContent].filter(Boolean).join(" · "));
   const waitForState = async (text, timeout = 8000) => {
     try {
       await popup.waitForFunction(
-        (t) => document.querySelector("#place-state").textContent.startsWith(t),
+        (t) =>
+          [document.querySelector("#place-save").textContent, document.querySelector("#place-total").textContent]
+            .filter(Boolean)
+            .join(" · ")
+            .startsWith(t),
         { timeout, polling: 200 },
         text,
       );
@@ -1410,20 +1457,20 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     popupAddress = `${popupUrl}?tab=${tab}`;
     await loadPopup(popup, popupAddress);
     await popup.waitForFunction(() => !document.querySelector("#place-save").disabled, { polling: 200 });
-    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+    assert.deepEqual(await buttons(), { save: "Bookmark", saveOff: false, returnOff: true, clearOff: true });
     assert.equal(
       await popup.$eval("#place-guide", (element) => element.textContent),
-      "Saves the first paragraph in view. Select text to choose another. On the page: Alt+Shift+S.",
+      "Marks your reading position in this conversation.",
     );
-    assert.equal(await state(), "Not saved here · 0 total");
+    assert.equal(await state(), "Bookmark · 0 total");
     assert.equal(await popup.$eval("#place-note", (element) => element.textContent), "", "nothing is claimed before anything is saved");
 
     await select("p-en");
     await placeButton("save");
     await waitForPlace(page, "p-en");
-    await waitForNote("Place saved.");
-    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
-    assert.equal(await state(), "Saved here · 1 total");
+    await waitForNote(SAVED);
+    assert.deepEqual(await buttons(), { save: "Update", saveOff: false, returnOff: false, clearOff: false });
+    assert.equal(await state(), "Update · 1 total");
 
     const shown = await bar("p-en");
     assert.equal(shown.width, 5, "a bar, not a hairline");
@@ -1456,12 +1503,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // At the very beginning the heading kept for screen readers comes first in
     // the document. It is not something a reader reads, so the real heading is saved.
     await scrollTo("start");
-    assert.equal((await buttons()).save, "Update place");
+    assert.equal((await buttons()).save, "Update");
     await placeButton("save");
     await waitForPlace(page, "h-fa");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     assert.equal((await storedMarks()).items[0].t, "h");
-    assert.equal(await state(), "Saved here · 1 total", "an update does not add to the count");
+    assert.equal(await state(), "Update · 1 total", "an update does not add to the count");
 
     // The bar the site keeps on top covers the first paragraph and the top of
     // the second. The second is technically in view and its beginning is not:
@@ -1487,7 +1534,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // clear of it, is passed over too; one that begins clear of the margin is taken.
     await putAt("p-punct", 47);
     await placeButton("save");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     assert.deepEqual(await places(page), ["p-inline:exact"]);
     await putAt("p-punct", 56);
     await placeButton("save");
@@ -1508,7 +1555,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForPlace(page, "p-inline");
     assert.equal(await page.$eval("#user-bubble-frame", (element) => element.querySelector("[data-readela-mark]")), null);
     await page.evaluate(() => getSelection().removeAllRanges());
-    assert.equal(await state(), "Saved here · 1 total");
+    assert.equal(await state(), "Update · 1 total");
   });
 
   await step("identical paragraphs that cannot be told apart are not saved, and the place saved before is kept", async () => {
@@ -1518,7 +1565,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNote("This paragraph cannot be told apart from an identical one beside it.");
     assert.deepEqual(await storedMarks(), before);
     assert.deepEqual(await places(page), ["p-inline:exact"]);
-    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
+    assert.deepEqual(await buttons(), { save: "Update", saveOff: false, returnOff: false, clearOff: false });
     await page.evaluate(() => getSelection().removeAllRanges());
   });
 
@@ -1526,7 +1573,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await scrollTo("end");
     assert.equal(await inView("p-inline"), false);
     await placeButton("return");
-    await waitForNote("Returned to your saved place.");
+    await waitForNote("Returned to your bookmark.");
     // The popup said so after the fact: the place is there to be read already,
     // its beginning below the bar the site keeps on top and not far below it.
     assert.equal(await inView("p-inline"), true);
@@ -1555,7 +1602,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
       await scrollTo("end");
       await placeButton("return");
-      await waitForNote("Returned to your saved place.");
+      await waitForNote("Returned to your bookmark.");
       const calm = await page.evaluate(() => getComputedStyle(document.querySelector("#p-inline")).animationName);
       assert.equal(await inView("p-inline"), true);
       assert.equal(calm, "none");
@@ -1568,11 +1615,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await select("p-twin-again");
     await placeButton("save");
     await waitForPlace(page, "p-twin-again");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     await page.evaluate(() => getSelection().removeAllRanges());
     await scrollTo("start");
     await placeButton("return");
-    await waitForNote("Returned to your saved place.");
+    await waitForNote("Returned to your bookmark.");
     assert.deepEqual(await places(page), ["p-twin-again:exact"]);
     assert.equal(await inView("p-twin-again"), true);
 
@@ -1587,11 +1634,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await putAt("p-en", 80);
     const before = await scrollTop();
     await placeButton("return");
-    await waitForNote("Your saved place was not found. It is still saved.", 20000);
+    await waitForNote("Your bookmark was not found. It is still saved.", 20000);
     assert.deepEqual(await places(page), [], "no other paragraph is marked");
     assert.equal(await scrollTop(), before, "the conversation is back where the reader was");
     assert.equal((await storedMarks()).items.length, 1, "a place that is not found is not deleted");
-    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
+    assert.deepEqual(await buttons(), { save: "Update", saveOff: false, returnOff: false, clearOff: false });
 
     // The response comes back (the site loaded it): so does the place.
     await page.evaluate(() => window.readelaTwinNext.before(window.readelaTwin));
@@ -1610,29 +1657,29 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await sleep(1600);
     assert.deepEqual(await places(page), ["p-twin-again:exact"]);
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here");
-    assert.equal((await buttons()).save, "Update place");
+    await waitForState("Update");
+    assert.equal((await buttons()).save, "Update");
     await scrollTo("start");
     await placeButton("return");
-    await waitForNote("Returned to your saved place.");
+    await waitForNote("Returned to your bookmark.");
     assert.equal(await inView("p-twin-again"), true);
 
     // Another conversation has no place, though the page shows the same words.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-2"));
     await waitForNoPlace(page);
     await loadPopup(popup, popupAddress);
-    await popup.waitForFunction(() => document.querySelector("#place-save").textContent === "Save place", { polling: 200 });
-    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+    await popup.waitForFunction(() => document.querySelector("#place-save").textContent === "Bookmark", { polling: 200 });
+    assert.deepEqual(await buttons(), { save: "Bookmark", saveOff: false, returnOff: true, clearOff: true });
     // A page that shows no conversation cannot hold one.
     await page.evaluate(() => history.pushState({}, "", "/"));
     await loadPopup(popup, popupAddress);
-    await waitForNote("Open a conversation to save a place.");
-    assert.deepEqual(await buttons(), { save: "Save place", saveOff: true, returnOff: true, clearOff: true });
+    await waitForNote("Open a conversation to bookmark it.");
+    assert.deepEqual(await buttons(), { save: "Bookmark", saveOff: true, returnOff: true, clearOff: true });
 
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
     await waitForPlace(page, "p-twin-again");
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here");
+    await waitForState("Update");
     assert.equal((await storedMarks()).items.length, 1);
   });
 
@@ -1647,7 +1694,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.match((await bar("p-twin-again")).image, /repeating-linear-gradient/, "an approximate place has a broken bar");
     await scrollTo("start");
     await placeButton("return");
-    await waitForNote("Returned close to your saved place. Its paragraph has changed.");
+    await waitForNote("Returned close to your bookmark. Its paragraph has changed.");
     assert.equal(await inView("p-twin-again"), true);
 
     // A neighbour changes too: nothing is left to trust.
@@ -1660,7 +1707,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await scrollTo("start");
     const before = await scrollTop();
     await placeButton("return");
-    await waitForNote("Your saved place was not found. It is still saved.");
+    await waitForNote("Your bookmark was not found. It is still saved.");
     await sleep(500);
     assert.deepEqual(await places(page), []);
     assert.equal(await scrollTop(), before, "the page did not jump anywhere");
@@ -1673,7 +1720,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     });
     await waitForPlace(page, "p-twin-again");
     await placeButton("return");
-    await waitForNote("Returned to your saved place.");
+    await waitForNote("Returned to your bookmark.");
   });
 
   await step("the place stays clear on Paper and Night, with reading text still at 10:1 on its tint", async () => {
@@ -1710,7 +1757,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await page.waitForFunction(() => document.querySelector("[data-readela-mark], [data-readela-dir]") === null);
     assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
     assert.equal((await storedMarks()).items.length, 1);
-    await waitForNote("Turn Readela on to use saved places.");
+    await waitForNote("Turn Readela on to use bookmarks.");
     assert.deepEqual(
       await popup.evaluate(() =>
         ["#settings", "#place-save", "#place-return", "#place-clear"].map((selector) => document.querySelector(selector).disabled),
@@ -1732,10 +1779,10 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForPlace(page, "p-punct");
 
     await placeButton("clear");
-    await waitForNote("Saved place cleared.");
+    await waitForNote("Bookmark removed.");
     assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
     assert.deepEqual((await storedMarks()).items, []);
-    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+    assert.deepEqual(await buttons(), { save: "Bookmark", saveOff: false, returnOff: true, clearOff: true });
     // Nothing is left to keep current, so new content is not read at all.
     await page.evaluate(() => {
       const paragraph = document.createElement("p");
@@ -1766,12 +1813,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       try {
         await select("p-en");
         await placeButton("save");
-        await waitForNote("The place could not be saved. Nothing was changed.");
+        await waitForNote("The bookmark could not be saved. Nothing was changed.");
         assert.deepEqual(await places(page), [], "no place is shown for a save that did not happen");
-        assert.equal(await state(), "Not saved here · 0 total", "nor counted");
+        assert.equal(await state(), "Bookmark · 0 total", "nor counted");
         assert.deepEqual(await page.evaluate(() => document.querySelectorAll("[data-readela-saved]").length), 0, "nor marked in the sidebar");
         assert.deepEqual((await storedMarks()).items, []);
-        assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+        assert.deepEqual(await buttons(), { save: "Bookmark", saveOff: false, returnOff: true, clearOff: true });
       } finally {
         await popup.evaluate(async () => {
           const extension = globalThis.browser ?? globalThis.chrome;
@@ -1781,9 +1828,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       // With room again the same save succeeds.
       await placeButton("save");
       await waitForPlace(page, "p-en");
-      await waitForNote("Place saved.");
+      await waitForNote(SAVED);
       await placeButton("clear");
-      await waitForNote("Saved place cleared.");
+      await waitForNote("Bookmark removed.");
       await page.evaluate(() => getSelection().removeAllRanges());
     });
   }
@@ -1807,7 +1854,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await select("p-en");
     await placeButton("save");
     await waitForPlace(page, "p-en");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     await rowsAre(["row-this"]);
     await page.evaluate(() => getSelection().removeAllRanges());
 
@@ -1833,7 +1880,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.deepEqual(
       { ...drawn, at: null },
       {
-        attributes: ["data-readela-saved"], content: '""', position: "absolute", size: "6x11", colour: drawn.colour,
+        attributes: ["data-readela-saved"], content: '""', position: "absolute", size: "8x14", colour: drawn.colour,
         shape: true, pointer: "none", siteOwn: "absolute", clickGoesTo: "row-this", at: null,
       },
     );
@@ -1846,12 +1893,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // Another conversation, listed in the sidebar under its project route.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-2"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Not saved here · 1 total");
+    await waitForState("Bookmark · 1 total");
     await select("p-en");
     await placeButton("save");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     await rowsAre(["row-project", "row-this"]);
-    assert.equal(await state(), "Saved here · 2 total");
+    assert.equal(await state(), "Update · 2 total");
     await page.evaluate(() => getSelection().removeAllRanges());
 
     // A row that appears later, and a list the site renders again.
@@ -1885,7 +1932,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await extension.storage.local.set({ "readela.marks": marks });
     });
     await rowsAre(["row-late", "row-this"]);
-    await waitForState("Not saved here · 1 total");
+    await waitForState("Bookmark · 1 total");
     await waitForNoPlace(page);
 
     // Off hides every bookmark and keeps what is stored; on brings them back.
@@ -1898,11 +1945,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // Clear removes it.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here · 1 total");
+    await waitForState("Update · 1 total");
     await placeButton("clear");
-    await waitForNote("Saved place cleared.");
+    await waitForNote("Bookmark removed.");
     await rowsAre([]);
-    assert.equal(await state(), "Not saved here · 0 total");
+    assert.equal(await state(), "Bookmark · 0 total");
   });
 
   await step("a thousand conversations can have a place; at the limit a new one is refused, none is dropped, and the popup says so", async () => {
@@ -1916,50 +1963,50 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await extension.storage.local.set({ "readela.marks": { version: 2, items } });
     });
     await loadPopup(popup, popupAddress);
-    await waitForState("Not saved here · 999 total");
+    await waitForState("Bookmark · 999 total");
 
     // 999 saved: this conversation is the thousandth.
     await select("p-en");
     await placeButton("save");
     await waitForPlace(page, "p-en");
-    await waitForNote("Place saved.");
-    assert.equal(await state(), "Saved here · 1000 total");
+    await waitForNote(SAVED);
+    assert.equal(await state(), "Update · 1000 total");
     // At the limit a conversation that has a place can still move it.
     await select("p-en-quote");
     await placeButton("save");
     await waitForPlace(page, "p-en-quote");
-    await waitForNote("Place saved.");
-    assert.equal(await state(), "Saved here · 1000 total");
+    await waitForNote(SAVED);
+    assert.equal(await state(), "Update · 1000 total");
     assert.equal((await storedMarks()).items.length, 1000);
 
     // Another conversation is refused, and nothing is given up for it.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-3"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Not saved here · 1000 total");
+    await waitForState("Bookmark · 1000 total");
     const full = await storedMarks();
     await select("p-en");
     await placeButton("save");
-    await waitForNote("All 1000 saved places are in use. Clear one to save this conversation.");
+    await waitForNote("All 1000 bookmarks are in use. Remove one to bookmark this conversation.");
     assert.deepEqual(await storedMarks(), full, "every place is as it was");
     assert.equal(full.items[0].k, hex(1), "the oldest place is still there");
     assert.deepEqual(await places(page), [], "nothing is shown for a place that was not saved");
     assert.equal(await page.$eval("#row-other", (element) => element.hasAttribute("data-readela-saved")), false);
-    assert.equal(await state(), "Not saved here · 1000 total");
+    assert.equal(await state(), "Bookmark · 1000 total");
 
     // Clearing one place makes room for one.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here · 1000 total");
+    await waitForState("Update · 1000 total");
     await placeButton("clear");
-    await waitForNote("Saved place cleared.");
-    assert.equal(await state(), "Not saved here · 999 total");
+    await waitForNote("Bookmark removed.");
+    assert.equal(await state(), "Bookmark · 999 total");
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-3"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Not saved here · 999 total");
+    await waitForState("Bookmark · 999 total");
     await select("p-en");
     await placeButton("save");
-    await waitForNote("Place saved.");
-    assert.equal(await state(), "Saved here · 1000 total");
+    await waitForNote(SAVED);
+    assert.equal(await state(), "Update · 1000 total");
     assert.equal(await page.$eval("#row-other", (element) => element.hasAttribute("data-readela-saved")), true);
 
     await popup.evaluate(async () => {
@@ -1971,11 +2018,132 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       getSelection().removeAllRanges();
     });
     await loadPopup(popup, popupAddress);
-    await waitForState("Not saved here · 0 total");
+    await waitForState("Bookmark · 0 total");
     await waitForNoPlace(page);
   });
 
-  await step("Alt+Shift+S saves or updates the place from the page exactly as the popup does, and is left alone while typing", async () => {
+  await step("the browser's own command bookmarks or updates exactly as the popup does; it has no key until the reader gives it one, and the page listens for none", async () => {
+    // The command reaches the background component, which passes it to the
+    // tab. A key the browser manages cannot be pressed through the automation
+    // protocol, so the command is delivered where the browser delivers it.
+    const give = async (tab) => {
+      if (name === "chrome") {
+        // The browser lets an idle service worker go; it starts it again for
+        // the command. Here it is started the way a page of the extension can.
+        await popup.evaluate(async () => (await navigator.serviceWorker.ready).active.postMessage("wake"));
+        const target = await browser.waitForTarget((candidate) => candidate.type() === "service_worker", { timeout: 10000 });
+        const worker = await target.worker();
+        await worker.evaluate(async (id) => {
+          chrome.commands.onCommand.dispatch("bookmark", await chrome.tabs.get(id));
+        }, tab);
+      } else {
+        await popup.evaluate(async (id) => {
+          const background = await browser.runtime.getBackgroundPage();
+          await background.readelaOnCommand("bookmark", { id });
+        }, tab);
+      }
+    };
+    const tab = await tabOf("ChatGPT");
+    const blur = () =>
+      page.evaluate(() => {
+        document.activeElement?.blur();
+        getSelection().removeAllRanges();
+      });
+
+    // What the package declares: one command without a key, no permission for
+    // it, and a background component of one file.
+    const declared = await popup.evaluate(() => {
+      const manifest = (globalThis.browser ?? globalThis.chrome).runtime.getManifest();
+      return { commands: manifest.commands, permissions: manifest.permissions, background: manifest.background };
+    });
+    assert.deepEqual(Object.keys(declared.commands), ["bookmark"]);
+    assert.equal(declared.commands.bookmark.description, "Bookmark the reading position, or update the bookmark");
+    assert.equal(declared.commands.bookmark.suggested_key ?? null, null, "no key is suggested");
+    assert.deepEqual(declared.permissions, ["storage"]);
+    // A service worker in Chrome; in Firefox a script that is not kept running.
+    if (name === "chrome") assert.deepEqual(declared.background, { service_worker: "background.js" });
+    else {
+      assert.deepEqual(declared.background.scripts.map((script) => script.split("/").pop()), ["background.js"]);
+      assert.equal(declared.background.service_worker ?? null, null);
+      assert.notEqual(declared.background.persistent, true);
+    }
+
+    // The popup says what the browser holds, and opens the browser's own settings.
+    const shortcutLine = () =>
+      popup.evaluate(() => ({
+        shown: !document.querySelector("#shortcut").hidden,
+        state: document.querySelector("#shortcut-state").textContent,
+        action: document.querySelector("#shortcut-set").textContent,
+      }));
+    await loadPopup(popup, popupAddress);
+    await popup.waitForFunction(() => !document.querySelector("#shortcut").hidden, { polling: 200 });
+    assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcut: Not set", action: "Set shortcut" });
+    if (name === "firefox") {
+      // The browser assigns the key and refuses what it does not allow.
+      const refused = await popup.evaluate(async () => {
+        try {
+          await browser.commands.update({ name: "bookmark", shortcut: "B" });
+          return false;
+        } catch {
+          return true;
+        }
+      });
+      assert.equal(refused, true, "a single letter is the browser's to refuse");
+      await popup.evaluate(() => browser.commands.update({ name: "bookmark", shortcut: "Alt+Shift+9" }));
+      await loadPopup(popup, popupAddress);
+      await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent !== "", { polling: 200 });
+      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcut: Alt+Shift+9", action: "Change" });
+      await popup.evaluate(() => browser.commands.reset("bookmark"));
+      await loadPopup(popup, popupAddress);
+      await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent !== "", { polling: 200 });
+      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcut: Not set", action: "Set shortcut" });
+    }
+    {
+      const settings = name === "chrome" ? "chrome://extensions/shortcuts" : "about:addons";
+      await front(popup);
+      await press(popup, "#shortcut-set");
+      // The browser's own page, in a tab of its own.
+      let opened = null;
+      for (let waited = 0; waited < 10000 && opened === null; waited += 250) {
+        await sleep(250);
+        opened = (await browser.pages()).find((entry) => entry.url().startsWith(settings)) ?? null;
+      }
+      assert.ok(opened !== null, `the browser's shortcut settings (${settings}) were opened`);
+      await opened.close().catch(() => {});
+      await front(popup);
+      assert.equal(await popup.$eval("#place-note", (element) => element.textContent), "", "nothing is said when the settings opened");
+    }
+
+    await front(page);
+    await page.setViewport({ width: 1100, height: 520 });
+
+    // Without a selection: the same paragraph the popup's button takes, the
+    // first that begins clearly below the bar.
+    await blur();
+    await putAt("p-punct", 34);
+    await give(tab);
+    await waitForPlace(page, "p-inline");
+    assert.equal(await page.$eval("#p-inline", (element) => element.hasAttribute("data-readela-flash")), true, "the bookmarked paragraph says so itself");
+    assert.equal((await storedMarks()).items.length, 1);
+    assert.equal(await page.$eval("#row-this", (element) => element.hasAttribute("data-readela-saved")), true);
+    await waitForState("Update · 1 total");
+
+    // With a selection: that paragraph; an update, so the total stays.
+    await select("p-en");
+    await give(tab);
+    await waitForPlace(page, "p-en");
+    assert.equal((await storedMarks()).items.length, 1);
+    await waitForState("Update · 1 total");
+    const saved = JSON.stringify(await storedMarks());
+
+    // The page listens for no key of its own: the combination an earlier
+    // build took is the page's again, in the text and in every field.
+    await page.evaluate(() => {
+      window.readelaKeys = [];
+      window.addEventListener("keydown", (event) => {
+        if (event.code === "KeyS") window.readelaKeys.push(event.defaultPrevented);
+      });
+    });
     const chord = async () => {
       await page.keyboard.down("Alt");
       await page.keyboard.down("Shift");
@@ -1983,63 +2151,37 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await page.keyboard.up("Shift");
       await page.keyboard.up("Alt");
     };
-    const blur = () =>
-      page.evaluate(() => {
-        document.activeElement?.blur();
-        getSelection().removeAllRanges();
-      });
-    await front(page);
-    await page.setViewport({ width: 1100, height: 520 });
-    // What became of each press: whether the page's own handling was held back.
-    await page.evaluate(() => {
-      window.readelaKeys = [];
-      window.addEventListener("keydown", (event) => {
-        if (event.code === "KeyS") window.readelaKeys.push(event.defaultPrevented);
-      });
-    });
-    const presses = () => page.evaluate(() => window.readelaKeys);
-
-    // Without a selection: the same paragraph the popup's button takes, the
-    // first that begins clearly below the bar.
+    const typed = await page.$eval("#composer-textarea", (element) => element.value);
     await blur();
     await putAt("p-punct", 34);
     await chord();
-    await waitForPlace(page, "p-inline");
-    assert.equal(await page.$eval("#p-inline", (element) => element.hasAttribute("data-readela-flash")), true, "the saved paragraph says so itself");
-    assert.deepEqual(await presses(), [true]);
-    assert.equal((await storedMarks()).items.length, 1);
-    assert.equal(await page.$eval("#row-this", (element) => element.hasAttribute("data-readela-saved")), true);
-    await waitForState("Saved here · 1 total");
-
-    // With a selection: that paragraph; an update, so the count stays.
-    await select("p-en");
-    await chord();
-    await waitForPlace(page, "p-en");
-    assert.equal((await storedMarks()).items.length, 1);
-    await waitForState("Saved here · 1 total");
-    const saved = JSON.stringify(await storedMarks());
-
-    // While typing the key is the page's: in the composer, a text area and an input.
-    const typed = await page.$eval("#composer-textarea", (element) => element.value);
     for (const field of ["#composer-textarea", "#composer-input", "#prompt-textarea"]) {
       await page.click(field);
-      await putAt("p-punct", 34);
       await chord();
     }
     await sleep(600);
-    assert.equal(JSON.stringify(await storedMarks()), saved, "nothing was saved while typing");
-    assert.deepEqual(await presses(), [true, true, false, false, false]);
+    assert.equal(JSON.stringify(await storedMarks()), saved, "no key of the page's saves anything");
+    assert.deepEqual(await page.evaluate(() => window.readelaKeys), [false, false, false, false]);
     assert.deepEqual(await places(page), ["p-en:exact"]);
-    assert.equal(await page.$eval("#composer-textarea", (element) => element.value), typed, "and nothing was typed into the field by it");
+
+    // The command is the reader's own key, wherever the keyboard is: it
+    // bookmarks what is in view and leaves the field as it was.
+    await page.click("#composer-textarea");
+    await putAt("p-punct", 56);
+    await give(tab);
+    await waitForPlace(page, "p-punct");
+    assert.equal(await page.$eval("#composer-textarea", (element) => element.value), typed, "nothing was typed into the field by it");
+    assert.equal((await storedMarks()).items.length, 1);
 
     if (input) {
       // With reduced motion the confirmation does not move.
+      await page.waitForFunction(() => document.querySelector("[data-readela-flash]") === null, { timeout: 6000, polling: 100 });
       await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
       await blur();
-      await putAt("p-punct", 56);
-      await chord();
-      await waitForPlace(page, "p-punct");
-      const calm = await page.$eval("#p-punct", (element) => ({
+      await select("p-en");
+      await give(tab);
+      await waitForPlace(page, "p-en");
+      const calm = await page.$eval("#p-en", (element) => ({
         flash: element.hasAttribute("data-readela-flash"),
         animation: getComputedStyle(element).animationName,
       }));
@@ -2051,7 +2193,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await page.waitForFunction(() => document.querySelector("[data-readela-flash]") === null, { timeout: 6000, polling: 100 });
       await loadPopup(popup, popupAddress);
       await placeButton("clear");
-      await waitForNote("Saved place cleared.");
+      await waitForNote("Bookmark removed.");
       await popup.evaluate(async () => {
         const extension = globalThis.browser ?? globalThis.chrome;
         const used = await extension.storage.local.getBytesInUse(null);
@@ -2060,7 +2202,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       try {
         await front(page);
         await select("p-en-quote");
-        await chord();
+        await give(tab);
         await sleep(700);
         assert.deepEqual((await storedMarks()).items, []);
         assert.deepEqual(await places(page), [], "no place is shown for a save that did not happen");
@@ -2072,32 +2214,36 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
           await extension.storage.local.remove("readela.test.filler");
         });
       }
-      // With room again the same key saves.
+      // With room again the same command saves.
       await front(page);
-      await chord();
+      await give(tab);
       await waitForPlace(page, "p-en-quote");
     }
 
-    // Off: the key does nothing, and is the page's again.
+    // Off: the command does nothing.
     const stored = JSON.stringify(await storedMarks());
-    const count = (await presses()).length;
     await setPreference((p) => press(p, "#enabled"));
     await page.waitForFunction(() => document.querySelector("[data-readela-mark], [data-readela-dir]") === null);
     await blur();
     await select("p-twin");
-    await chord();
+    await give(tab);
     await sleep(600);
     assert.equal(JSON.stringify(await storedMarks()), stored);
-    assert.deepEqual((await presses()).slice(count), [false]);
     assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
     await setPreference((p) => press(p, "#enabled"));
     await page.waitForFunction(() => document.querySelector("[data-readela-mark]") !== null, { polling: 100 });
 
+    // A tab that is no supported page has no one to answer: nothing happens.
+    const popupTab = await popup.evaluate(async () => (await (globalThis.browser ?? globalThis.chrome).tabs.getCurrent())?.id ?? null);
+    if (popupTab !== null) await give(popupTab);
+    await sleep(300);
+    assert.equal(JSON.stringify(await storedMarks()), stored);
+
     await blur();
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here · 1 total");
+    await waitForState("Update · 1 total");
     await placeButton("clear");
-    await waitForNote("Saved place cleared.");
+    await waitForNote("Bookmark removed.");
     await page.setViewport({ width: 1100, height: 900 });
   });
 
@@ -2129,7 +2275,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 
   await step("ChatGPT, long conversation: a place far above is found from the end, where the site first has to load what came before", async () => {
     await openLong();
-    await waitForState("Not saved here · 0 total");
+    await waitForState("Bookmark · 0 total");
     // It opens at its end, on its last five turns; a positive scrollTop does nothing here.
     assert.deepEqual(
       await page.$eval(LT, (element) => {
@@ -2147,7 +2293,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await select("lt-same-6");
     await placeButton("save");
     await waitForPlace(page, "lt-same-6");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     await page.evaluate(() => getSelection().removeAllRanges());
     assert.equal(await page.$eval("#lt-row-this", (element) => element.hasAttribute("data-readela-saved")), true);
 
@@ -2160,10 +2306,10 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(await loadedFrom(), 35);
     assert.deepEqual(await places(page), []);
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here · 1 total");
+    await waitForState("Update · 1 total");
     const began = Date.now();
     await placeButton("return");
-    await waitForNote("Returned to your saved place.", 40000);
+    await waitForNote("Returned to your bookmark.", 40000);
     report.longReturnMs = Date.now() - began;
     assert.deepEqual(await places(page), ["lt-same-6:exact"], "the same sentence in thirty other replies is not marked");
     assert.equal(await inView("lt-same-6", page, LT), true, "the place is clearly in view below the bar");
@@ -2177,13 +2323,13 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await select("lt-same-38");
     await placeButton("save");
     await waitForPlace(page, "lt-same-38");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     await page.evaluate(() => getSelection().removeAllRanges());
     await showTurn(8);
     await page.waitForFunction(() => !window.readelaTurns().includes(38), { polling: 100 });
     await waitForNoPlace(page);
     await placeButton("return");
-    await waitForNote("Returned to your saved place.", 40000);
+    await waitForNote("Returned to your bookmark.", 40000);
     assert.deepEqual(await places(page), ["lt-same-38:exact"]);
     assert.equal(await inView("lt-same-38", page, LT), true);
 
@@ -2192,7 +2338,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await select("lt-same-6");
     await placeButton("save");
     await waitForPlace(page, "lt-same-6");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     await page.goto("about:blank");
     await page.goto(CHATGPT_LONG_URL, { waitUntil: "load" });
     await page.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
@@ -2200,20 +2346,20 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       window.readelaNeverLoad = true;
     });
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here · 1 total");
+    await waitForState("Update · 1 total");
     await placeButton("return");
-    await waitForNote("Your saved place was not found. It is still saved.", 40000);
+    await waitForNote("Your bookmark was not found. It is still saved.", 40000);
     assert.deepEqual(await places(page), [], "no other reply is marked");
     assert.equal(await scrollTop(page, LT), 0, "the conversation is back at its end, where the reader was");
     assert.equal((await storedMarks()).items.length, 1);
-    assert.equal(await state(), "Saved here · 1 total");
+    assert.equal(await state(), "Update · 1 total");
 
     // The reader takes over while the search is under way.
     await placeButton("return");
-    await waitForNote("Looking for your saved place");
+    await waitForNote("Looking for your bookmark");
     await page.mouse.move(700, 300);
     await page.mouse.wheel({ deltaY: -200 });
-    await waitForNote("Return was stopped. Your place is still saved.", 20000);
+    await waitForNote("Return was stopped. Your bookmark is still saved.", 20000);
     const where = await scrollTop(page, LT);
     await sleep(900);
     assert.equal(await scrollTop(page, LT), where, "nothing moves the conversation after the reader took over");
@@ -2230,10 +2376,10 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       window.readelaLoadDelay = 900;
     });
     await loadPopup(popup, popupAddress);
-    await waitForState("Saved here · 1 total");
+    await waitForState("Update · 1 total");
     const limitBegan = Date.now();
     await placeButton("return");
-    await waitForNote("Your saved place was not found. It is still saved.", 45000);
+    await waitForNote("Your bookmark was not found. It is still saved.", 45000);
     report.longLimitMs = Date.now() - limitBegan;
     assert.ok(report.longLimitMs >= 29000 && report.longLimitMs < 36000, `the search ended after ${report.longLimitMs} ms`);
     assert.deepEqual(await places(page), [], "no other reply is marked");
@@ -2248,16 +2394,16 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       window.readelaLoadDelay = 100;
     });
     await placeButton("return");
-    await waitForNote("Returned to your saved place.", 40000);
+    await waitForNote("Returned to your bookmark.", 40000);
     assert.deepEqual(await places(page), ["lt-same-6:exact"]);
     assert.equal(await inView("lt-same-6", page, LT), true);
 
     await placeButton("clear");
-    await waitForNote("Saved place cleared.");
+    await waitForNote("Bookmark removed.");
     await page.goto(FIXTURE_URL, { waitUntil: "load" });
     await waitForMark(page, "#p-en-start", "rtl");
     await loadPopup(popup, popupAddress);
-    await waitForState("Not saved here · 0 total");
+    await waitForState("Bookmark · 0 total");
   });
 
   // Where real input cannot reach the extension page, these two checks run on
@@ -2283,7 +2429,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // reachable when the popup acts on a conversation; the two buttons that
     // need a saved place are disabled and skipped. The publisher's link is last.
     const order = [
-      "enabled", "theme", "font", "size", "spacing", "direction", ...(input ? ["place-save"] : []), "reset", "publisher",
+      "enabled", "theme", "font", "size", "spacing", "direction", ...(input ? ["place-save", "shortcut-set"] : []), "reset", "publisher",
     ];
     for (const expected of order) {
       await ui.keyboard.press("Tab");
@@ -2559,7 +2705,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await placeButton("save", claude);
     await waitForPlace(claude, "c-quote-fa-p");
     // The popup says so only once the place is stored.
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     const [item] = (await storedMarks()).items;
     assert.match(item.m, /^[0-9a-f]{16}$/);
     assert.equal(item.n, 1, "the row of the response");
@@ -2578,11 +2724,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.deepEqual(covered, { begins: true, pointerSeesIt: true }, "under the header, and a hit test does not notice");
     await placeButton("save", claude);
     await waitForPlace(claude, "c-p-inline");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     // Return from elsewhere lands it clear of that header.
     await scrollTo("end", claude, "#c-scroller");
     await placeButton("return", claude);
-    await waitForNote("Returned to your saved place.");
+    await waitForNote("Returned to your bookmark.");
     assert.equal(await inView("c-p-inline", claude, "#c-scroller"), true, "clear of the header");
     assert.equal(await claude.$eval("#c-row-this", (element) => element.hasAttribute("data-readela-saved")), true);
     assert.deepEqual(
@@ -2592,13 +2738,233 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // A selection in the reader's own message saves nothing there.
     await claude.evaluate(() => getSelection().selectAllChildren(document.querySelector("#c-user-rich-p")));
     await placeButton("save", claude);
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     assert.equal(await claude.$eval("#c-user-rich-bubble", (element) => element.querySelector("[data-readela-mark]")), null);
     assert.equal((await places(claude)).length, 1);
     await claude.evaluate(() => getSelection().removeAllRanges());
     await placeButton("clear", claude);
-    await waitForNote("Saved place cleared.");
+    await waitForNote("Bookmark removed.");
     assert.deepEqual(await places(claude), []);
+  });
+
+  await step("Claude: a conversation whose row carries another address is bookmarked in the sidebar by the row the site marks as shown", async () => {
+    const marked = () => claude.evaluate(() => [...document.querySelectorAll("[data-readela-saved]")].map((element) => element.id).sort());
+    const rowsAre = async (ids, where = "") => {
+      try {
+        await claude.waitForFunction(
+          (wanted) => [...document.querySelectorAll("[data-readela-saved]")].map((element) => element.id).sort().join() === wanted,
+          { timeout: 8000, polling: 100 },
+          [...ids].sort().join(),
+        );
+      } catch {
+        throw new Error(`rows marked: ${JSON.stringify(await marked())}, expected ${JSON.stringify(ids)} (${where})`);
+      }
+    };
+    const shown = (id) =>
+      claude.evaluate((wanted) => {
+        for (const link of document.querySelectorAll("[data-row-main-button]")) {
+          link.toggleAttribute("aria-current", false);
+          link.closest("[data-row]").toggleAttribute("data-selected", false);
+        }
+        if (wanted === null) return;
+        document.querySelector(`#${wanted}`).setAttribute("aria-current", "page");
+        document.querySelector(`#${wanted}`).closest("[data-row]").setAttribute("data-selected", "focused");
+      }, id);
+    const geometry = () =>
+      claude.evaluate(() => {
+        const box = (selector) => JSON.stringify(document.querySelector(selector).getBoundingClientRect());
+        return { link: box("#c-row-this"), title: box("#c-row-this-title"), row: box("#c-row-this-frame") };
+      });
+    const claudePopup = `${popupUrl}?tab=${await tabOf("Claude")}`;
+    await loadPopup(popup, claudePopup);
+    await waitForState("Bookmark · 0 total");
+    assert.deepEqual(await marked(), [], "nothing is bookmarked, nothing is marked");
+    // The row of this conversation does not name it: /cowork/cse_… for /chat/….
+    assert.deepEqual(
+      await claude.evaluate(() => ({
+        page: location.pathname,
+        row: document.querySelector("#c-row-this").getAttribute("href"),
+        current: [...document.querySelectorAll('[aria-current="page"]')].map((element) => element.id),
+      })),
+      { page: "/chat/readela-fixture", row: "/cowork/cse_01ReadelaFixtureThis0000aa", current: ["c-row-this"] },
+    );
+    const before = await geometry();
+
+    // Bookmark: the row appears, and the place names the row by a fingerprint.
+    await select("c-quote-fa-p", claude);
+    await placeButton("save", claude);
+    await waitForNote("Bookmarked.");
+    await rowsAre(["c-row-this"], "check 1");
+    let [item] = (await storedMarks()).items;
+    assert.match(item.r, /^[0-9a-f]{16}$/);
+    assert.deepEqual(Object.keys(item).sort(), ["a", "b", "f", "i", "k", "m", "n", "p", "r", "s", "t"]);
+    assert.doesNotMatch(JSON.stringify(await storedMarks()), /cowork|cse_|ReadelaFixture|TypeScript|chat\/|readela-fixture/i, "no address, identifier or title is stored");
+    await claude.evaluate(() => getSelection().removeAllRanges());
+
+    // The same bookmark as on the other site, a little further out: this
+    // row's text begins 6px in, so the bookmark sits on the row's edge, inside
+    // what the list shows, clear of the text.
+    const drawn = await claude.evaluate(() => {
+      const link = document.querySelector("#c-row-this");
+      const mark = getComputedStyle(link, "::after");
+      const row = document.querySelector("#c-row-this-frame").getBoundingClientRect();
+      const list = document.querySelector("#c-rows").getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector("#c-row-this-title"));
+      const words = range.getClientRects()[0];
+      const left = row.left + parseFloat(mark.left);
+      return {
+        value: link.getAttribute("data-readela-saved"),
+        size: `${parseFloat(mark.width)}x${parseFloat(mark.height)}`,
+        position: mark.position,
+        pointer: mark.pointerEvents,
+        shape: mark.clipPath.startsWith("polygon("),
+        insideList: left >= list.left - 0.5,
+        clearOfText: left + parseFloat(mark.width) <= words.left + 0.5,
+        centred: Math.abs(row.top + parseFloat(mark.top) + parseFloat(mark.marginTop) + parseFloat(mark.height) / 2 - (row.top + row.height / 2)) <= 0.5,
+        clickGoesTo: document.elementFromPoint(left + 4, row.top + row.height / 2)?.closest("a")?.id ?? null,
+        at: { x: left + 3, y: row.top + row.height / 2 - 3 },
+      };
+    });
+    assert.deepEqual(
+      { ...drawn, at: null },
+      { value: "edge", size: "8x14", position: "absolute", pointer: "none", shape: true, insideList: true, clearOfText: true, centred: true, clickGoesTo: "c-row-this", at: null },
+    );
+    assert.ok(near(await pixelAt(claude, drawn.at.x, drawn.at.y), hexRgb(PAGE_MARK.mark), 12), "the bookmark is painted on the row's edge");
+    assert.deepEqual(await geometry(), before, "the row is laid out as the site made it");
+    await claude.screenshot({ path: path.join(results, `${name}-claude-sidebar-saved.png`), clip: { x: 0, y: 0, width: 240, height: 240 } });
+    if (input) {
+      // With the system's colours the shape is still there, in the system's highlight.
+      const session = await claude.createCDPSession();
+      await session.send("Emulation.setEmulatedMedia", { features: [{ name: "forced-colors", value: "active" }] });
+      const forced = await claude.evaluate(() => {
+        const mark = getComputedStyle(document.querySelector("#c-row-this"), "::after");
+        return { content: mark.content, size: `${parseFloat(mark.width)}x${parseFloat(mark.height)}`, clip: mark.clipPath.startsWith("polygon("), transparent: mark.backgroundColor === "rgba(0, 0, 0, 0)" };
+      });
+      assert.deepEqual(forced, { content: '""', size: "8x14", clip: true, transparent: false });
+      await session.send("Emulation.setEmulatedMedia", { features: [] });
+      await session.detach();
+    }
+
+    // Update: it stays, and the total stays.
+    await select("c-p-inline", claude);
+    await placeButton("save", claude);
+    await waitForNote("Bookmark updated.");
+    await rowsAre(["c-row-this"], "check 2");
+    assert.equal(await state(), "Update · 1 total");
+    await claude.evaluate(() => getSelection().removeAllRanges());
+
+    // The list renders its rows again, and a row is added: the bookmark is put back.
+    await claude.evaluate(() => {
+      const list = document.querySelector("#c-rows");
+      list.replaceChildren(...[...list.children].map((entry) => {
+        const copy = entry.cloneNode(true);
+        for (const link of copy.querySelectorAll("[data-readela-saved]")) link.removeAttribute("data-readela-saved");
+        return copy;
+      }));
+    });
+    await rowsAre(["c-row-this"], "check 3");
+
+    // Another conversation, listed the same way: no bookmark there yet, and
+    // the first row keeps its own.
+    await claude.evaluate(() => history.pushState({}, "", "/chat/readela-fixture-9"));
+    await shown("c-row-other");
+    await loadPopup(popup, claudePopup);
+    await waitForState("Bookmark · 1 total");
+    await rowsAre(["c-row-this"], "check 4");
+    await select("c-quote-fa-p", claude);
+    await placeButton("save", claude);
+    await waitForNote("Bookmarked.");
+    await rowsAre(["c-row-other", "c-row-this"], "check 5");
+    assert.equal(await state(), "Update · 2 total");
+    await claude.evaluate(() => getSelection().removeAllRanges());
+
+    // A conversation whose row does name it needs no fingerprint.
+    await claude.evaluate(() => history.pushState({}, "", "/chat/readela-fixture-7"));
+    await shown("c-row-plain");
+    await loadPopup(popup, claudePopup);
+    await waitForState("Bookmark · 2 total");
+    await select("c-quote-fa-p", claude);
+    await placeButton("save", claude);
+    await waitForNote("Bookmarked.");
+    await rowsAre(["c-row-other", "c-row-plain", "c-row-this"], "check 6");
+    assert.equal("r" in (await storedMarks()).items.at(-1), false);
+    await claude.evaluate(() => getSelection().removeAllRanges());
+
+    // Removed there: its row loses the bookmark, the others keep theirs.
+    await placeButton("clear", claude);
+    await waitForNote("Bookmark removed.");
+    await rowsAre(["c-row-other", "c-row-this"], "check 7");
+    assert.equal(await state(), "Bookmark · 2 total");
+
+    // Back in the first conversation. Its place as an earlier build stored
+    // it, without the row: the row is learned from the site's own mark on the
+    // row shown, and the bookmark comes back.
+    await claude.evaluate(() => history.pushState({}, "", "/chat/readela-fixture"));
+    await shown("c-row-this");
+    await loadPopup(popup, claudePopup);
+    await waitForState("Update · 2 total");
+    const known = (await storedMarks()).items.find((entry) => entry.k === item.k).r;
+    await popup.evaluate(async (key) => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      const marks = (await extension.storage.local.get("readela.marks"))["readela.marks"];
+      for (const entry of marks.items) if (entry.k === key) delete entry.r;
+      await extension.storage.local.set({ "readela.marks": marks });
+    }, item.k);
+    await front(claude);
+    await rowsAre(["c-row-other", "c-row-this"], "check 8");
+    assert.equal((await storedMarks()).items.find((entry) => entry.k === item.k).r, known, "the same fingerprint, learned again");
+    assert.equal((await storedMarks()).items.length, 2);
+
+    // The site's own navigation uses the same link hook. Marked as the page
+    // shown, it is never taken for a conversation's row.
+    await popup.evaluate(async (key) => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      const marks = (await extension.storage.local.get("readela.marks"))["readela.marks"];
+      for (const entry of marks.items) if (entry.k === key) delete entry.r;
+      await extension.storage.local.set({ "readela.marks": marks });
+    }, item.k);
+    await shown("c-row-page");
+    await front(claude);
+    await rowsAre(["c-row-other"], "check 9");
+    await sleep(2600);
+    assert.deepEqual(await marked(), ["c-row-other"]);
+    assert.equal("r" in (await storedMarks()).items.find((entry) => entry.k === item.k), false, "nothing was learned from a navigation link");
+    await shown("c-row-this");
+    // The row shown is looked at again when the list changes.
+    await claude.evaluate(() => document.querySelector("#c-rows").append(document.querySelector("#c-rows [data-row-key]")));
+    await rowsAre(["c-row-other", "c-row-this"], "check 10");
+
+    // The other bookmark is removed somewhere else (another tab).
+    await popup.evaluate(async (key) => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      const marks = (await extension.storage.local.get("readela.marks"))["readela.marks"];
+      marks.items = marks.items.filter((entry) => entry.k === key);
+      await extension.storage.local.set({ "readela.marks": marks });
+    }, item.k);
+    await rowsAre(["c-row-this"], "check 11");
+
+    // Off hides every bookmark and keeps what is stored; on brings them back.
+    await onClaude((p) => press(p, "#enabled"));
+    await rowsAre([], "check 12");
+    assert.equal((await storedMarks()).items.length, 1);
+    await onClaude((p) => press(p, "#enabled"));
+    await rowsAre(["c-row-this"], "check 13");
+
+    // A reload: the bookmark is there again, from what is stored alone.
+    await claude.reload({ waitUntil: "load" });
+    await rowsAre(["c-row-this"], "check 14");
+    [item] = (await storedMarks()).items;
+    assert.match(item.r, /^[0-9a-f]{16}$/);
+
+    // Remove: gone.
+    await loadPopup(popup, claudePopup);
+    await waitForState("Update · 1 total");
+    await placeButton("clear", claude);
+    await waitForNote("Bookmark removed.");
+    await rowsAre([], "check 15");
+    assert.equal(await state(), "Bookmark · 0 total");
+    assert.deepEqual((await storedMarks()).items, []);
   });
 
   // -------------------------------------------------------------------------
@@ -2630,7 +2996,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await select("l-same-21", claude);
     await placeButton("save", claude);
     await waitForPlace(claude, "l-same-21");
-    await waitForNote("Place saved.");
+    await waitForNote(SAVED);
     await claude.evaluate(() => getSelection().removeAllRanges());
     const [item] = (await storedMarks()).items;
     assert.equal(item.n, 21);
@@ -2641,9 +3007,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       // Seen from here the same sentence is in view in another reply. It is not marked.
       assert.deepEqual(await places(claude), []);
       await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
-      await waitForState("Saved here");
+      await waitForState("Update");
       await placeButton("return", claude);
-      await waitForNote("Returned to your saved place.", 20000);
+      await waitForNote("Returned to your bookmark.", 20000);
       assert.deepEqual(await places(claude), ["l-same-21:exact"], `from ${from}`);
       assert.equal(await inView("l-same-21", claude, LONG), true, `from ${from}: the place is in view`);
       assert.equal(await claude.$eval("#l-same-21", (element) => element.hasAttribute("data-readela-flash")), true);
@@ -2662,10 +3028,10 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // The reader takes over with the wheel.
     await awayFromPlace(0);
     await placeButton("return", claude);
-    await waitForNote("Looking for your saved place");
+    await waitForNote("Looking for your bookmark");
     await claude.mouse.move(700, 300);
     await claude.mouse.wheel({ deltaY: 160 });
-    await waitForNote("Return was stopped. Your place is still saved.", 20000);
+    await waitForNote("Return was stopped. Your bookmark is still saved.", 20000);
     const where = await scrollTop(claude, LONG);
     await sleep(900);
     assert.equal(await scrollTop(claude, LONG), where, "nothing moves the conversation after the reader took over");
@@ -2674,9 +3040,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // The conversation changes under the search.
     await awayFromPlace(0);
     await placeButton("return", claude);
-    await waitForNote("Looking for your saved place");
+    await waitForNote("Looking for your bookmark");
     await claude.evaluate(() => history.pushState({}, "", "/chat/readela-another-conversation"));
-    await waitForNote("Return was stopped. Your place is still saved.", 20000);
+    await waitForNote("Return was stopped. Your bookmark is still saved.", 20000);
     assert.deepEqual(await places(claude), []);
     await claude.evaluate(() => history.pushState({}, "", "/chat/readela-long-fixture"));
     assert.equal((await storedMarks()).items.length, 1);
@@ -2684,9 +3050,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // Readela is turned off during the search.
     await awayFromPlace(0);
     await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
-    await waitForState("Saved here");
+    await waitForState("Update");
     await placeButton("return", claude);
-    await waitForNote("Looking for your saved place");
+    await waitForNote("Looking for your bookmark");
     await onClaude((p) => press(p, "#enabled"));
     await claude.waitForFunction(() => document.querySelector("[data-readela-dir], [data-readela-mark]") === null, { polling: 100 });
     const stopped = await scrollTop(claude, LONG);
@@ -2708,27 +3074,27 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       window.readelaNeverMount = 21;
     });
     await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
-    await waitForState("Saved here");
+    await waitForState("Update");
     const began = Date.now();
     await placeButton("return", claude);
-    await waitForNote("Your saved place was not found. It is still saved.", 30000);
+    await waitForNote("Your bookmark was not found. It is still saved.", 30000);
     const took = Date.now() - began;
     report.searchLimitMs = took;
     assert.ok(took < 34000, `the search ended after ${took} ms`);
     assert.deepEqual(await places(claude), [], "no other paragraph is marked");
     assert.equal(await scrollTop(claude, LONG), 0, "the conversation is back where the reader was");
     assert.equal((await storedMarks()).items.length, 1);
-    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
+    assert.deepEqual(await buttons(), { save: "Update", saveOff: false, returnOff: false, clearOff: false });
 
     // When the response can be loaded again, the same place is found.
     await claude.evaluate(() => {
       window.readelaNeverMount = undefined;
     });
     await placeButton("return", claude);
-    await waitForNote("Returned to your saved place.", 20000);
+    await waitForNote("Returned to your bookmark.", 20000);
     assert.deepEqual(await places(claude), ["l-same-21:exact"]);
     await placeButton("clear", claude);
-    await waitForNote("Saved place cleared.");
+    await waitForNote("Bookmark removed.");
     await loadPopup(popup, popupAddress);
   });
 
@@ -2754,7 +3120,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     });
     assert.match(layout.order.at(-1), /^By Amir42 Version \d+\.\d+\.\d+$/);
     assert.deepEqual(layout.order.slice(0, -1), [
-      "Readela", "Appearance", "Font", "Text size", "Line spacing", "Text direction", "Saved place", "Reset settings",
+      "Readela", "Appearance", "Font", "Text size", "Line spacing", "Text direction", "Bookmark", "Reset settings",
     ]);
     assert.deepEqual(layout.direction, ["page", "auto", "rtl", "ltr"]);
     assert.deepEqual(layout.link, { text: "Amir42", href: "https://amir42.com/", target: "_blank", rel: "noopener noreferrer", tab: 0 });
@@ -2834,7 +3200,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     }
     assert.equal(off.opacity, "1", "the off state is not a faded copy");
     assert.ok(off.chosenBorder !== "none" && off.chosenWeight >= 600, "off: the selected choice is still marked");
-    assert.match(off.note, /Readela is off\..*saved places are kept\./);
+    assert.match(off.note, /Readela is off\..*bookmarks are kept\./);
     await ui.screenshot({ path: path.join(results, `${name}-popup-off.png`) });
     await ui.$eval("#enabled", (element) => element.click());
     await ui.waitForFunction(() => !document.querySelector("#settings").disabled);
@@ -2887,6 +3253,91 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await step(`${scheme} theme: popup contrast and 320px fit; Paper and Night at 10:1 on the reading surface only`, () =>
       checkTheme({ name, ui, page, scheme, emulate: input, report, choose }),
     );
+  }
+
+  if (name === "chrome") {
+    // What the content script runs is read from a trace of the page's own
+    // process: every call into a file of the extension's is recorded there.
+    await step("a settled page runs no code of the extension's at all, in view or out of it, on or off; a change of address is heard from the browser", async () => {
+      const extensionId = new URL(popupUrl).host;
+      const callsIn = async (ms) => {
+        await page.tracing.start({ categories: ["-*", "devtools.timeline", "disabled-by-default-devtools.timeline"] });
+        await sleep(ms);
+        const { traceEvents } = JSON.parse(Buffer.from(await page.tracing.stop()).toString("utf8"));
+        const frame = traceEvents
+          .find((event) => event.name === "TracingStartedInBrowser")
+          ?.args?.data?.frames?.find((entry) => (entry.url ?? "").startsWith("https://chatgpt.com/"));
+        assert.ok(frame, "the trace names the process of the page");
+        const calls = traceEvents.filter(
+          (event) =>
+            event.pid === frame.processId &&
+            event.ph === "X" &&
+            (event.name === "FunctionCall" || event.name === "EvaluateScript") &&
+            (event.args?.data?.url ?? "").startsWith(`chrome-extension://${extensionId}/`),
+        );
+        return { count: calls.length, ms: calls.reduce((sum, event) => sum + (event.dur ?? 0), 0) / 1000 };
+      };
+      const store = (preferences) =>
+        popup.evaluate(async (values) => {
+          const extension = globalThis.browser ?? globalThis.chrome;
+          await extension.storage.local.set({ "readela.preferences": { version: 2, enabled: true, direction: "auto", theme: "page", font: "page", size: "page", spacing: "page", ...values } });
+        }, preferences);
+      assert.deepEqual((await storedMarks()).items, [], "no bookmark is stored");
+
+      // On, with the defaults: the page is in view and has settled. This
+      // browser reports a change of address itself, so nothing is polled.
+      await store({});
+      await front(page);
+      await waitForMark(page, "#p-en-start", "rtl");
+      assert.equal(await page.evaluate(() => typeof window.navigation?.addEventListener), "function");
+      await sleep(6000);
+      const settled = await callsIn(4000);
+      assert.deepEqual(settled, { count: 0, ms: 0 }, "no call on a settled page in view");
+      report.idleCalls = settled;
+      // A change of address with no change to the document is heard at once,
+      // looked at on a few beats, and then nothing runs again.
+      const moving = callsIn(1500);
+      await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-2"));
+      assert.ok((await moving).count >= 1, "the change of address was heard");
+      await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
+      await sleep(6000);
+      assert.deepEqual(await callsIn(3000), { count: 0, ms: 0 }, "and nothing runs once it has been looked at");
+
+      // The same page out of view: nothing at all.
+      await front(popup);
+      await page.waitForFunction(() => document.visibilityState === "hidden", { polling: 100 });
+      await sleep(300);
+      assert.deepEqual(await callsIn(3000), { count: 0, ms: 0 }, "no call while the page is out of view");
+      await front(page);
+      await page.waitForFunction(() => document.visibilityState === "visible", { polling: 100 });
+
+      // Every aspect Original and nothing bookmarked: nothing to keep current.
+      await store({ direction: "page" });
+      await page.waitForFunction(() => document.querySelector("[data-readela-dir]") === null, { polling: 100 });
+      await sleep(400);
+      assert.deepEqual(await callsIn(3000), { count: 0, ms: 0 }, "no call with nothing to keep current");
+
+      // Off: nothing.
+      await store({ enabled: false });
+      await sleep(600);
+      assert.deepEqual(await callsIn(3000), { count: 0, ms: 0 }, "no call while Readela is off");
+      // Changes to the page while off start nothing either.
+      const during = callsIn(2500);
+      await page.evaluate(async () => {
+        for (let index = 0; index < 20; index += 1) {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = "متن تازه";
+          paragraph.className = "readela-off-probe";
+          document.querySelector("#p-en-start").after(paragraph);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        for (const paragraph of document.querySelectorAll(".readela-off-probe")) paragraph.remove();
+      });
+      assert.deepEqual(await during, { count: 0, ms: 0 }, "no call for changes to the page while off");
+
+      await store({});
+      await waitForMark(page, "#p-en-start", "rtl");
+    });
   }
 
   await step("the extension makes no network request", async () => {
@@ -3035,7 +3486,7 @@ async function checkRestart(name) {
       getSelection().selectAllChildren(paragraph);
     });
     await first.click("save");
-    await first.note("Place saved.");
+    await first.note("Bookmarked.");
     const saved = await first.stored();
     assert.equal(saved.items.length, 1);
     await browser.close();
@@ -3047,12 +3498,15 @@ async function checkRestart(name) {
       () => document.querySelector("#p-twin-again")?.getAttribute("data-readela-mark") === "exact" && document.querySelectorAll("[data-readela-mark]").length === 1,
       { timeout: 8000, polling: 200 },
     );
-    await second.popup.waitForFunction(() => document.querySelector("#place-state").textContent === "Saved here · 1 total", { timeout: 15000, polling: 200 });
+    await second.popup.waitForFunction(
+      () => document.querySelector("#place-save").textContent === "Update" && document.querySelector("#place-total").textContent === "1 total",
+      { timeout: 15000, polling: 200 },
+    );
     await second.page.$eval("#scroller", (element) => {
       element.scrollTop = 0;
     });
     await second.click("return");
-    await second.note("Returned to your saved place.");
+    await second.note("Returned to your bookmark.");
     const arrived = await second.page.evaluate(() => {
       const frame = document.querySelector("#scroller").getBoundingClientRect();
       const box = document.querySelector("#p-twin-again").getBoundingClientRect();
@@ -3060,7 +3514,7 @@ async function checkRestart(name) {
     });
     assert.equal(arrived, true, "the place is in view");
     await second.click("clear");
-    await second.note("Saved place cleared.");
+    await second.note("Bookmark removed.");
   } finally {
     await browser?.close().catch(() => {});
     rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });

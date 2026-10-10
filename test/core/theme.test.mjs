@@ -66,7 +66,7 @@ test("there is a palette for every theme that changes the page", () => {
 
 for (const [name, theme] of Object.entries(THEMES)) {
   test(`${name}: primary reading text is at least 10:1 on every surface it can sit on`, () => {
-    for (const surface of ["surface", "code", "head", "markTint"]) {
+    for (const surface of ["surface", "head", "markTint"]) {
       const ratio = contrastRatio(theme.text, theme[surface]);
       assert.ok(ratio >= 10, `text on ${surface}: ${ratio.toFixed(2)}`);
     }
@@ -76,7 +76,6 @@ for (const [name, theme] of Object.entries(THEMES)) {
     const pairs = [
       // Secondary reading text: list markers, captions, small and struck text.
       ["muted", "surface", 7],
-      ["muted", "code", 7],
       ["muted", "head", 7],
       ["muted", "markTint", 7],
       // A quotation's bar is how a quotation is recognised.
@@ -94,6 +93,28 @@ for (const [name, theme] of Object.entries(THEMES)) {
       const ratio = contrastRatio(theme[foreground], theme[background]);
       assert.ok(ratio >= minimum, `${foreground} on ${background}: ${ratio.toFixed(2)} < ${minimum}`);
     }
+  });
+
+  // Inline code and tokens: one treatment on every site. Its text never
+  // takes the primary colour, so that pair is not asked for.
+  test(`${name}: inline code is told from the sentence by its text, its ground and its line`, () => {
+    const pairs = [
+      ["codeText", "code", 7], // read on its own ground
+      ["codeText", "surface", 7], // and still where a ground is missing
+      ["codeLine", "surface", 3], // the boundary against the page
+      ["codeLine", "code", 2.5], // and against its own ground
+    ];
+    for (const [foreground, background, minimum] of pairs) {
+      const ratio = contrastRatio(theme[foreground], theme[background]);
+      assert.ok(ratio >= minimum, `${foreground} on ${background}: ${ratio.toFixed(2)} < ${minimum}`);
+    }
+    // The ground is not the surface, and the text is neither the sentence's
+    // colour nor a link's.
+    assert.ok(contrastRatio(theme.code, theme.surface) >= 1.1, "ground against surface");
+    const apart = (first, second) =>
+      [1, 3, 5].reduce((sum, at) => sum + Math.abs(parseInt(first.slice(at, at + 2), 16) - parseInt(second.slice(at, at + 2), 16)), 0);
+    assert.ok(apart(theme.codeText, theme.text) >= 60, "text against the sentence");
+    assert.ok(apart(theme.codeText, theme.link) >= 60, "text against a link");
   });
 
   test(`${name}: the surface is neither pure white nor pure black`, () => {

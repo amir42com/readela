@@ -229,12 +229,30 @@ footer {
   text-align: end;
 }
 
-kbd {
-  padding: 0 3px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  font: inherit;
-  font-size: 11px;
+/* The shortcut the browser holds for the bookmark command, and the way to its settings. */
+.shortcut {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shortcut[hidden] {
+  display: none;
+}
+
+button.quiet {
+  min-height: 0;
+  padding: 1px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .actions {

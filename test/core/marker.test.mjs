@@ -10,10 +10,12 @@ import {
   createPlace,
   findMark,
   fingerprint,
+  indexMarks,
   locatePlace,
   messageKey,
   normalizeMarks,
   removeMark,
+  rowFingerprint,
   saveMark,
   samePlace,
 } from "../../src/core/index.js";
@@ -296,4 +298,55 @@ test("malformed stored places are dropped, and so is anything that is not part o
   const first = { version: 1, items: [{ k: good.k, f: print, i: 4, b: null, a: null }] };
   assert.deepEqual(normalizeMarks(first), { version: 2, items: [] });
   assert.deepEqual(normalizeMarks({ items: [good] }), { version: 2, items: [] });
+});
+
+test("a place can name the row of its conversation in a site's list, as a fingerprint and nothing readable", () => {
+  const good = { k: "0123456789abcdef", m: "00000000000000aa", s: null, t: "p", f: "fedcba9876543210", i: 4, b: null, a: null, n: 7, p: 250 };
+  // The fingerprint of a row's address path: one-way, and its own for each site and path.
+  const row = rowFingerprint("claude", "/cowork/cse_01Example");
+  assert.match(row, /^[0-9a-f]{16}$/);
+  assert.equal(rowFingerprint("claude", "/cowork/cse_01Example"), row);
+  assert.notEqual(rowFingerprint("claude", "/cowork/cse_01Other"), row);
+  assert.notEqual(rowFingerprint("chatgpt", "/cowork/cse_01Example"), row);
+  // It is not the key a conversation is stored under, even for the same words.
+  assert.notEqual(row, conversationKey("claude", "/cowork/cse_01Example"));
+
+  // A place written before there was such a value is read exactly as it was.
+  assert.deepEqual(normalizeMarks({ version: 2, items: [good] }), { version: 2, items: [good] });
+  assert.equal("r" in normalizeMarks({ version: 2, items: [good] }).items[0], false);
+  // With the value it is kept; anything that is not a fingerprint is left out
+  // and the place stays.
+  assert.deepEqual(normalizeMarks({ version: 2, items: [{ ...good, r: row }] }).items, [{ ...good, r: row }]);
+  for (const bad of ["/cowork/cse_01Example", "A title", 7, null, "", "0123"]) {
+    assert.deepEqual(normalizeMarks({ version: 2, items: [{ ...good, r: bad }] }).items, [good], String(bad));
+  }
+  // It is part of what makes two records the same, and saving again keeps or changes it as given.
+  assert.ok(samePlace({ ...good, r: row }, { ...good, r: row }));
+  assert.ok(!samePlace({ ...good, r: row }, good));
+  assert.ok(samePlace(good, { ...good, r: null }));
+  let marks = saveMark(undefined, good.k, { ...good, r: row });
+  assert.equal(findMark(marks, good.k).r, row);
+  marks = saveMark(marks, good.k, good);
+  assert.equal("r" in findMark(marks, good.k), false);
+});
+
+test("the places are asked for by conversation and by row at the same cost however many there are", () => {
+  const place = createPlace(known("turn-1", TEXTS), 1, 0.2);
+  const key = (index) => index.toString(16).padStart(16, "0");
+  let marks;
+  for (let index = 0; index < 1000; index += 1) {
+    marks = saveMark(marks, key(index), index % 100 === 0 ? { ...place, r: rowFingerprint("claude", `/row/${index}`) } : place);
+  }
+  const index = indexMarks(marks);
+  assert.equal(index.size, 1000);
+  assert.equal(index.full, true);
+  assert.equal(index.byKey.get(key(777)), marks.items.find((item) => item.k === key(777)));
+  assert.equal(index.byKey.has("f".repeat(16)), false);
+  assert.equal(index.rows.size, 10);
+  assert.ok(index.rows.has(rowFingerprint("claude", "/row/300")));
+  assert.ok(!index.rows.has(rowFingerprint("claude", "/row/301")));
+  // Nothing saved: an index with nothing in it.
+  const none = indexMarks(normalizeMarks(undefined));
+  assert.deepEqual([none.size, none.full, none.byKey.size, none.rows.size], [0, false, 0, 0]);
+  assert.equal(indexMarks(removeMark(marks, key(0))).full, false);
 });

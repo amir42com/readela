@@ -29,7 +29,10 @@
       - a code block is a rounded unit with an opaque background of its own
         and no pre element, inside a plain wrapper; a table sits in three
         nested wrappers;
-      - the page background of the dark theme is opaque black.
+      - the page background of the dark theme is opaque black;
+      - inline code is a span marked data-markdown-copy="inline-code" with a
+        dir attribute, a see-through background and rounded corners. It is
+        not a code element.
 
       The last reply (turn-other) has no reply-text container: a layout the
       adapter does not recognise.
@@ -67,6 +70,7 @@
       pre { padding: 12px; background: #8882; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; }
       code { font-family: ui-monospace, Consolas, monospace; }
       p code { padding: 1px 4px; border-radius: 4px; background: #8883; }
+      [data-markdown-copy="inline-code"] { padding: 1px 6px; border-radius: 6px; background: rgb(128 128 128 / 0.12); font-family: ui-monospace, Consolas, monospace; font-size: 0.92em; }
       a { color: #0b57d0; }
       mark { background: #ffe58a; color: #111; }
       .secondary { color: #6b6b6b; }
@@ -145,7 +149,7 @@
           <h2 id="h-fa" dir="auto">React Hooks چیست و چرا مهم است؟</h2>
           <p id="p-en-start" dir="auto" class="plaintext">React یک کتابخانه جاوااسکریپت برای ساخت رابط کاربری است.</p>
           <p id="p-punct" dir="auto" class="plaintext">قیمت 25 دلار است (تقریباً 1,050,000 تومان)!</p>
-          <p id="p-inline" dir="auto" class="plaintext">برای نصب از <code id="inline-code">npm install react</code> استفاده کنید و مستندات را در <a id="link-url" href="https://react.dev/learn">https://react.dev/learn</a> بخوانید؛ <a id="link-text" href="https://example.org/guide">راهنمای کامل</a> هم مفید است.</p>
+          <p id="p-inline" dir="auto" class="plaintext">برای نصب از <span data-markdown-copy="inline-code" dir="ltr" id="inline-code">npm install react</span> استفاده کنید و مستندات را در <a id="link-url" href="https://react.dev/learn">https://react.dev/learn</a> بخوانید؛ <a id="link-text" href="https://example.org/guide">راهنمای کامل</a> هم مفید است.</p>
           <ul id="ul-fa">
             <li id="li-fa-1">useState برای مدیریت وضعیت کامپوننت</li>
             <li id="li-fa-2">
@@ -180,7 +184,7 @@ if (count &gt; 10) { reset(); }</code></pre>
             <div class="table-scroll" id="table-scroll"><div id="table-inner">
               <table id="table-fa">
                 <thead><tr><th id="th-fa">نام Hook</th><th>کاربرد</th><th>نمونه</th><th>یادداشت</th></tr></thead>
-                <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td><td><code id="td-code">useMemo(fn, deps)</code></td><td>فقط وقتی لازم است</td></tr></tbody>
+                <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td><td><span data-markdown-copy="inline-code" dir="ltr" id="td-code">useMemo(fn, deps)</span></td><td>فقط وقتی لازم است</td></tr></tbody>
               </table>
             </div></div>
           </div>
@@ -209,7 +213,7 @@ if (count &gt; 10) { reset(); }</code></pre>
             </li>
           </ul>
           <p id="p-semantic" dir="auto">A <mark id="marked-text">highlighted phrase</mark>, a <del id="struck-text">struck phrase</del> and <small id="small-text">a small note</small> keep what they mean.</p>
-          <p id="p-tokens" dir="auto">Call <code id="token-fn">serialize()</code> on <code id="token-branch">main</code> at <code id="token-version">3.1.8</code>, press <kbd id="token-kbd">Ctrl</kbd> and expect <samp id="token-samp">FIX_REQUIRED</samp>.</p>
+          <p id="p-tokens" dir="auto">Call <span data-markdown-copy="inline-code" dir="ltr" id="token-fn">serialize()</span> on <span data-markdown-copy="inline-code" dir="ltr" id="token-branch">main</span> at <span data-markdown-copy="inline-code" dir="ltr" id="token-version">3.1.8</span>, press <kbd id="token-kbd">Ctrl</kbd> and expect <samp id="token-samp">FIX_REQUIRED</samp>.</p>
           <p id="p-type" dir="auto">Plain words, <em id="en-em">emphasised words</em>, <strong id="en-strong">strong words</strong> and <strong><em id="en-both">both at once</em></strong>.</p>
           <p id="p-twin" dir="auto">This sentence appears in two different answers.</p>
                   </div>

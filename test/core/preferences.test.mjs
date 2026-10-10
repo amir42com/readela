@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   BUNDLED_FONTS,
   DEFAULT_PREFERENCES,
+  SPACING_CHOICES,
   changesPage,
   normalizePreferences,
   resetPreferences,
@@ -46,15 +47,32 @@ test("version 1 preferences migrate: every remaining choice is kept and serif re
   assert.deepEqual(normalizePreferences(v1({ font: "serif" })), v2({ font: "page" }));
   assert.deepEqual(
     normalizePreferences(v1({ enabled: false, direction: "rtl", font: "serif", size: "140", spacing: "1.9" })),
-    v2({ enabled: false, direction: "rtl", font: "page", size: "140", spacing: "1.9" }),
+    v2({ enabled: false, direction: "rtl", font: "page", size: "140", spacing: "1.75" }),
   );
   // The new aspect starts unchanged, and the stored version moves forward.
   assert.equal(normalizePreferences(v1({})).theme, "page");
   assert.equal(normalizePreferences(v1({})).version, 2);
 });
 
+test("line spacing is Original, 1.5, 1.75 or 2.0, and an earlier choice is read as the one beside it", () => {
+  assert.deepEqual(SPACING_CHOICES, ["page", "1.5", "1.75", "2.0"]);
+  for (const spacing of SPACING_CHOICES) assert.equal(normalizePreferences({ spacing }).spacing, spacing);
+  for (const [earlier, now] of [["1.6", "1.5"], ["1.9", "1.75"], ["2.2", "2.0"]]) {
+    assert.equal(normalizePreferences({ spacing: earlier }).spacing, now, earlier);
+    // Whatever version wrote it.
+    assert.equal(normalizePreferences({ version: 1, spacing: earlier }).spacing, now, earlier);
+  }
+  for (const unknown of ["2", "1.50", 1.5, "3.0", null]) assert.equal(normalizePreferences({ spacing: unknown }).spacing, "page");
+  assert.deepEqual(
+    SPACING_CHOICES.map((spacing) => resolveTypography({ spacing }).lineHeight),
+    [null, 1.5, 1.75, 2],
+  );
+  // Nothing else about the stored object changed.
+  assert.equal(normalizePreferences({ spacing: "2.2" }).version, 2);
+});
+
 test("reset restores reading choices and keeps the on/off state", () => {
-  const custom = { enabled: false, direction: "ltr", theme: "night", font: "sans", size: "140", spacing: "2.2" };
+  const custom = { enabled: false, direction: "ltr", theme: "night", font: "sans", size: "140", spacing: "2.0" };
   assert.deepEqual(resetPreferences(custom), { ...DEFAULT_PREFERENCES, enabled: false });
   assert.deepEqual(resetPreferences({ ...custom, enabled: true }), { ...DEFAULT_PREFERENCES });
 });
@@ -62,7 +80,7 @@ test("reset restores reading choices and keeps the on/off state", () => {
 test("the unchanged state of every aspect leaves the page alone", () => {
   const original = { direction: "page", theme: "page", font: "page", size: "page", spacing: "page" };
   assert.equal(changesPage(original), false);
-  for (const change of [{ direction: "auto" }, { theme: "paper" }, { font: "sans" }, { size: "110" }, { spacing: "1.6" }]) {
+  for (const change of [{ direction: "auto" }, { theme: "paper" }, { font: "sans" }, { size: "110" }, { spacing: "1.5" }]) {
     assert.equal(changesPage({ ...original, ...change }), true, JSON.stringify(change));
   }
   // An unchanged direction decides nothing, even for clearly right-to-left text.
@@ -70,10 +88,10 @@ test("the unchanged state of every aspect leaves the page alone", () => {
 });
 
 test("typography choices resolve to presentation values", () => {
-  assert.deepEqual(resolveTypography({ font: "page", size: "125", spacing: "1.9" }), {
+  assert.deepEqual(resolveTypography({ font: "page", size: "125", spacing: "1.75" }), {
     fontFamily: null,
     scale: 1.25,
-    lineHeight: 1.9,
+    lineHeight: 1.75,
   });
   const stack = resolveTypography({ font: "sans" }).fontFamily;
   // The packaged face comes first; everything after it is a system font.

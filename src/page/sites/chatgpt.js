@@ -3,8 +3,8 @@
 // Direction and typography are read structurally (paragraph-like elements
 // inside the conversation region), because the site's styling class names
 // change between front-end versions. Appearance and saved places rely on the
-// hooks below, observed on the site on 2026-10-10; where a hook is missing
-// that part of the page simply stays the site's.
+// hooks below, observed on the site on 2026-10-10 and 2026-10-11; where a hook
+// is missing that part of the page simply stays the site's.
 
 import { NEVER_TOUCHED } from "./common.js";
 
@@ -42,6 +42,9 @@ export const chatgpt = Object.freeze({
   // A code block: a unit with its own background, header and controls, and no
   // pre element.
   capsule: '[data-markdown-copy="code-block"]',
+
+  // Inline code: a span, not a code element.
+  token: '[data-markdown-copy="inline-code"]',
 
   // A turn (the reader's message and the reply to it) carries the identifier.
   turn: "data-turn-key",

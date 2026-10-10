@@ -13,6 +13,11 @@
         not scroll; there is no <main>. The chat header is positioned over the
         top of that region, with an opaque band behind it, and takes no
         pointer input, so what is under it cannot be found by a hit test;
+      - most rows of the sidebar carry an address that does not name the
+        conversation the page shows: /cowork/cse_<id> for a conversation shown
+        at /chat/<id>. The row of the conversation shown carries
+        aria-current="page". Rows of conversations sit under data-row-key;
+        the site's own navigation uses the same link hook without it;
       - the sidebar lists conversations as links marked data-row-main-button,
         each in a row it is positioned in;
       - each message is a row (data-testid="transcript-row", data-index) and
@@ -32,7 +37,11 @@
       body { margin: 0; font: 16px/1.65 system-ui, sans-serif; color: #141413; background: #faf9f5; overflow: hidden; }
       @media (prefers-color-scheme: dark) { body { color: #f0eee6; background: #262624; } }
       .shell { display: flex; height: 100%; }
-      nav { width: 220px; padding: 12px; }
+      nav { width: 220px; padding: 12px 0; }
+      nav > p, nav > button { margin-left: 12px; }
+      /* The list clips 4px in; a row begins 8px in and its text 6px further. */
+      #c-rows { margin: 0 4px; padding: 0 4px; overflow: hidden auto; }
+      [data-selected] > .row-link, .row[data-selected] { background: rgb(128 128 128 / 0.15); }
       .column { flex: 1; min-width: 0; display: flex; flex-direction: column; max-width: 800px; }
       [data-autoscroll-container] { flex: 1; min-height: 0; overflow: hidden auto; padding: 64px 16px 16px; }
       .column { position: relative; }
@@ -82,10 +91,11 @@
         <p id="c-nav-title">گفت‌وگو دربارهٔ React</p>
         <button id="c-page-button" type="button">New chat</button>
         <div id="c-rows">
-          <div data-row-key="chat:c-row-this"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-this" href="/chat/readela-fixture" draggable="false"><span data-row-label="iconless">TypeScript</span></a></div></div>
-          <div data-row-key="chat:c-row-long"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-long" href="/chat/readela-long-fixture" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
-          <div data-row-key="chat:c-row-other"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-other" href="/chat/readela-fixture-9" draggable="false"><span data-row-label="iconless">Another</span></a></div></div>
-          <div data-row-key="chat:c-row-page"><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-page" href="/recents" draggable="false"><span data-row-label="iconless">Recents</span></a></div></div>
+          <div class="row" data-row=""><a class="row-link" data-row-main-button="" data-nav-item="" id="c-row-page" href="/recents" draggable="false"><span data-row-label="iconless">Recents</span></a></div>
+          <div data-row-key="cowork:cse_01ReadelaFixtureThis0000aa" data-multiselect-row=""><div class="row" data-row="" data-selected="focused" id="c-row-this-frame"><a class="row-link" data-row-main-button="" id="c-row-this" href="/cowork/cse_01ReadelaFixtureThis0000aa" aria-current="page" draggable="false"><span data-row-label="iconless" id="c-row-this-title">TypeScript</span></a></div></div>
+          <div data-row-key="chat:c-row-long" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-long" href="/chat/readela-long-fixture" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
+          <div data-row-key="cowork:cse_01ReadelaFixtureOther000bb" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-other" href="/cowork/cse_01ReadelaFixtureOther000bb" draggable="false"><span data-row-label="iconless">Another</span></a></div></div>
+          <div data-row-key="chat:c-row-plain" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-plain" href="/chat/readela-fixture-7" draggable="false"><span data-row-label="iconless">An older chat</span></a></div></div>
         </div>
       </nav>
 

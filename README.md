@@ -10,7 +10,7 @@ laid out left-to-right, list markers land on the wrong side and punctuation
 jumps to the wrong end. Readela decides the direction of each paragraph from
 its whole text and presents it accordingly, without changing the text. Around
 that it offers warm reading colours, a packaged reading font for Latin,
-Persian and Arabic text, text size and line spacing, and a saved place for
+Persian and Arabic text, text size and line spacing, and a bookmark for
 where you stopped.
 
 Readela is distributed through the Chrome Web Store and Firefox Add-ons
@@ -22,7 +22,7 @@ built and loaded for development, as described below.
 ## What it does
 
 - **On/off switch.** Off shows the page exactly as the site presents it and
-  keeps your settings and saved places.
+  keeps your settings and bookmarks.
 - **Every setting has an Original choice** that leaves that part of the page
   as the site shows it.
 - **Appearance:** Original, Paper or Night. Warm light or warm dark reading
@@ -34,23 +34,28 @@ built and loaded for development, as described below.
   and Persian and Arabic in Vazirmatn, both packaged with the extension, with
   their own italic and bold; other scripts use your device's sans-serif
   fonts.
-- **Text size** (up to 140%) and **line spacing.**
+- **Text size** (up to 140%) and **line spacing** (1.5, 1.75 or 2.0).
 - **Text direction:** Original, Auto, RTL or LTR. Auto is the default:
   paragraphs, headings, lists, quotations and tables read right-to-left when
   at least 40% of their words are in a right-to-left script, whatever the
   first word is. Lists and tables are decided as a unit, so markers,
   indentation and column order agree with the text.
-- **Saved place:** Save place, Return and Clear, one place per conversation,
-  kept on this device. Save place takes the first paragraph of a response
-  that begins in view, below the site's header, or the paragraph you selected
-  text in. Alt+Shift+S on the page does the same without opening the popup,
-  except while you are typing. Return goes back to it, also when the site has
-  not loaded that part of the conversation yet, and never to a look-alike
-  paragraph somewhere else: if the place cannot be found for certain, nothing
-  moves, the popup says so, and the place stays saved. The popup shows
-  whether this conversation has a place and how many do, and a conversation
-  that has one gets a small bookmark in the site's own list. Up to 1000
-  conversations can have a place; none is ever removed to make room.
+- **Bookmark:** Bookmark, Return and Remove, one bookmark per conversation,
+  kept on this device. Bookmark takes the first paragraph of a response that
+  begins in view, below the site's header, or the paragraph you selected text
+  in. Return goes back to it, also when the site has not loaded that part of
+  the conversation yet, and never to a look-alike paragraph somewhere else:
+  if the place cannot be found for certain, nothing moves, the popup says so,
+  and the bookmark stays. The popup shows how many conversations have a
+  bookmark, and each of them gets a small bookmark in the site's own list.
+  Up to 1000 conversations can have one; none is ever removed to make room.
+- **A shortcut, if you want one.** Bookmarking is also a command of the
+  browser's. It has no key until you give it one in your browser's shortcut
+  settings, which the popup opens. Readela ships no default key.
+- **Light enough to leave on.** Off, Readela does nothing in the page. On, a
+  settled page runs nothing either (in Firefox before version 147, one
+  comparison a second while it is in view); see the measurements in the
+  dated evidence.
 - **Remembers your choices** on this device, for both sites.
 
 Code blocks, inline code, mathematics and web addresses stay left-to-right and
@@ -66,9 +71,10 @@ on Windows 11:
 | --- | --- | --- |
 | Synthetic conversation page: direction for Persian, Arabic, Hebrew, English, mixed | passed in both browsers | passed in both browsers (Persian, English, mixed) |
 | Synthetic conversation page: Paper and Night (who owns what, code blocks, links, lists, quotations, tables), Readela Sans | passed in both browsers, page light and dark | passed in both browsers (light and dark in Chrome, light in Firefox) |
-| Synthetic conversation page: saved place (identical paragraphs, routes, reload, browser restart, failed save, status and count, bookmark in the list, limit of 1000, Alt+Shift+S) | passed in both browsers (failed save: Chrome), including a long conversation laid out from its end that loads its earlier part a few turns at a time | passed in both browsers, including a long conversation of which only the part near the viewport is in the document, under a header that lies over the text |
+| Synthetic conversation page: bookmark (identical paragraphs, routes, reload, browser restart, failed save, total, bookmark in the list of both sites, limit of 1000, the browser's command) | passed in both browsers (failed save: Chrome), including a long conversation laid out from its end that loads its earlier part a few turns at a time | passed in both browsers, including a long conversation of which only the part near the viewport is in the document, under a header that lies over the text |
 | Real start page, signed out, nothing sent | content script ran, nothing disturbed (a bot check in headless Chrome) | content script ran, nothing disturbed (sign-in page in Firefox, a bot check in headless Chrome) |
-| Real signed-in conversation | page structure read three times, without the text, to shape the adapters and the checks; the 0.3.0 extension was not run there by the automated checks | the same |
+| What a page costs: idle, streaming, typing, navigating, a long run (Chrome, traced; Firefox, by process) | measured on a synthetic conversation sized after the site | the same |
+| Real signed-in conversation | page structure read four times, without the text, to shape the adapters and the checks; the 0.3.0 extension was not run there by the automated checks | the same |
 
 The owner reported manually testing earlier builds on real ChatGPT and Claude
 conversations and finding them working correctly. Those are reports, not part
@@ -78,8 +84,9 @@ The minimum browser versions declared in the manifests (Chrome 121, Firefox
 140) have not been exercised. The exact cases, method and limits are in the
 dated evidence:
 
+- [docs/evidence/2026-10-11-readela-0.3.0-correction-3.md](docs/evidence/2026-10-11-readela-0.3.0-correction-3.md)
+  (the third correction and the performance measurements; it supersedes the earlier ones where they differ)
 - [docs/evidence/2026-10-10-readela-0.3.0-correction-2.md](docs/evidence/2026-10-10-readela-0.3.0-correction-2.md)
-  (the second correction; it supersedes the first where they differ)
 - [docs/evidence/2026-10-10-readela-0.3.0-correction.md](docs/evidence/2026-10-10-readela-0.3.0-correction.md)
 - [docs/evidence/2026-10-10-readela-0.3.0-implementation.md](docs/evidence/2026-10-10-readela-0.3.0-implementation.md)
   (the first 0.3.0 implementation; superseded by the correction where they differ)
@@ -126,7 +133,7 @@ signed**; release versions of Firefox will not install it permanently.
 
 Open a conversation on `chatgpt.com` or `claude.ai` and use the Readela
 toolbar button to switch it on or off, to change appearance, font, size,
-spacing and direction, and to save or return to a place.
+spacing and direction, and to bookmark a place or return to it.
 
 ### Manual check on a real conversation
 
@@ -141,26 +148,32 @@ On each site:
 4. Choose Paper, then Night: only the text of responses changes colour; your
    own messages, code blocks, the composer and the site's controls stay as the
    site shows them, and no corner of another colour shows around a code block.
-5. Save a place, scroll far away, choose Return; reload and do it again; close
-   and reopen the browser and do it again. Try it in a long conversation, from
-   above and from below the place, and on a sentence that occurs more than
-   once. Try Alt+Shift+S on the page and in the composer, and look for the
-   bookmark beside the conversation in the site's list.
+5. Bookmark a place, scroll far away, choose Return; reload and do it again;
+   close and reopen the browser and do it again. Try it in a long
+   conversation, from above and from below the place, and on a sentence that
+   occurs more than once. Look for the bookmark beside the conversation in
+   the site's list, on both sites. Give the command a key in the browser's
+   shortcut settings and bookmark with it.
 6. Switch Readela off: the page returns to the site's own presentation.
 7. Open another conversation: the new one is handled without a reload.
 
 ## Privacy and permissions
 
 Readela works on your device. It has no backend, sends nothing anywhere, loads
-no remote code or fonts, and stores only your preferences and your saved
-places. A saved place holds one-way fingerprints and a few small numbers,
+no remote code or fonts, and stores only your preferences and your
+bookmarks. A bookmark holds one-way fingerprints and a few small numbers,
 never your text, a title or the address of the conversation. That is matching
 information kept on your device, not encryption.
 
 | Permission | Reason |
 | --- | --- |
-| Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction, find the saved place and mark blocks for presentation. |
-| `storage` | Remember preferences and saved places locally. |
+| Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction, find the bookmark and mark blocks for presentation. |
+| `storage` | Remember preferences and bookmarks locally. |
+
+Readela also declares one command to the browser (bookmark), which has no
+keyboard shortcut unless you assign one, and a background component of one
+small file that passes that command to the page and does nothing else. Neither
+is a permission.
 
 Three font files, Inter (upright and italic) and Vazirmatn, are packaged with
 the extension and made available to those two sites so their pages can display
@@ -200,15 +213,19 @@ controls and how they are verified:
   conversation, or on a slow connection, that may not be enough; choose
   Return again (what the site loaded meanwhile stays loaded), or scroll
   nearer first.
-- Save place without a selection takes the first paragraph that begins in
+- Bookmark without a selection takes the first paragraph that begins in
   view. When one long paragraph fills the screen it takes that one. To choose
   exactly, select some text in the paragraph.
-- Alt+Shift+S is fixed and cannot be changed. It gives no message when a
-  place cannot be saved; the popup does.
+- The command has no key until you assign one, and Chrome and Firefox each
+  keep their own. Given by key, it shows no message when a bookmark cannot be
+  saved; the popup does.
 - The bookmark in the site's list appears on rows the adapter recognises.
   Other lists of conversations (search results, project pages) are not
-  marked.
-- The saved place is shown visually; a screen reader is told about it in the
+  marked. On Claude, most rows do not say which conversation they open, so a
+  row is recognised once its conversation has been shown with the sidebar in
+  view; a bookmark made by an earlier build shows there after you open that
+  conversation again.
+- The bookmark is shown visually; a screen reader is told about it in the
   popup, not in the page.
 - On Claude, only message content is handled. Right-to-left text there keeps
   the side padding the site gives every text block.
@@ -232,6 +249,8 @@ npm run source-package   # source archive of the current commit, for review
 npm run store-images     # store listing images from the built extension
 npm run browsers:firefox # one-time: download Firefox for the tests into .cache/
 npm run test:e2e         # real Chrome and Firefox, temporary profiles
+                         # (add -- --browser firefox --without-navigation for the path Firefox 140-146 take)
+npm run perf -- idle     # what a page costs, measured in Chrome (see test/perf/run.mjs)
 ```
 
 `npm run test:e2e` uses the installed Chrome (or `READELA_CHROME`) and the
@@ -255,7 +274,7 @@ npm run package   # dist/chrome, dist/firefox and dist/packages/*.zip
   the operating system.
 - `dist/firefox/` is the content of the Firefox package and `dist/chrome/`
   the content of the Chrome package; they differ in `manifest.json` and in
-  how `content.css` names the packaged fonts. Each has 17 files.
+  how `content.css` names the packaged fonts. Each has 18 files.
 - The archives are written by `scripts/lib/zip.mjs` with sorted entries and a
   fixed timestamp, so the same files give the same archive bytes. If an
   archive differs, compare the extracted files: they are what the browser
