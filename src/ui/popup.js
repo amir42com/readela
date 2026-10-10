@@ -1,26 +1,135 @@
-// Popup controls. They read and write the shared preferences; the page
-// reacts to the stored change, so the popup never talks to a tab directly.
+// Popup controls. Settings are read from and written to the shared
+// preferences; the page reacts to the stored change. A bookmark belongs to
+// the conversation in the active tab, so those three buttons ask that page.
 
-import { loadPreferences, savePreferences } from "../browser/storage.js";
-import { resetPreferences } from "../core/index.js";
+import { api } from "../browser/api.js";
+import { askPage } from "../browser/messages.js";
+import { assignedShortcut, openShortcutSettings } from "../browser/shortcut.js";
+import { loadPreferences, savePreferences, watchMarks } from "../browser/storage.js";
+import { MARK_LIMIT, resetPreferences } from "../core/index.js";
+
+const GROUPS = ["theme", "font", "size", "spacing", "direction"];
+
+// One plain sentence for the choice that is selected. Original needs none:
+// the line under the heading says what it means everywhere.
+const HINTS = {
+  theme: {
+    page: "",
+    paper: "Warm, light paper colours for responses.",
+    night: "Warm, dark colours for responses.",
+  },
+  font: {
+    page: "",
+    sans: "Inter for Latin, Vazirmatn for Persian and Arabic.",
+  },
+  direction: {
+    page: "",
+    auto: "Chosen for each paragraph from its words.",
+    rtl: "All text reads right-to-left.",
+    ltr: "All text reads left-to-right.",
+  },
+};
+
+// What is known about the conversation in the tab. Whether it has a bookmark
+// is said by the buttons; the line beside the heading counts all of them.
+const PLACE_NOTES = {
+  unavailable: "Open a ChatGPT or Claude conversation to bookmark it.",
+  nowhere: "Open a conversation to bookmark it.",
+  off: "Turn Readela on to use bookmarks.",
+  none: "",
+  saved: "",
+};
+
+// What an action did. Each is said only when the page reports it as true.
+const PLACE_RESULTS = {
+  set: {
+    saved: "Bookmarked.",
+    nothing: "No response paragraph is in view to bookmark.",
+    ambiguous: "This paragraph cannot be told apart from an identical one beside it. Choose another.",
+    failed: "The bookmark could not be saved. Nothing was changed.",
+    full: `All ${MARK_LIMIT} bookmarks are in use. Remove one to bookmark this conversation.`,
+  },
+  go: {
+    arrived: "Returned to your bookmark.",
+    approximate: "Returned close to your bookmark. Its paragraph has changed.",
+    unresolved: "Your bookmark was not found. It is still saved.",
+    stopped: "Return was stopped. Your bookmark is still saved.",
+    failed: "Return did not finish. Your bookmark is still saved.",
+  },
+  clear: {
+    none: "Bookmark removed.",
+    failed: "The bookmark could not be removed. It is still saved.",
+  },
+};
+
+const BUSY_NOTES = { go: "Looking for your bookmark…" };
 
 const enabled = document.getElementById("enabled");
 const enabledLabel = document.getElementById("enabled-label");
 const stateNote = document.getElementById("state-note");
+const settings = document.getElementById("settings");
 const status = document.getElementById("status");
-const selects = ["font", "size", "spacing"].map((id) => document.getElementById(id));
-const directions = [...document.querySelectorAll('input[name="direction"]')];
+const placeNote = document.getElementById("place-note");
+const placeTotal = document.getElementById("place-total");
+const shortcut = document.getElementById("shortcut");
+const shortcutState = document.getElementById("shortcut-state");
+const shortcutSet = document.getElementById("shortcut-set");
+const placeButtons = {
+  set: document.getElementById("place-save"),
+  go: document.getElementById("place-return"),
+  clear: document.getElementById("place-clear"),
+};
+const radios = Object.fromEntries(GROUPS.map((name) => [name, [...document.querySelectorAll(`input[name="${name}"]`)]]));
 
 let preferences;
+let place = "unavailable";
+let total = null; // conversations with a bookmark, on every supported site, from what is stored
+
+// Requests to the page are answered one at a time and in the order they were
+// made, so a slow first report can never overwrite the result of a later action.
+let asked = Promise.resolve();
+const ask = (request) => {
+  const answer = asked.then(() => askPage(request));
+  asked = answer.catch(() => {});
+  return answer;
+};
 
 function render() {
   enabled.checked = preferences.enabled;
   enabledLabel.textContent = preferences.enabled ? "On" : "Off";
   stateNote.textContent = preferences.enabled
-    ? ""
-    : "Readela is off. The page is shown exactly as the site presents it.";
-  for (const radio of directions) radio.checked = radio.value === preferences.direction;
-  for (const select of selects) select.value = preferences[select.id];
+    ? "Original keeps that part as the site shows it."
+    : "Readela is off. Pages look exactly as the site shows them. Your settings and bookmarks are kept.";
+  settings.disabled = !preferences.enabled;
+  for (const name of GROUPS) {
+    for (const radio of radios[name]) radio.checked = radio.value === preferences[name];
+    const hint = document.getElementById(`${name}-hint`);
+    if (hint) hint.textContent = HINTS[name][preferences[name]];
+  }
+  renderPlace();
+}
+
+function renderPlace(message) {
+  const state = preferences.enabled ? place : place === "unavailable" ? "unavailable" : "off";
+  const usable = state !== "unavailable" && state !== "off" && state !== "nowhere";
+  const saved = state === "saved";
+  placeButtons.set.textContent = saved ? "Update" : "Bookmark";
+  placeButtons.set.disabled = !usable;
+  placeButtons.go.disabled = !(usable && saved);
+  placeButtons.clear.disabled = !(usable && saved);
+  placeNote.textContent = message ?? PLACE_NOTES[state] ?? "";
+  // The count is of what the browser has stored, never of what was asked for.
+  placeTotal.textContent = total === null ? "" : `${total} total`;
+}
+
+// The key the browser holds for the bookmark command. The browser assigns
+// and checks it; the popup only says what it is and opens the way there.
+async function renderShortcut() {
+  const keys = await assignedShortcut();
+  shortcut.hidden = keys === null;
+  if (keys === null) return;
+  shortcutState.textContent = `Shortcut: ${keys === "" ? "Not set" : keys}`;
+  shortcutSet.textContent = keys === "" ? "Set shortcut" : "Change";
 }
 
 async function update(change, message = "") {
@@ -34,18 +143,69 @@ async function update(change, message = "") {
   }
 }
 
-enabled.addEventListener("change", () => update({ enabled: enabled.checked }));
-for (const radio of directions) {
-  radio.addEventListener("change", () => radio.checked && update({ direction: radio.value }));
+const known = (answer) => (answer in PLACE_NOTES ? answer : "unavailable");
+
+async function refreshPlace() {
+  place = known((await ask("status")).status);
+  renderPlace();
 }
-for (const select of selects) {
-  select.addEventListener("change", () => update({ [select.id]: select.value }));
+
+// Counts the reader's own saved-place actions, so a report asked for before
+// an action never replaces that action's result.
+let acted = 0;
+
+async function act(request) {
+  acted += 1;
+  if (request in BUSY_NOTES) renderPlace(BUSY_NOTES[request]);
+  const had = place === "saved";
+  const answer = (await ask(request)).status;
+  // What the action did is said in its own words; what is saved now is asked
+  // again, so the buttons never run ahead of the page.
+  const result = request === "set" && answer === "saved" && had ? "Bookmark updated." : PLACE_RESULTS[request][answer];
+  place = known((await ask("status")).status);
+  renderPlace(result ?? PLACE_NOTES[place]);
+  // A button that has just switched itself off hands the keyboard on.
+  if (placeButtons[request].disabled && !placeButtons.set.disabled) placeButtons.set.focus();
+}
+
+enabled.addEventListener("change", async () => {
+  await update({ enabled: enabled.checked });
+  // The page applies the stored change a moment later.
+  const before = acted;
+  setTimeout(() => before === acted && refreshPlace(), 150);
+});
+for (const name of GROUPS) {
+  for (const radio of radios[name]) {
+    radio.addEventListener("change", () => radio.checked && update({ [name]: radio.value }));
+  }
 }
 document.getElementById("reset").addEventListener("click", () => {
-  update(resetPreferences(preferences), "Reading settings were reset.");
+  update(resetPreferences(preferences), "Settings were reset. Your bookmarks are kept.");
 });
+for (const [request, button] of Object.entries(placeButtons)) {
+  button.addEventListener("click", () => act(request));
+}
+
+shortcutSet.addEventListener("click", async () => {
+  if (!(await openShortcutSettings())) {
+    renderPlace("Set it in your browser's settings for extension shortcuts.");
+  }
+});
+
+document.getElementById("version").textContent = api.runtime.getManifest?.().version ?? "";
+renderShortcut();
 
 loadPreferences().then((stored) => {
   preferences = stored;
   render();
+  refreshPlace();
+  // The stored places, now and whenever they change, here or in another tab.
+  // What an action reported stays on screen; the state beside it follows.
+  watchMarks(async (marks) => {
+    total = marks.items.length;
+    const before = acted;
+    const answer = known((await ask("status")).status);
+    if (before === acted) place = answer;
+    renderPlace(placeNote.textContent);
+  });
 });

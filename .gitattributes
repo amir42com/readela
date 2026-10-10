@@ -1,5 +1,11 @@
 * text=auto eol=lf
 *.png binary
+*.woff2 binary
+
+# The packaged font licence is a byte-exact copy of the upstream release; its
+# recorded SHA-256 digest must stay verifiable.
+src/fonts/OFL.txt -text
+src/fonts/Inter-LICENSE.txt -text
 
 # Immutable dev-standards source pin.
 #

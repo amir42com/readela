@@ -35,12 +35,14 @@ export function decideDirection(counts) {
  *
  * @param {object} input
  * @param {{ rtl: number, ltr: number }} input.counts measurement of the block's own text
- * @param {"auto" | "rtl" | "ltr"} input.mode the reader's direction preference
+ * @param {"page" | "auto" | "rtl" | "ltr"} input.mode the reader's direction
+ *   preference; `page` leaves every block to the page
  * @param {"rtl" | "ltr" | null} [input.context] direction of the enclosing content,
  *   used when the block itself is neutral
  * @returns {"rtl" | "ltr" | null} `null` leaves the page's own presentation alone
  */
 export function resolveDirection({ counts, mode, context = null }) {
+  if (mode === "page") return null;
   if (mode === DIRECTION.RTL || mode === DIRECTION.LTR) return mode;
   const own = decideDirection(counts);
   if (own !== DIRECTION.NEUTRAL) return own;

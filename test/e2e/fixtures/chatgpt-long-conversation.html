@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en-US" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Readela fixture: long ChatGPT conversation</title>
+    <link rel="icon" href="data:," />
+    <!--
+      A synthetic long conversation written for these tests. It contains no
+      real conversation. It behaves as the site was observed to on 2026-10-10:
+
+      - the scrolling region is a flex column laid out from its end: scrollTop
+        is 0 at the end of the conversation and negative above it, and a
+        positive value does nothing;
+      - the conversation opens on its last five turns. Each time the beginning
+        of what is loaded is scrolled into view, the five turns before it are
+        loaded a moment later and the region grows, the view staying where it
+        was;
+      - only the turns near the viewport are in the document; the others are
+        an offset on the list;
+      - a turn carries data-turn-key, and its place in what is loaded as
+        data-content-search-turn-key, which changes as more is loaded.
+
+      Every reply ends with the same sentence, so text alone cannot tell the
+      replies apart.
+
+      Knobs for the tests, on window:
+        readelaLoadDelay    milliseconds before earlier turns are loaded
+        readelaLoadBatch    how many earlier turns are loaded at a time
+        readelaNeverLoad    true: earlier turns are never loaded
+        readelaMountDelay   milliseconds before turns near the viewport appear
+    -->
+    <style>
+      html, body { height: 100%; }
+      body { margin: 0; font: 16px/1.75 system-ui, sans-serif; color: #111; background: #fff; overflow: hidden; }
+      @media (prefers-color-scheme: dark) { body { color: #eee; background: #212121; } }
+      .layout { display: flex; height: 100%; }
+      nav { width: 200px; padding: 12px; }
+      .row { position: relative; padding: 8px 6px 8px 10px; }
+      .row-link { display: flex; color: inherit; text-decoration: none; font-size: 14px; line-height: 20px; }
+      .row-link::before { content: ""; position: absolute; inset: 0; }
+      main { flex: 1; display: flex; flex-direction: column; height: 100%; max-width: 760px; background: #fff; }
+      @media (prefers-color-scheme: dark) { main { background: #000; } }
+      .scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+      .content { flex: none; }
+      .bar { position: sticky; top: 0; z-index: 2; height: 44px; padding: 0 16px; display: flex; align-items: center; background-color: #fff; border-bottom: 1px solid #8884; }
+      @media (prefers-color-scheme: dark) { .bar { background-color: #000; } }
+      /* The list is offset inside a box of the whole loaded height. */
+      #lt-holder { display: flow-root; }
+      .turn-frame { box-sizing: border-box; padding: 12px 56px 0; overflow: hidden; }
+      .user-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+      [data-user-message-bubble] { padding: 8px 14px; background: #e9eef6; border-radius: 22px; }
+      @media (prefers-color-scheme: dark) { [data-user-message-bubble] { background: #173e76; } }
+      h3, p { margin: 0 0 12px; }
+      form { margin: 0; border-top: 1px solid #8886; padding: 8px 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <nav aria-label="Chat history">
+        <div role="list">
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="lt-row-this" href="/c/readela-long-fixture" draggable="false"><span data-thread-title="true">A long chat</span></a></div></div>
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="lt-row-other" href="/c/readela-fixture" draggable="false"><span data-thread-title="true">Hooks explained</span></a></div></div>
+        </div>
+      </nav>
+      <div class="page" data-app-shell-active-page="true" style="flex: 1; min-width: 0">
+        <main id="lt-main">
+          <div class="scroll" id="lt-scroller" data-app-action-timeline-scroll="" role="region" aria-label="Conversation" tabindex="0"><div class="content">
+            <div class="bar" id="lt-bar" role="toolbar"><span>Model</span></div>
+            <div id="lt-holder"><div id="lt-list"></div></div>
+          </div></div>
+          <form id="lt-composer"><textarea id="lt-textarea" aria-label="Message"></textarea></form>
+        </main>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const TURNS = 40;
+        const BATCH = 5;
+        const HEIGHT = 700;
+        const NEAR = 1200;
+        const scroller = document.querySelector("#lt-scroller");
+        const holder = document.querySelector("#lt-holder");
+        const list = document.querySelector("#lt-list");
+        let first = TURNS - BATCH; // the earliest turn that is loaded
+        let loading = false;
+
+        const element = (name, attributes = {}, text) => {
+          const node = document.createElement(name);
+          for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+          if (text !== undefined) node.textContent = text;
+          return node;
+        };
+
+        function turn(index) {
+          const number = index + 1;
+          const frame = element("div", { class: "turn-frame", style: `height: ${HEIGHT}px`, "data-lt-turn": String(index) });
+          const outer = element("div", { class: "turn", "data-turn-key": `lt-turn-${index}` });
+          const inner = element("div", { "data-content-search-turn-key": `fallback-turn-${index - first}` });
+          const user = element("div", { class: "user-row", "data-content-search-unit-key": `fallback-turn-${index - first}:0:user` });
+          const bubble = element("div", { "data-user-message-bubble": "true" });
+          const holderOfText = element("div");
+          holderOfText.append(element("div", { dir: "auto", id: `lt-user-${index}` }, `Question ${number}, please.`));
+          bubble.append(holderOfText);
+          user.append(bubble);
+          const reply = element("div", { "data-content-search-unit-key": `fallback-turn-${index - first}:2:assistant` });
+          const prose = element("div", { "data-markdown-text-style": "assistant-message", dir: "auto", id: `lt-md-${index}` });
+          prose.append(
+            element("h3", { id: `lt-h-${index}`, dir: "auto" }, `Answer ${number}`),
+            element("p", { id: `lt-p-${index}-1`, dir: "auto" }, `Paragraph one of answer ${number} explains the first idea.`),
+            element("p", { id: `lt-p-${index}-2`, dir: "auto" }, `Paragraph two of answer ${number} adds an example.`),
+            element("p", { id: `lt-same-${index}`, dir: "auto" }, "This closing line is the same in every answer."),
+          );
+          reply.append(prose);
+          inner.append(user, reply);
+          outer.append(inner);
+          frame.append(outer);
+          return frame;
+        }
+
+        const range = () => scroller.scrollHeight - scroller.clientHeight;
+        // Distance of the view from the beginning of what is loaded.
+        const offset = () => scroller.scrollTop + range();
+
+        function render() {
+          holder.style.height = `${(TURNS - first) * HEIGHT}px`;
+          const from = offset() - 44 - NEAR;
+          const to = offset() - 44 + scroller.clientHeight + NEAR;
+          const wanted = [];
+          for (let index = first; index < TURNS; index += 1) {
+            const top = (index - first) * HEIGHT;
+            if (top + HEIGHT > from && top < to) wanted.push(index);
+          }
+          for (const node of [...list.children]) {
+            const index = Number(node.getAttribute("data-lt-turn"));
+            if (!wanted.includes(index)) node.remove();
+            else node.querySelector("[data-content-search-turn-key]").setAttribute("data-content-search-turn-key", `fallback-turn-${index - first}`);
+          }
+          for (const index of wanted) {
+            if (list.querySelector(`[data-lt-turn="${index}"]`)) continue;
+            const before = [...list.children].find((node) => Number(node.getAttribute("data-lt-turn")) > index);
+            list.insertBefore(turn(index), before ?? null);
+          }
+          list.style.marginTop = `${wanted.length > 0 ? (wanted[0] - first) * HEIGHT : 0}px`;
+          // The beginning of what is loaded is in view: load what came before.
+          if (offset() < 80 && first > 0 && !loading && !window.readelaNeverLoad) {
+            loading = true;
+            setTimeout(() => {
+              loading = false;
+              first = Math.max(0, first - (window.readelaLoadBatch ?? BATCH));
+              render();
+            }, window.readelaLoadDelay ?? 250);
+          }
+        }
+
+        let waiting = null;
+        scroller.addEventListener("scroll", () => {
+          if (waiting !== null) return;
+          waiting = setTimeout(() => {
+            waiting = null;
+            render();
+          }, window.readelaMountDelay ?? 40);
+        });
+
+        window.readelaTurns = () => [...list.children].map((node) => Number(node.getAttribute("data-lt-turn")));
+        window.readelaLoadedFrom = () => first;
+        render();
+      })();
+    </script>
+  </body>
+</html>

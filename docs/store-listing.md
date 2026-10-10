@@ -1,4 +1,4 @@
-# Store listing kit — Readela 0.2.1
+# Store listing kit — Readela 0.3.0
 
 One source for everything entered into the Chrome Web Store and Firefox
 Add-ons (AMO) dashboards. Every statement here must stay true of the packaged
@@ -6,12 +6,18 @@ extension; when the product changes, this file, the privacy policy and the
 manifest change in the same release. Dashboard field names and limits are
 confirmed on the live dashboards at submission time.
 
+This kit describes version 0.3.0. It is the copy to enter when that version is
+submitted; which version and copy each store carries is recorded in the dated
+evidence under `docs/evidence/`. The listing images under `docs/store-images/`
+show the 0.2 popup and are regenerated with `npm run store-images` before a
+0.3.0 submission.
+
 ## Shared product truth
 
 | | |
 | --- | --- |
 | Name as shown | Readela (manifest `name` and `short_name`) |
-| Version | 0.2.1 |
+| Version | 0.3.0 |
 | Publisher / developer | Amir42 |
 | Author | Amir |
 | Homepage | https://amir42.com |
@@ -22,13 +28,15 @@ confirmed on the live dashboards at submission time.
 | Supported sites | chatgpt.com, claude.ai |
 | Supported browsers | Chrome 121 or newer; Firefox 140 or newer (desktop) |
 | Permissions | `storage`; content script on `https://chatgpt.com/*` and `https://claude.ai/*` |
+| Web-accessible resource | one packaged font file, for those two sites only |
+| Third-party asset | Vazirmatn font, SIL Open Font License 1.1, licence file in the package |
 | Firefox add-on ID | readela@amir42.com |
 | Price | Free |
 
 ### Short summary (one sentence)
 
-Makes long and multilingual text easier to read on ChatGPT and Claude, with
-automatic text direction and comfortable typography.
+Comfortable reading on ChatGPT and Claude: automatic text direction, warm
+Paper and Night colours, clear fonts and a reading mark.
 
 ### Description
 
@@ -43,27 +51,35 @@ What it does
 
 - Fixes paragraph direction for languages written right-to-left, such as
   Persian, Arabic and Hebrew, when mixed with English.
+- Paper and Night: warm, comfortable reading colours for responses, whichever
+  theme the site itself is in.
+- Readela Sans: a clear font for Persian and Arabic that comes with the
+  extension, so it does not depend on fonts installed on your device.
+- A reading mark: mark where you stopped and come back to it later.
+- Text size and line spacing.
 - Keeps lists, tables, code, maths and links readable.
-- Lets you choose direction, font, text size and line spacing.
-- Remembers your settings locally and restores the site's original
-  presentation when turned off.
+- Every setting has an Original choice that leaves that part of the page as
+  the site shows it; turning Readela off restores the page completely.
 
 Privacy & trust
 
 - Open source under the MIT license: github.com/amir42com/readela
 - No server, analytics, advertising or remote code.
 - Conversation content is not stored or transmitted.
-- Only your Readela settings are stored locally in the browser.
+- Only your settings and your reading marks are stored, locally in the
+  browser. A reading mark holds a one-way fingerprint, not your text.
 
 Works on chatgpt.com and claude.ai.
 
 ### Core features (short list)
 
 1. Automatic per-paragraph reading direction for mixed-script text.
-2. Lists, headings, quotations and tables aligned with their content.
-3. Code, maths and links kept left-to-right.
-4. Direction override, font, text size and line spacing.
-5. Local settings only; no network, no tracking, exact off switch.
+2. Paper and Night reading colours for responses.
+3. Readela Sans with a packaged Persian and Arabic font.
+4. A reading mark per conversation.
+5. Text size and line spacing; lists, tables, code, maths and links kept
+   readable.
+6. Local only; no network, no tracking, exact off switch.
 
 ### Permission justification (shared wording)
 
@@ -71,8 +87,14 @@ Works on chatgpt.com and claude.ai.
   on these two sites only, to read the conversation text on the page and
   decide the reading direction of each block, and to add presentation markers.
   No other site is accessed and no wildcard host is requested.
-- **storage:** to remember the reader's settings (on/off, direction mode,
-  font, text size, line spacing) in the browser's local extension storage.
+- **storage:** to remember, in the browser's local extension storage, the
+  reader's settings (on/off, direction mode, reading appearance, font, text
+  size, line spacing) and the reading marks the reader sets (one-way
+  fingerprints and a position number; no readable text or address).
+- **Web-accessible resource (not a permission):** the packaged font file
+  `fonts/Vazirmatn-NL-wght.woff2` is made available to chatgpt.com and
+  claude.ai only, so that their pages can display Persian and Arabic text in
+  it. Nothing else is web-accessible.
 
 ### Reviewer notes (shared wording)
 
@@ -82,14 +104,20 @@ conversation on chatgpt.com or claude.ai that contains Persian, Arabic or
 Hebrew text mixed with English, and toggle Readela from the toolbar popup.
 Paragraphs whose words are mostly right-to-left read right-to-left, list
 markers move to the right, code and links stay left-to-right; off restores the
-site's own presentation. A ChatGPT conversation can be opened without an
-account; Claude requires one. The repository contains two synthetic test
+site's own presentation. Paper and Night colour the response text area only.
+Readela Sans shows Persian and Arabic in the packaged Vazirmatn font
+(`fonts/Vazirmatn-NL-wght.woff2`, SIL Open Font License 1.1, licence in
+`fonts/OFL.txt`); it is the only web-accessible resource and nothing is
+fetched from the network. Mark here, Go to mark and Clear send a one-word
+message from the popup to the content script of the active tab
+(`tabs.sendMessage`, no `tabs` permission). A ChatGPT conversation can be
+opened without an account; Claude requires one. The repository contains two synthetic test
 conversations (test/e2e/fixtures/) that reproduce each site's structure; the
 listing screenshots were taken from those pages with the real extension, not
 from real conversations. `npm test` runs the unit tests and `npm run test:e2e`
 installs the built extension into a temporary Chrome and Firefox profile and
 checks the behaviour, including that no request leaves the browser and that
-only the settings object is stored.
+only the settings and the reading marks are stored.
 
 ## Chrome Web Store
 
@@ -98,7 +126,7 @@ only the settings object is stored.
 | Field | Value |
 | --- | --- |
 | Title | from the manifest: Readela |
-| Summary | from the manifest description (128 characters) |
+| Summary | from the manifest description (130 characters) |
 | Description | the Description above |
 | Category | Accessibility (fallback: Functionality & UI) |
 | Language | English |
@@ -112,9 +140,10 @@ only the settings object is stored.
 
 ### Privacy practices tab
 
-- **Single purpose:** Readela presents multilingual text on chatgpt.com and
-  claude.ai with the correct reading direction and the reader's chosen
-  typography, within the original page. It does nothing else.
+- **Single purpose:** Readela makes long and multilingual text on chatgpt.com
+  and claude.ai comfortable to read within the original page: reading
+  direction, reading colours, typography and a mark for where the reader
+  stopped. It does nothing else.
 - **Permission justification — storage:** see shared wording.
 - **Host permission justification (content script on chatgpt.com and
   claude.ai):** see shared wording.
@@ -122,8 +151,10 @@ only the settings object is stored.
   package; nothing is fetched, evaluated or injected from outside it.
 - **Data usage:** Readela handles **website content** only: it reads the text
   of the conversation on the two supported sites, in memory, inside the page,
-  to decide reading direction. It does not collect, store or transmit it. No
-  other category applies (no personally identifiable information, health,
+  to decide reading direction and to recognise a paragraph the reader marked.
+  It does not collect or transmit it, and stores none of it in readable form:
+  a reading mark is a set of one-way fingerprints kept in local extension
+  storage. No other category applies (no personally identifiable information, health,
   financial or authentication information, personal communications, location,
   web history or user activity is handled).
 - **Certifications:** Readela does not sell or transfer user data to third
@@ -169,23 +200,23 @@ Reviewer notes above. No credentials are provided or needed for ChatGPT.
 The packaged `content.js` and `popup/popup.js` are produced by esbuild from the
 ES modules under `src/`, so the source archive is submitted with the package.
 
-- Archive: `dist/packages/readela-0.2.1-source.zip`, written by
+- Archive: `dist/packages/readela-0.3.0-source.zip`, written by
   `npm run source-package`: the complete tracked tree of the tagged commit
   (readable source, `package.json`, `package-lock.json`, build scripts, tests
   and documentation; no `node_modules`, caches or build output).
 - Build instructions for the reviewer:
 
   ```sh
-  unzip readela-0.2.1-source.zip
-  cd readela-0.2.1-source
+  unzip readela-0.3.0-source.zip
+  cd readela-0.3.0-source
   npm ci
   npm run package
   ```
 
   Node.js 22.15 or newer with its bundled npm; esbuild 0.28.2 is the only
   build-time dependency and is installed by `npm ci` from the lockfile. The
-  result `dist/firefox/` (12 files) is the content of the submitted package;
-  `dist/packages/readela-0.2.1-firefox.zip` is the archive. Output is not
+  result `dist/firefox/` (14 files) is the content of the submitted package;
+  `dist/packages/readela-0.3.0-firefox.zip` is the archive. Output is not
   minified. The build was verified on Windows 11 with Node.js 22.23.1 and
   reproduced byte-for-byte with Node.js 20.20.2; the bundler output does not
   depend on the operating system. If the archive bytes differ in another

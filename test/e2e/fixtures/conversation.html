@@ -5,29 +5,95 @@
     <title>Readela fixture: conversation</title>
     <link rel="icon" href="data:," />
     <!--
-      A synthetic conversation page written for these tests. It reproduces the
-      structural traits Readela has to cope with (paragraphs carrying
-      dir="auto", first-strong "plaintext" handling, logical and physical list
-      indentation, an editable composer). It contains no real conversation.
+      A synthetic conversation page written for these tests. It contains no
+      real conversation. It reproduces the structural traits Readela has to
+      cope with (paragraphs carrying dir="auto", first-strong "plaintext"
+      handling, logical and physical list indentation, an editable composer)
+      and the structure observed on the site on 2026-10-10, by element and
+      attribute names only:
+
+      - a conversation opened earlier stays in the document, in a hidden
+        container with a main element of its own, before the one shown;
+      - the conversation scrolls in a region of its own, under a bar the site
+        keeps on top; the document itself does not scroll. The region is a
+        flex column laid out from its end: its scrollTop is 0 at the end of
+        the conversation and negative above it;
+      - the sidebar lists conversations as links marked
+        data-interactive-row-link, each in a row it is positioned in, with a
+        pseudo-element of the site's own that widens the link's click area;
+      - a table is a wide block: its wrapper is wider than the reply text;
+      - a turn carries data-turn-key and holds the reader's message and the
+        reply as two units; each has a heading kept for screen readers;
+      - the reader's message is a rounded bubble holding one text container;
+      - reply text sits in data-markdown-text-style="assistant-message";
+      - a code block is a rounded unit with an opaque background of its own
+        and no pre element, inside a plain wrapper; a table sits in three
+        nested wrappers;
+      - the page background of the dark theme is opaque black;
+      - inline code is a span marked data-markdown-copy="inline-code" with a
+        dir attribute, a see-through background and rounded corners. It is
+        not a code element.
+
+      The last reply (turn-other) has no reply-text container: a layout the
+      adapter does not recognise.
     -->
     <style>
-      body { margin: 0; font: 16px/1.75 system-ui, sans-serif; color: #111; background: #fff; }
+      html, body { height: 100%; }
+      body { margin: 0; font: 16px/1.75 system-ui, sans-serif; color: #111; background: #fff; overflow: hidden; }
       @media (prefers-color-scheme: dark) { body { color: #eee; background: #212121; } }
-      .layout { display: flex; }
+      .layout { display: flex; height: 100%; }
       nav { width: 200px; padding: 12px; }
-      main { flex: 1; max-width: 720px; padding: 16px; }
+      .row { position: relative; padding: 8px 6px 8px 10px; border-radius: 10px; }
+      .row:hover { background: #8882; }
+      .row-link { display: flex; align-items: center; color: inherit; text-decoration: none; font-size: 14px; line-height: 20px; }
+      .row-link::before { content: ""; position: absolute; inset: 0; }
+      .row-link span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .page { flex: 1; min-width: 0; }
+      main { display: flex; flex-direction: column; height: 100%; max-width: 760px; background: #fff; }
+      @media (prefers-color-scheme: dark) { main { background: #000; } }
+      .scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+      .content { flex: none; }
+      .bar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; height: 44px; padding: 0 16px; align-items: center; background: inherit; background-color: #fff; border-bottom: 1px solid #8884; }
+      @media (prefers-color-scheme: dark) { .bar { background-color: #000; } }
+      .thread { padding: 16px 56px; }
       .turn { margin-bottom: 24px; }
+      .unit { margin-bottom: 12px; }
       .plaintext { unicode-bidi: plaintext; }
-      .bubble { white-space: pre-wrap; unicode-bidi: plaintext; padding: 8px 12px; background: #8881; border-radius: 12px; }
+      .user-row { display: flex; justify-content: flex-end; }
+      [data-user-message-bubble] { position: relative; max-width: 80%; padding: 10px 16px; background: #e9eef6; border-radius: 22px; overflow: hidden; }
+      @media (prefers-color-scheme: dark) { [data-user-message-bubble] { background: #173e76; } }
+      .whitespace-pre-wrap { white-space: pre-wrap; unicode-bidi: plaintext; }
       ul, ol { padding-inline-start: 26px; }
       ul.physical { padding-inline-start: 0; padding-left: 30px; }
+      li::marker { color: #8f8f8f; }
       blockquote { margin: 0 0 12px 0; padding-left: 12px; border-left: 3px solid #888; }
       pre { padding: 12px; background: #8882; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; }
       code { font-family: ui-monospace, Consolas, monospace; }
-      th { text-align: left; }
-      td, th { padding: 4px 8px; border: 1px solid #8884; }
+      p code { padding: 1px 4px; border-radius: 4px; background: #8883; }
+      [data-markdown-copy="inline-code"] { padding: 1px 6px; border-radius: 6px; background: rgb(128 128 128 / 0.12); font-family: ui-monospace, Consolas, monospace; font-size: 0.92em; }
+      a { color: #0b57d0; }
+      mark { background: #ffe58a; color: #111; }
+      .secondary { color: #6b6b6b; }
+      @media (prefers-color-scheme: dark) { a { color: #7ab7ff; } .secondary { color: #b4b4b4; } }
+      th { text-align: left; background: #8882; }
+      td, th { padding: 4px 8px; border: 1px solid #8884; white-space: nowrap; }
+      [data-markdown-table] { position: relative; margin: 0 0 12px; }
+      [data-wide-block] { margin-inline: -40px; }
+      .table-scroll { display: flex; overflow: auto; }
+      .table-actions { position: absolute; top: -28px; right: 0; }
+      #table-fa { min-width: 900px; border-collapse: collapse; }
+      kbd, samp { font-family: ui-monospace, Consolas, monospace; }
       .katex { font-family: "Times New Roman", serif; }
-      form { margin-top: 24px; border: 1px solid #8886; padding: 8px; }
+      .frac-line { display: inline-block; width: 1em; border-bottom: 1px solid; }
+      .sr-only { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+      [data-markdown-copy] { position: relative; margin: 0 0 12px; border: 1px solid #8884; border-radius: 24px; background: #f9f9f9; color: #111; overflow: clip; }
+      [data-markdown-copy] .head { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; font-size: 13px; }
+      [data-markdown-copy] .code { overflow: auto; }
+      [data-markdown-copy] code { display: block; padding: 0 16px 12px; white-space: pre; }
+      [data-markdown-copy] .kw { color: #a626a4; }
+      @media (prefers-color-scheme: dark) { [data-markdown-copy] { background: #000; color: #fff; } [data-markdown-copy] .kw { color: #f97583; } }
+      .actions { margin-top: 4px; }
+      form { margin: 0; border-top: 1px solid #8886; padding: 8px 16px; }
       [contenteditable] { min-height: 24px; }
     </style>
   </head>
@@ -36,19 +102,54 @@
       <nav aria-label="Chat history">
         <p id="nav-title">React چیست</p>
         <button id="page-button" type="button">New chat</button>
+        <div role="list" id="rows">
+          <div role="listitem"><div class="row" role="group" id="row-this-frame"><a class="row-link" data-interactive-row-link="true" id="row-this" href="/c/readela-fixture" draggable="false"><span data-thread-title="true" id="row-this-title">Hooks explained</span></a></div></div>
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="row-project" href="/g/g-p-0123456789abcdef-fixture-project/c/readela-fixture-2" draggable="false"><span data-thread-title="true">A project chat</span></a></div></div>
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="row-other" href="/c/readela-fixture-3" draggable="false"><span data-thread-title="true">Another chat</span></a></div></div>
+          <div role="listitem"><div class="row" role="group"><a class="row-link" data-interactive-row-link="true" id="row-page" href="/gpts" draggable="false"><span data-thread-title="true">Not a conversation</span></a></div></div>
+        </div>
       </nav>
 
-      <main>
-        <div class="turn" data-message-author-role="user">
-          <div class="bubble whitespace-pre-wrap" id="user-bubble" dir="auto">React hooks را به زبان ساده توضیح بده.
-با مثال لطفاً.</div>
-        </div>
+      <!-- A conversation opened earlier. The site keeps it in the document. -->
+      <div class="page" data-app-shell-active-page="false" id="kept-page" style="display: none">
+        <main id="main-kept">
+          <div class="scroll" data-app-action-timeline-scroll="" role="region" tabindex="0"><div class="content">
+            <div class="thread">
+              <div class="turn" data-turn-key="turn-en">
+                <div class="unit" data-content-search-unit-key="fallback-turn-0:2:assistant">
+                  <div data-markdown-text-style="assistant-message" dir="auto" id="kept-md">
+                    <p id="kept-p" dir="auto">Hooks let you use state and other React features without writing a class.</p>
+                    <p id="kept-twin" dir="auto">This sentence appears in two different answers.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div></div>
+        </main>
+      </div>
 
-        <div class="turn" data-message-author-role="assistant" id="turn-fa">
+      <div class="page" data-app-shell-active-page="true">
+        <main id="main">
+          <div class="scroll" id="scroller" data-app-action-timeline-scroll="" role="region" aria-label="Conversation" tabindex="0"><div class="content">
+            <div class="bar" id="thread-bar" role="toolbar"><span id="thread-model">Model</span><button id="thread-share" type="button">Share</button></div>
+            <div class="thread" id="thread">
+
+              <div class="turn" data-turn-key="turn-fa">
+                <h4 class="sr-only" id="sr-user">You said:</h4>
+                <div class="unit user-row" data-content-search-unit-key="fallback-turn-0:0:user">
+                  <div data-user-message-bubble="true" id="user-bubble-frame">
+                    <div><div class="whitespace-pre-wrap" id="user-bubble" dir="auto">React hooks را به زبان ساده توضیح بده.
+با مثال لطفاً.</div></div>
+                  </div>
+                </div>
+                <div class="unit" data-content-search-unit-key="fallback-turn-0:2:assistant" id="turn-fa">
+                  <h4 class="sr-only" id="sr-fa">ChatGPT said:</h4>
+                  <div data-chatgpt-selection-message-id="message-fa">
+                    <div id="md-fa" dir="auto" data-markdown-text-style="assistant-message">
           <h2 id="h-fa" dir="auto">React Hooks چیست و چرا مهم است؟</h2>
           <p id="p-en-start" dir="auto" class="plaintext">React یک کتابخانه جاوااسکریپت برای ساخت رابط کاربری است.</p>
           <p id="p-punct" dir="auto" class="plaintext">قیمت 25 دلار است (تقریباً 1,050,000 تومان)!</p>
-          <p id="p-inline" dir="auto" class="plaintext">برای نصب از <code id="inline-code">npm install react</code> استفاده کنید و مستندات را در <a id="link-url" href="https://react.dev/learn">https://react.dev/learn</a> بخوانید؛ <a id="link-text" href="https://example.org/guide">راهنمای کامل</a> هم مفید است.</p>
+          <p id="p-inline" dir="auto" class="plaintext">برای نصب از <span data-markdown-copy="inline-code" dir="ltr" id="inline-code">npm install react</span> استفاده کنید و مستندات را در <a id="link-url" href="https://react.dev/learn">https://react.dev/learn</a> بخوانید؛ <a id="link-text" href="https://example.org/guide">راهنمای کامل</a> هم مفید است.</p>
           <ul id="ul-fa">
             <li id="li-fa-1">useState برای مدیریت وضعیت کامپوننت</li>
             <li id="li-fa-2">
@@ -69,37 +170,94 @@
           </blockquote>
           <pre id="code-block"><code id="code">const [count, setCount] = useState(0); // شمارنده
 if (count &gt; 10) { reset(); }</code></pre>
-          <p id="p-math" dir="auto" class="plaintext">فرمول <span class="katex" id="math">E = mc^2</span> معروف است.</p>
+          <div id="block-wrap">
+            <div id="block" data-markdown-copy="code-block">
+              <div class="head"><span id="block-label">JavaScript</span><button id="block-copy" type="button">Copy</button></div>
+              <div class="code" dir="ltr"><code id="block-code"><span class="kw" id="block-keyword">useEffect</span>(() =&gt; { load(); }, []);</code></div>
+            </div>
+          </div>
+          <p id="p-math" dir="auto" class="plaintext">فرمول <span class="katex" id="math">E = mc^2<span class="frac-line" id="math-line"></span></span> معروف است.</p>
           <p id="p-neutral" dir="auto">1,234.50</p>
-          <table id="table-fa">
-            <thead><tr><th id="th-fa">نام Hook</th><th>کاربرد</th></tr></thead>
-            <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td></tr></tbody>
-          </table>
-        </div>
+          <p id="p-fa-type" dir="auto">متن ساده، <em id="fa-em">تأکید</em> و <strong id="fa-strong">پررنگ</strong> با <span id="fa-latin">Latin</span> کنار هم.</p>
+          <div data-markdown-table="" data-wide-block="" id="table-frame">
+            <div class="table-actions" id="table-actions"><button id="table-copy" type="button">Copy table</button></div>
+            <div class="table-scroll" id="table-scroll"><div id="table-inner">
+              <table id="table-fa">
+                <thead><tr><th id="th-fa">نام Hook</th><th>کاربرد</th><th>نمونه</th><th>یادداشت</th></tr></thead>
+                <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td><td><span data-markdown-copy="inline-code" dir="ltr" id="td-code">useMemo(fn, deps)</span></td><td>فقط وقتی لازم است</td></tr></tbody>
+              </table>
+            </div></div>
+          </div>
+                    </div>
+                  </div>
+                  <div class="actions" id="actions-fa"><button id="copy-fa" type="button">Copy</button></div>
+                </div>
+              </div>
 
-        <div class="turn" data-message-author-role="assistant" id="turn-en">
+              <div class="turn" data-turn-key="turn-en">
+                <div class="unit" data-content-search-unit-key="fallback-turn-1:2:assistant" id="turn-en">
+                  <h4 class="sr-only" id="sr-en">ChatGPT said:</h4>
+                  <div id="md-en" dir="auto" data-markdown-text-style="assistant-message">
           <h2 id="h-en" dir="auto">Getting started with hooks</h2>
           <p id="p-en" dir="auto">Hooks let you use state and other React features without writing a class.</p>
           <p id="p-en-quote" dir="auto" class="plaintext">کتاب is the Persian word for book, and it is pronounced ketab.</p>
           <ul id="ul-en">
             <li id="li-en-a">Call hooks at the top level.</li>
-            <li id="li-en-b">Call hooks from React functions.</li>
+            <li id="li-en-b">Call hooks from React functions.
+              <div id="nested-wrap">
+                <div id="nested-block" data-markdown-copy="code-block">
+                  <div class="head"><span id="nested-label">Shell</span><button id="nested-copy" type="button">Copy</button></div>
+                  <div class="code" dir="ltr"><code id="nested-code">npm test</code></div>
+                </div>
+              </div>
+            </li>
           </ul>
-        </div>
+          <p id="p-semantic" dir="auto">A <mark id="marked-text">highlighted phrase</mark>, a <del id="struck-text">struck phrase</del> and <small id="small-text">a small note</small> keep what they mean.</p>
+          <p id="p-tokens" dir="auto">Call <span data-markdown-copy="inline-code" dir="ltr" id="token-fn">serialize()</span> on <span data-markdown-copy="inline-code" dir="ltr" id="token-branch">main</span> at <span data-markdown-copy="inline-code" dir="ltr" id="token-version">3.1.8</span>, press <kbd id="token-kbd">Ctrl</kbd> and expect <samp id="token-samp">FIX_REQUIRED</samp>.</p>
+          <p id="p-type" dir="auto">Plain words, <em id="en-em">emphasised words</em>, <strong id="en-strong">strong words</strong> and <strong><em id="en-both">both at once</em></strong>.</p>
+          <p id="p-twin" dir="auto">This sentence appears in two different answers.</p>
+                  </div>
+                </div>
+              </div>
 
-        <div class="turn" data-message-author-role="assistant" id="turn-other">
-          <p id="p-ar" dir="auto">هذه جملة باللغة العربية عن البرمجة.</p>
-          <p id="p-ar-en-start" dir="auto" class="plaintext">Python هي لغة برمجة سهلة التعلم.</p>
-          <p id="p-he" dir="auto">זהו משפט בעברית על תכנות.</p>
-          <p id="p-he-en-start" dir="auto" class="plaintext">JavaScript היא שפת תכנות נפוצה מאוד.</p>
-        </div>
+              <div class="turn" data-turn-key="turn-twin">
+                <h4 class="sr-only">You said:</h4>
+                <div class="unit user-row" data-content-search-unit-key="fallback-turn-2:0:user">
+                  <div data-user-message-bubble="true"><div><div class="whitespace-pre-wrap" id="user-bubble-en" dir="auto">Say it again, please.</div></div></div>
+                </div>
+                <div class="unit" data-content-search-unit-key="fallback-turn-2:2:assistant" id="turn-twin">
+                  <h4 class="sr-only">ChatGPT said:</h4>
+                  <div id="md-twin" dir="auto" data-markdown-text-style="assistant-message">
+          <p id="p-twin-intro" dir="auto">Certainly. Here it is once more.</p>
+          <p id="p-twin-again" dir="auto">This sentence appears in two different answers.</p>
+          <p id="p-same-1" dir="auto">The same line.</p>
+          <p id="p-same-2" dir="auto">The same line.</p>
+          <p id="p-same-3" dir="auto">The same line.</p>
+          <p id="p-same-4" dir="auto">The same line.</p>
+          <p id="p-twin-end" dir="auto">That is all of it.</p>
+                  </div>
+                </div>
+              </div>
 
-        <form id="composer-form">
-          <div id="prompt-textarea" contenteditable="true"><p id="composer-p">React را توضیح بده</p></div>
-          <textarea id="composer-textarea" aria-label="Message">سلام world</textarea>
-          <button id="send-button" type="button">Send</button>
-        </form>
-      </main>
+              <!-- A reply in a layout the adapter does not recognise. -->
+              <div class="turn" id="turn-other">
+                <p id="p-ar" dir="auto">هذه جملة باللغة العربية عن البرمجة.</p>
+                <p id="p-ar-en-start" dir="auto" class="plaintext">Python هي لغة برمجة سهلة التعلم.</p>
+                <p id="p-he" dir="auto">זהו משפט בעברית על תכנות.</p>
+                <p id="p-he-en-start" dir="auto" class="plaintext">JavaScript היא שפת תכנות נפוצה מאוד.</p>
+              </div>
+
+            </div>
+          </div></div>
+
+          <form id="composer-form">
+            <div id="prompt-textarea" contenteditable="true"><p id="composer-p">React را توضیح بده</p></div>
+            <textarea id="composer-textarea" aria-label="Message">سلام world</textarea>
+            <input id="composer-input" type="text" aria-label="Title" value="" />
+            <button id="send-button" type="button">Send</button>
+          </form>
+        </main>
+      </div>
     </div>
   </body>
 </html>

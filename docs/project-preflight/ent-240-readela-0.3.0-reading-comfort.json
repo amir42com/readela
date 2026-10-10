@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-240-readela-0.3.0-reading-comfort.json",
+  "recordDate": "2026-10-10",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-240",
+    "relatedWorkUnits": ["ENT-199", "ENT-235"],
+    "title": "Readela 0.3.0: reading-comfort redesign, implemented and verified locally",
+    "authorizingDecisions": ["DEC-136", "DEC-116", "DEC-115", "DEC-103"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-10, recorded in the managerial work unit ENT-240. It authorizes the bounded 0.3.0 implementation described in scope.inScope, its verification, the documentation it makes necessary, version 0.3.0, a local Chrome build loaded for owner visual review, and managerial reconciliation. It does not authorize submission or publication to the Chrome Web Store, Firefox Add-ons, a GitHub Release or any other provider, and it does not authorize anything in scope.outOfScope.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": [
+      "docs/project-preflight/ent-197-repository-establishment.json",
+      "docs/project-preflight/ent-198-claude-support.json",
+      "docs/project-preflight/ent-197-bootstrap-completion.json",
+      "docs/project-preflight/ent-198-first-public-release.json",
+      "docs/project-preflight/ent-198-readela-0.2.1-naming.json"
+    ],
+    "status": "All remain the records for the work they cover and are not edited. Each places new product functionality, bundled fonts, the reading-position marker and a popup redesign out of scope. This record covers that scope and reuses none of them as a parent."
+  },
+  "baseCommit": "e13a3cee17c20a4811f9e80a2f90a08311071e68",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope expands outside the scope covered by the current Preflights: new product functionality (reading appearance, reading mark, bundled font, popup redesign, a new preference version)",
+      "the work changes documented technical and trust invariants: the first web-accessible resource (one bundled font file, limited to the two supported hosts), the first third-party asset in the package, the first message exchange between the popup and a page, and a second stored object"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"]; see capabilities.assessment.",
+      "baselineIdentityChanged": "No. The vendored dev-standards pin is v0.6.0 with the identities below; the verifier passed on baseCommit on 2026-10-10.",
+      "protocolChanged": "No. The revision is v1.23, the revision every earlier record was assessed under."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-10",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 locally and on the remote after a fast-forward of two documentation-only commits; clean worktree and index.",
+    "pullRequests": "No open pull request.",
+    "repositoryRuleset": "ENT-197 main protection, id 24401132, active, no bypass actors: deletion, non_fast_forward, pull_request, required_status_checks strict with context verify from integration 15368.",
+    "hostedWorkflow": "dev-standards-verify; check verify succeeded on main e13a3ce (run 37739067388).",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree; npm test: 23 tests passed.",
+    "product": "package.json version 0.2.1; Manifest V3; permissions [\"storage\"]; content-script matches exactly https://chatgpt.com/* and https://claude.ai/*; no web-accessible resource, no background script; preferences version 1 under the key readela.preferences.",
+    "releases": "0.2.1 is the public version in both stores (tag v0.2.1). Nothing from 0.3.0 exists.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the focused branch feat/ent-240-readela-0.3.0 from baseCommit.",
+      "Preferences version 2 under the existing key: direction page/auto/rtl/ltr, theme page/paper/night, font page/sans, size and spacing unchanged; field-by-field migration from version 1 in which serif becomes page and every other stored choice is kept.",
+      "Direction as one independent reading aspect whose unchanged state leaves the page's own direction alone.",
+      "Reading appearance Paper and Night, chosen independently of the site's own theme and limited to the reading surface of responses; palette values fixed by a deterministic contrast calculation with primary reading text at 10:1 or better.",
+      "Readela Sans: the official unmodified Vazirmatn (Non-Latin, variable weight) bundled for Arabic-script text, with the SIL Open Font License 1.1 text and the upstream version, file and SHA-256 recorded; one web-accessible resource entry for that file, limited to the two supported hosts.",
+      "A reading mark per conversation: Mark here, Go to mark and Clear in the popup; stored locally as one-way fingerprints only; exact, approximate and not-found outcomes; no automatic scrolling.",
+      "Popup redesign with Readela as the heading, and the message exchange between the popup and the active tab that the reading mark needs, without a new permission.",
+      "Tests and documentation made necessary by the above; version 0.3.0; dated evidence under docs/evidence/.",
+      "A local unpacked Chrome build for owner visual review."
+    ],
+    "outOfScope": [
+      "Submission or publication to the Chrome Web Store, Firefox Add-ons, a GitHub Release or any other provider; a v0.3.0 tag.",
+      "Custom fonts, notes, durable highlighting, read aloud, focus mode, additional sites, Edge or Safari work.",
+      "A new permission, a broader match pattern, a backend, analytics, telemetry, remote code or any network request.",
+      "A general site recolouring engine, and any recolouring of site navigation, the composer or controls outside the reading surface.",
+      "Dependency changes, a new build system and unrelated refactors.",
+      "Changes to declared Capabilities or Exceptions, to the dev-standards pin and to the repository ruleset."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "assessment": "The extension remains a browser interface with no backend or operated service, no data analysis and no new platform. Bundling a font and storing a local reading mark add no Capability."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692",
+    "adoptedInTarget": true,
+    "verification": "node .governance/dev-standards/verify-dev-standards.mjs, locally and as the required verify check."
+  },
+  "externalCapabilities": {
+    "note": "Load-bearing behaviour of external platforms that this work depends on, and how each is established before the contract is frozen.",
+    "items": [
+      {
+        "capability": "A font file packaged in the extension can be used by the content stylesheet on the two supported hosts in Chrome and Firefox.",
+        "authority": "MDN web_accessible_resources (read 2026-10-10): web-accessible extension resources are not blocked by the page's CORS or CSP; Manifest V3 entries take resources and matches.",
+        "probe": "The end-to-end suite asserts in real Chrome and Firefox that Arabic-script text is rendered with the bundled face."
+      },
+      {
+        "capability": "An extension page can query the active tab and send a message to the content script in it without the tabs permission.",
+        "authority": "Chrome tabs API reference (read 2026-10-10): most features need no permission; only url, pendingUrl, title and favIconUrl are gated.",
+        "probe": "The end-to-end suite operates the reading mark from the installed popup in real Chrome and Firefox; the manifest test keeps permissions at [\"storage\"]."
+      },
+      {
+        "capability": "The page structure of the two supported sites that the reading surface and the reading mark rely on.",
+        "authority": "Read-only structural observation of signed-in conversation pages in the owner's browser on 2026-10-10 (element names, attribute names and computed colours only; no conversation text recorded).",
+        "probe": "Recorded in the dated evidence; the design fails safe to the site's own presentation where a structure is not recognised."
+      }
+    ]
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission, privacy or store-publication rule.",
+      "handling": "Unchanged. The project-local controls in docs/privacy-and-permissions.md apply and are updated in the same change, as its control 8 requires."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "Owner visual review of the local 0.3.0 build on real conversations.",
+      "reason": "Automated checks run on synthetic conversation pages; rendered judgement of Paper, Night and the reading mark on real pages is the owner's.",
+      "revisitTrigger": "The unpacked Chrome build is loaded."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "Release of 0.3.0.",
+      "reason": "Not authorized by this work. It needs its own Preflight path, artifact freeze and publication Gates.",
+      "revisitTrigger": "Owner acceptance of the visual review."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "Product rigor. Nothing is published by this work, so the published-artifact discipline of the release records does not apply yet; the trust-relevant changes still receive targeted checks.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "Manifest contract test for permissions, match patterns and the single web-accessible resource; end-to-end assertion that the extension makes no network request and stores only the preferences and reading-mark objects, the latter without readable text or addresses; byte-for-byte restoration of the page when Readela is turned off; deterministic contrast test of the palette; bundled font SHA-256 compared with the upstream release."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-10",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit, their push, and a pull request against main. It does not cover merging to main, tagging or any publication.",
+      "basis": [
+        "The owner instruction of 2026-10-10 recorded in ENT-240 covers the implementation scope.",
+        "Protocol, Project state, ENT-235, ENT-240, DEC-136, DEC-116, DEC-115 and DEC-103 were re-read on 2026-10-10 and are consistent with that instruction.",
+        "Repository, remote and ruleset match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the work."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before a merge to main, bound to the exact pull-request head, a green verify check and the owner's acceptance of the visual review. Recorded in dated evidence under docs/evidence/."
+    },
+    "publication": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; see openItems OPEN-2."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope, or the reading appearance cannot hold primary reading text at 10:1 without recolouring beyond the reading surface.",
+    "A permission, a broader match pattern or a network request becomes necessary.",
+    "Declared Capabilities or Exceptions change.",
+    "The applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before integration."
+  ]
+}
