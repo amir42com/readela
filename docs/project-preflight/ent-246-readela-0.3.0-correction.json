@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-correction.json",
+  "recordDate": "2026-10-10",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "relatedWorkUnits": ["ENT-240", "ENT-244", "ENT-243"],
+    "title": "Readela 0.3.0: correction of draft pull request 9 before a second owner review",
+    "authorizingDecisions": ["DEC-140", "DEC-136", "DEC-116"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-10 for ENT-246, under the accepted DEC-140. It authorizes the bounded correction described in scope.inScope on the existing branch feat/ent-240-readela-0.3.0, its verification, the documentation and evidence it makes necessary, commits and their push to that branch, an accurate description of draft pull request 9, and a fresh local unpacked Chrome build for owner review. It does not authorize merging pull request 9, marking it ready, a tag, a release, submission or publication to any store, a change to store images or store copy, or anything in scope.outOfScope.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": ["docs/project-preflight/ent-240-readela-0.3.0-reading-comfort.json"],
+    "status": "The ENT-240 record remains the record for the first 0.3.0 implementation and is not edited. It is not reused as a parent: its scope fixes the reading mark as text fingerprints with exact, approximate and not-found outcomes and no scrolling other than to a place found by fingerprint, and its authorization is bound to ENT-240. This work changes that contract, so it carries its own record."
+  },
+  "baseCommit": "d02bd299a7d6e52c4ee3688d4adcd10180a62d1c",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope lies outside the scope covered by the ENT-240 Preflight: the saved-place matching, recovery and storage contract is replaced",
+      "the work changes documented technical and trust invariants in docs/privacy-and-permissions.md: the fields of a stored saved place; when Readela may scroll the page (a bounded search of the conversation after the reader chooses Return); how the stored object is written; and a link to the publisher's address in the popup"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. The vendored dev-standards pin is v0.6.0 with the identities below; the verifier passed on baseCommit on 2026-10-10.",
+      "protocolChanged": "No. The revision is v1.23, the revision the ENT-240 record was assessed under."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-10",
+    "branch": "feat/ent-240-readela-0.3.0 at d02bd299a7d6e52c4ee3688d4adcd10180a62d1c locally and on the remote; clean worktree and index.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 locally and on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, head d02bd29, mergeable, check verify succeeded.",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree; npm test: 48 tests passed.",
+    "product": "package.json version 0.3.0; permissions [\"storage\"]; content-script matches exactly https://chatgpt.com/* and https://claude.ai/*; one web-accessible resource (the packaged font); no background script; stored objects readela.preferences (version 2) and readela.marks (version 1).",
+    "releases": "0.2.1 is the public version in both stores. Nothing from 0.3.0 is merged, tagged, submitted or published.",
+    "ownerReview": "The owner's first review of the local 0.3.0 build and an independent audit found head d02bd29 not ready to merge (recorded in ENT-244 and DEC-140).",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "Saved place: a canonical conversation identity taken from the conversation identifier in the address, so equivalent routes of one conversation agree; anchors scoped to one message through the site's own turn identifier where it is exposed, with the block's kind, fingerprint, position in the message and neighbouring fingerprints; strict handling of identical paragraphs; approximate matching only inside a message that is already identified, and only when unambiguous; a safe unresolved outcome otherwise; a failed lookup never deletes the saved place.",
+      "Saved place recovery: only after the reader chooses Return, a bounded search of the conversation's own scrolling region for a message that is not on the page, limited in steps and time, stopped by navigation, by turning Readela off and by the reader's own input, and reported as found only after the place has been revalidated and brought into view.",
+      "Saved place storage: the stored object readela.marks moves to version 2 with the fields above; each save and clear re-reads the stored object, changes one conversation's entry, writes and reads back before anything is shown or reported; no readable text, title, address or page snapshot is stored.",
+      "Saved place targeting and wording: the readable block that holds a visible selection, otherwise the first readable response paragraph at the unobscured top of the reading area; hidden and non-reading elements excluded; popup wording Saved place, Save place or Update place, Return and Clear, with truthful status messages.",
+      "Reading-surface ownership: site adapters name the conversation region, assistant prose roots, code capsules, the turn identifier and the conversation's scrolling region. Paper and Night colour recognised assistant prose roots only; the reader's own messages, the application shell and unrecognised structures keep the site's presentation.",
+      "Semantic composition: correct parsing of transparent and opaque colours; a complete code block or capsule kept as one site-owned surface without exposed wrapper corners; links, inline code, list markers, quotations, tables, highlighted text and mathematics kept distinct through a small set of theme tokens.",
+      "Popup: reading-first order, a selected state without an underline, focus visibly separate from selection, a readable off state, Reset as a quiet outlined button, and a footer reading By Amir42 with a link to https://amir42.com and the version; no new permission and no request when the popup opens.",
+      "Typography: a specimen comparison of the current stack with the smallest credible alternatives before any change to the packaged font; the two visible choices stay.",
+      "Tests, fixtures, documentation and dated evidence made necessary by the above; a local unpacked Chrome build for owner review; an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "Merging pull request 9, marking it ready for review, a v0.3.0 tag, a release, and submission or publication to the Chrome Web Store, Firefox Add-ons or any other provider.",
+      "Store images and store copy (ENT-243, paused).",
+      "Sidebar or history indicators for saved places; saved places in the reader's own messages.",
+      "Read aloud, translation, highlighting, focus modes, new sites, Edge, Safari, Android or other platforms.",
+      "A new permission, a broader match pattern, a background script, a backend, analytics, telemetry, account or sync infrastructure, remote code or any network request.",
+      "Dependency changes, a new build system and unrelated refactors.",
+      "Changes to declared Capabilities or Exceptions, to the dev-standards pin and to the repository ruleset."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "assessment": "The extension remains a browser interface with no backend or operated service. A different local matching record and a bounded scroll of the page on the reader's request add no Capability."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692",
+    "adoptedInTarget": true,
+    "verification": "node .governance/dev-standards/verify-dev-standards.mjs, locally and as the required verify check."
+  },
+  "externalCapabilities": {
+    "note": "Load-bearing behaviour of the two supported sites that the corrected contract depends on. Observed read-only in the owner's signed-in browser on 2026-10-10, before the contract was frozen: element names, attribute names, computed colours and counts only; no conversation text, title or address was recorded.",
+    "items": [
+      {
+        "capability": "ChatGPT: the conversation identifier is the path segment after /c/, also under a project prefix (/g/<project>/c/<id>), and equals the conversation identifier the page writes on its own message elements.",
+        "authority": "Observed on a project conversation page.",
+        "probe": "Unit tests of the conversation identity; the end-to-end suite saves under one route form and returns under the other."
+      },
+      {
+        "capability": "ChatGPT: conversations opened earlier stay in the document inside hidden containers, each with its own main element; the conversation shown is the one that is rendered.",
+        "authority": "Observed: five main elements after opening five conversations, four inside a container with display none.",
+        "probe": "The end-to-end fixture carries a hidden earlier conversation with identical text; nothing in it is read, coloured or returned to."
+      },
+      {
+        "capability": "ChatGPT and Claude: each turn or message element carries data-turn-key, and its value is the same after a reload.",
+        "authority": "Observed by comparing digests of the values before and after a reload on one conversation of each site.",
+        "probe": "Where the attribute is absent the anchor falls back to a stricter text-only rule; the unit tests cover both."
+      },
+      {
+        "capability": "ChatGPT: reply text sits in an element marked data-markdown-text-style=\"assistant-message\"; the reader's own message is a bubble marked data-user-message-bubble with one text container and no paragraphs; a code block is an element marked data-markdown-copy=\"code-block\" with its own opaque background, rounded corners and no pre element, inside a plain wrapper; the conversation scrolls in an element marked data-app-action-timeline-scroll, not in the document; the page background in the dark theme is opaque black.",
+        "authority": "Observed.",
+        "probe": "The ChatGPT fixture reproduces these structures; the adapter contract test names them."
+      },
+      {
+        "capability": "Claude: messages carry data-testid assistant-message or user-message; reply text sits in .standard-markdown; a code block is a rounded group with a translucent background inside a wrapper marked data-not-prose, with a pre element inside; the transcript is a virtual list in which only rows near the viewport are in the document (three of eighteen on the page observed), each row carrying its index; the conversation scrolls in an element marked data-autoscroll-container; colours are reported in forms with a slash alpha.",
+        "authority": "Observed.",
+        "probe": "The Claude fixture reproduces these structures, including a transcript that puts rows into the document only near the viewport."
+      },
+      {
+        "capability": "A link with target _blank in an extension popup opens a new tab without any permission, and nothing is requested until it is activated.",
+        "authority": "Chrome and Firefox extension documentation for action popups; ordinary anchor behaviour.",
+        "probe": "The manifest test keeps permissions at [\"storage\"]; the end-to-end suite asserts the popup makes no request when it opens."
+      }
+    ],
+    "notObserved": [
+      "ChatGPT with a conversation long enough to show whether turns far from the viewport leave the document. The page reserves a height per turn, which is consistent with that; recovery therefore makes no assumption beyond a scrolling region.",
+      "A table and a formula on the real Claude page, and a list containing a code block on either site."
+    ]
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission, privacy or store-publication rule.",
+      "handling": "Unchanged. The project-local controls in docs/privacy-and-permissions.md apply and are updated in the same change, as its control 8 requires."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "One consolidated owner review of the corrected local build on real ChatGPT and Claude conversations.",
+      "reason": "Automated checks run on synthetic pages; rendered judgement on real pages, and the integration decision, are the owner's.",
+      "revisitTrigger": "The fresh unpacked Chrome build is loaded."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "Release of 0.3.0 and the refresh of store images and copy (ENT-243).",
+      "reason": "Not authorized by this work.",
+      "revisitTrigger": "Owner acceptance of the corrected build."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "Product rigor. Nothing is published by this work. The stored object readela.marks has never shipped: version 1 exists only in the owner's local review build, so replacing its format loses no public data.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "Unit tests of conversation identity, anchor matching (identical paragraphs, identified message, approximate, unresolved) and of the stored-object writer (failed write, two tabs); manifest contract test for permissions, match patterns and the single web-accessible resource; end-to-end checks that the extension makes no network request, stores only the two objects without readable text or addresses, restores the page exactly when turned off, never reports a return that did not arrive, and stops a search on the reader's input and at its limits."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-10",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit, their push, and an update of the description of draft pull request 9. It does not cover merging to main, marking the pull request ready, tagging or any publication.",
+      "basis": [
+        "The owner instruction of 2026-10-10 for ENT-246 covers the correction scope and the push to the existing pull-request branch.",
+        "Protocol v1.23, the Project state, ENT-246 (Active, the Project's Next item), ENT-244 (Done), ENT-243 (Paused), DEC-140, DEC-136 and DEC-116 (Accepted) were re-read on 2026-10-10 and are consistent with that instruction.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the work."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before a merge to main, bound to the exact pull-request head, a green verify check and the owner's acceptance of the consolidated review. Recorded in dated evidence under docs/evidence/."
+    },
+    "publication": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; see openItems OPEN-2."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope.",
+    "A permission, a broader match pattern, a background script or a network request becomes necessary.",
+    "Readable conversation text, a title, an address or a page snapshot would have to be stored.",
+    "Declared Capabilities or Exceptions change.",
+    "The applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before integration."
+  ]
+}
