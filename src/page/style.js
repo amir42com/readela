@@ -22,6 +22,7 @@ export const MARK = Object.freeze({
   align: "data-readela-align",
   mirror: "data-readela-mirror",
   sheet: "data-readela-sheet",
+  island: "data-readela-island",
   place: "data-readela-mark",
   flash: "data-readela-flash",
   font: "data-readela-font",
@@ -37,6 +38,7 @@ export const ELEMENT_MARKS = Object.freeze([
   MARK.align,
   MARK.mirror,
   MARK.sheet,
+  MARK.island,
   MARK.place,
   MARK.flash,
 ]);
@@ -65,7 +67,14 @@ export const MIRROR_PROPERTIES = Object.freeze([
  */
 export const SITE_PROPERTIES = Object.freeze({ surface: "--readela-site-surface", text: "--readela-site-text" });
 
-/** Paragraph-like elements: the blocks a reader reads and can mark. */
+/**
+ * Custom property set on a part of a response that keeps the site's
+ * presentation and whose own shape is rounded: the corner radii of the unit
+ * inside it, so the site's background behind the unit has the unit's shape.
+ */
+export const ISLAND_RADIUS = "--readela-island-radius";
+
+/** Paragraph-like elements: the blocks a reader reads and can save a place at. */
 export const TEXT_BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, dt, dd, th, td, caption, summary, figcaption";
 
 /** Code, keyboard input and mathematics keep their own order, font and direction. */
@@ -73,19 +82,21 @@ export const PROTECTED = "pre, code, kbd, samp, var, math, .katex, mjx-container
 
 const CONTAINERS = "ul, ol, table, blockquote";
 
-// Inside a themed response these keep the site's own colours: a code block is
-// a unit with its own background and syntax colours, and a drawing has its
-// own fills.
-const KEPT = "pre, pre *, svg *";
-
 // Direct children of a reading surface that are part of the text flow without
 // being reading blocks; they follow the surface instead of becoming islands.
-const FLOWING = "hr, br, math, .katex, .katex-display, mjx-container";
+export const FLOWING = "hr, br, math, .katex, .katex-display, mjx-container";
 
 function themeRules() {
   const themed = `html[${MARK.theme}]`;
   const sheet = `${themed} [${MARK.sheet}]`;
-  const prose = `${sheet} > [${MARK.top}]:not(pre)`;
+  const island = `[${MARK.island}]`;
+  // Reading text: the reading blocks that sit directly on a surface.
+  const prose = `${sheet} > [${MARK.top}]:not(pre, ${island})`;
+  const within = `:is(${prose}, ${prose} *)`;
+  // Inside reading text these keep the site's own colours: a code block is a
+  // unit with its own background and syntax colours, and a drawing has its
+  // own fills.
+  const kept = `${island}, ${island} *, pre, pre *, svg *`;
   const unmarked = `:not([${MARK.place}])`;
   const rules = [];
 
@@ -94,42 +105,53 @@ function themeRules() {
       `html[${MARK.theme}="${name}"] {`,
       `  --readela-surface: ${theme.surface};`,
       `  --readela-text: ${theme.text};`,
+      `  --readela-muted: ${theme.muted};`,
       `  --readela-link: ${theme.link};`,
       `  --readela-rule: ${theme.rule};`,
+      `  --readela-quote: ${theme.quote};`,
       `  --readela-code: ${theme.code};`,
       `  --readela-head: ${theme.head};`,
       `  --readela-selection: ${theme.selection};`,
       `  --readela-selection-text: ${theme.selectionText};`,
       `}`,
-      // The reading mark takes the theme's colours only on a themed surface.
+      // The saved place takes the theme's colours only on a themed surface.
       `html[${MARK.theme}="${name}"] [${MARK.sheet}] { --readela-mark: ${theme.mark}; --readela-mark-tint: ${theme.markTint}; }`,
     );
   }
 
   rules.push(
-    // The reading surface: the container of a response's text. The spread
-    // shadow gives it a margin of its own colour without moving anything.
+    // The reading surface: the root of a response's text. The spread shadow
+    // gives it a margin of its own colour without moving anything.
     `${sheet} { background-color: var(--readela-surface) !important; color: var(--readela-text) !important; }`,
     `${sheet}:not([${MARK.sheet}="inner"]) { box-shadow: 0 0 0 0.625rem var(--readela-surface) !important; border-radius: 0.25rem !important; }`,
 
     // Reading text takes the theme's colours whatever the site gave it, and
-    // gives up backgrounds made for the site's own theme.
-    `:is(${prose}, ${prose} :not(${KEPT}, a, a *)) { color: var(--readela-text) !important; border-color: var(--readela-rule) !important; }`,
-    `:is(${prose}, ${prose} :not(${KEPT}, code, kbd, samp, th))${unmarked} { background-color: transparent !important; }`,
-    `${prose} :is(a, a *):not(${KEPT}) { color: var(--readela-link) !important; }`,
-    `${prose} a { text-decoration-line: underline !important; }`,
-    `${prose} :is(code, kbd, samp):not(${KEPT})${unmarked} { background-color: var(--readela-code) !important; }`,
-    `${prose} th${unmarked} { background-color: var(--readela-head) !important; }`,
+    // gives up backgrounds made for the site's own theme. What a part of the
+    // text means stays visible: each kind has a token of its own.
+    `:is(${prose}, ${prose} :not(${kept}, a, a *)) { color: var(--readela-text) !important; }`,
+    `:is(${prose}, ${prose} :not(${kept}, code, kbd, samp, th, mark))${unmarked} { background-color: transparent !important; }`,
+    `${prose} :is(a, a *):not(${kept}) { color: var(--readela-link) !important; }`,
+    `${prose} a:not(${kept}) { text-decoration-line: underline !important; }`,
+    `${prose} :is(code, kbd, samp):not(${kept})${unmarked} { background-color: var(--readela-code) !important; }`,
+    `${within}:is(table, thead, tbody, tfoot, tr, th, td):not(${kept}) { border-color: var(--readela-rule) !important; }`,
+    `${within}:is(th):not(${kept})${unmarked} { background-color: var(--readela-head) !important; }`,
+    `${within}:is(blockquote):not(${kept}) { border-color: var(--readela-quote) !important; }`,
+    `${within}:is(small, del, s, caption, figcaption):not(${kept}) { color: var(--readela-muted) !important; }`,
+    `${within}:is(li):not(${kept})::marker { color: var(--readela-muted) !important; }`,
+    `${prose} mark:not(${kept}) { background-color: var(--readela-selection) !important; color: var(--readela-selection-text) !important; }`,
     `${sheet} > hr { color: var(--readela-rule) !important; border-color: var(--readela-rule) !important; background-color: var(--readela-rule) !important; }`,
     `${sheet} ::selection { background-color: var(--readela-selection) !important; color: var(--readela-selection-text) !important; }`,
 
-    // Everything else in a response (a code block, a widget, an image) stays
-    // as the site made it, on the site's own background, so it remains
-    // readable whichever theme the site itself is in.
-    `${sheet} > :not([${MARK.top}], [${MARK.sheet}], ${FLOWING}), ${sheet} pre {`,
-    `  background-color: var(${SITE_PROPERTIES.surface}) !important;`,
-    `  color: var(${SITE_PROPERTIES.text}) !important;`,
-    `}`,
+    // Everything else in a response (a code block, a widget, an image) is a
+    // unit that stays as the site made it. The reader notes on the unit what
+    // it needs for that. Where its text takes its colour from around it, it
+    // keeps the site's text colour. Unless it brings an opaque background of
+    // its own, it sits on the site's own background, in the unit's own shape
+    // where that is rounded, so it stays readable whichever theme the site
+    // itself is in and no corner of another colour shows around it.
+    `${sheet} [${MARK.island}~="text"] { color: var(${SITE_PROPERTIES.text}) !important; }`,
+    `${sheet} [${MARK.island}~="surface"] { background-color: var(${SITE_PROPERTIES.surface}) !important; }`,
+    `${sheet} [${MARK.island}~="round"] { border-radius: var(${ISLAND_RADIUS}) !important; }`,
   );
   return rules;
 }
@@ -139,7 +161,7 @@ function markRules() {
   const bar = `var(--readela-mark, ${PAGE_MARK.mark})`;
   const tint = `var(--readela-mark-tint, ${PAGE_MARK.markTint})`;
   return [
-    // The reading mark: a tinted block with a bar on its leading edge. Both
+    // The saved place: a tinted block with a bar on its leading edge. Both
     // are drawn outside the text box, so nothing moves.
     `${place} { position: relative !important; background-color: ${tint} !important; box-shadow: 0 0 0 0.375rem ${tint} !important; border-radius: 0.125rem !important; }`,
     `${place}::before {`,
@@ -152,7 +174,7 @@ function markRules() {
     // An approximate place has a broken bar.
     `[${MARK.place}="approximate"]::before { background: repeating-linear-gradient(to bottom, ${bar} 0 0.5rem, transparent 0.5rem 0.8125rem) !important; }`,
 
-    // Shown briefly after "Go to mark" so the eye finds the place.
+    // Shown briefly after Return so the eye finds the place.
     `[${MARK.flash}] { outline: 0.1875rem solid ${bar} !important; outline-offset: 0.5rem !important; animation: readela-flash 1.4s ease-out 1 !important; }`,
     `@keyframes readela-flash { from { outline-offset: 1.5rem; outline-color: transparent; } 35% { outline-color: ${bar}; } to { outline-offset: 0.5rem; } }`,
     `@media (prefers-reduced-motion: reduce) { [${MARK.flash}] { animation: none !important; } }`,

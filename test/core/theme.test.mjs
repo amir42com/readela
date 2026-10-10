@@ -1,12 +1,63 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { PAGE_MARK, THEMES, THEME_CHOICES, contrastRatio } from "../../src/core/index.js";
+import { PAGE_MARK, THEMES, THEME_CHOICES, colourAlpha, contrastRatio } from "../../src/core/index.js";
 
 test("the contrast calculation matches the WCAG reference values", () => {
   assert.equal(contrastRatio("#000000", "#FFFFFF"), 21);
   assert.equal(contrastRatio("#FFFFFF", "#FFFFFF"), 1);
   assert.equal(Math.round(contrastRatio("#767676", "#FFFFFF") * 100) / 100, 4.54);
+});
+
+// Each colour is written out as a browser reports it, with the opacity a
+// person reads from it. Nothing here is computed the way the code computes it.
+test("a colour is clear only when its alpha says so: opaque black is opaque", () => {
+  const opaque = [
+    "rgb(0, 0, 0)",
+    "rgb(255, 255, 0)",
+    "rgb(10, 20, 0)",
+    "rgb(0 0 0)",
+    "rgb(33, 33, 33)",
+    "rgba(0, 0, 0, 1)",
+    "rgb(0 0 0 / 1)",
+    "rgb(0 0 0 / 100%)",
+    "hsl(0, 0%, 0%)",
+    "color(srgb 0 0 0)",
+    "oklab(0 0 0)",
+    "oklch(0.2 0 0)",
+    "black",
+    "#000000",
+    "Canvas",
+  ];
+  for (const colour of opaque) assert.equal(colourAlpha(colour), 1, colour);
+
+  const clear = [
+    "transparent",
+    "rgba(0, 0, 0, 0)",
+    "rgba(255, 255, 255, 0)",
+    "rgba(0, 0, 0, 0.0)",
+    "rgb(0 0 0 / 0)",
+    "rgb(255 255 255 / 0%)",
+    "color(srgb 1 1 1 / 0)",
+    "oklab(0.5 0.1 0.1 / 0)",
+    "hsla(120, 50%, 50%, 0)",
+    "  RGBA(0, 0, 0, 0)  ",
+  ];
+  for (const colour of clear) assert.equal(colourAlpha(colour), 0, colour);
+
+  const partial = [
+    ["rgba(0, 0, 0, 0.5)", 0.5],
+    ["rgba(136, 136, 136, 0.133)", 0.133],
+    ["rgb(0 0 0 / 0.25)", 0.25],
+    ["rgb(0 0 0 / 50%)", 0.5],
+    ["color(srgb 1 1 1 / 0.05)", 0.05],
+    ["oklab(0.243143 -0.000520527 0.00179528 / 0.5)", 0.5],
+    ["oklab(0.811751 -0.00325388 0.0148452 / 0.05)", 0.05],
+    // A zero just before the alpha, and an alpha that ends in zero.
+    ["rgba(10, 20, 0, 0.3)", 0.3],
+    ["rgba(10, 20, 30, 0.10)", 0.1],
+  ];
+  for (const [colour, alpha] of partial) assert.equal(colourAlpha(colour), alpha, colour);
 });
 
 test("there is a palette for every theme that changes the page", () => {
@@ -21,13 +72,21 @@ for (const [name, theme] of Object.entries(THEMES)) {
     }
   });
 
-  test(`${name}: links, selected text and the reading mark stay clearly perceivable`, () => {
+  test(`${name}: secondary text, links, quotation bars, selected text and the saved place stay clearly perceivable`, () => {
     const pairs = [
+      // Secondary reading text: list markers, captions, small and struck text.
+      ["muted", "surface", 7],
+      ["muted", "code", 7],
+      ["muted", "head", 7],
+      ["muted", "markTint", 7],
+      // A quotation's bar is how a quotation is recognised.
+      ["quote", "surface", 3],
+      ["quote", "markTint", 3],
       ["link", "surface", 7],
       ["link", "markTint", 4.5],
       ["link", "head", 7],
       ["selectionText", "selection", 7],
-      // Non-text parts: the bar of the reading mark against what it sits beside.
+      // Non-text parts: the bar of the saved place against what it sits beside.
       ["mark", "surface", 3],
       ["mark", "markTint", 3],
     ];
@@ -43,7 +102,7 @@ for (const [name, theme] of Object.entries(THEMES)) {
   });
 }
 
-test("the reading mark's bar is at least 3:1 on light and dark pages that Readela does not colour", () => {
+test("the saved place's bar is at least 3:1 on light and dark pages that Readela does not colour", () => {
   for (const page of ["#FFFFFF", "#FAF9F5", "#000000", "#151515", "#212121", "#262624"]) {
     const ratio = contrastRatio(PAGE_MARK.mark, page);
     assert.ok(ratio >= 3, `${page}: ${ratio.toFixed(2)}`);

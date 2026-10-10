@@ -1,5 +1,5 @@
 // Persistence. Two objects are ever stored, both in the browser's local
-// extension storage: the preferences and the reading marks. Nothing leaves the
+// extension storage: the preferences and the saved places. Nothing leaves the
 // device.
 
 import { MARKS_KEY, PREFERENCES_KEY, normalizeMarks, normalizePreferences } from "../core/index.js";
@@ -14,8 +14,27 @@ export async function savePreferences(preferences) {
   await api.storage.local.set({ [PREFERENCES_KEY]: normalizePreferences(preferences) });
 }
 
-export async function saveMarks(marks) {
-  await api.storage.local.set({ [MARKS_KEY]: normalizeMarks(marks) });
+/**
+ * Change the stored places and return what is stored afterwards.
+ *
+ * The stored object is read immediately before it is written, so a tab never
+ * writes back a copy it took earlier: a place saved in another tab since then
+ * is carried along, not overwritten. It is read once more after the write,
+ * and that reading is the answer, so a caller reports only what is really
+ * stored. A failed read or write rejects and changes nothing here.
+ *
+ * Two tabs that both write within the same few milliseconds can still
+ * interleave; the browser offers no transaction for this storage.
+ *
+ * @param {(marks: ReturnType<typeof normalizeMarks>) => unknown} change
+ * @param {{ get: Function, set: Function }} [area] the storage area
+ * @returns {Promise<ReturnType<typeof normalizeMarks>>}
+ */
+export async function changeMarks(change, area = api.storage.local) {
+  const read = async () => normalizeMarks((await area.get(MARKS_KEY))[MARKS_KEY]);
+  const next = normalizeMarks(change(await read()));
+  await area.set({ [MARKS_KEY]: next });
+  return read();
 }
 
 // Call `listener` with the stored value of `key` now and after every change.
@@ -42,7 +61,7 @@ export function watchPreferences(listener) {
 }
 
 /**
- * Call `listener` with the stored reading marks now and after every change.
+ * Call `listener` with the stored places now and after every change.
  *
  * @param {(marks: ReturnType<typeof normalizeMarks>) => void} listener
  * @returns {() => void} stops watching

@@ -1,20 +1,21 @@
-// The one exchange between the popup and a page: the reading mark.
+// The one exchange between the popup and a page: the saved place.
 //
 // Settings never travel this way; the page reacts to stored preferences. A
-// reading mark belongs to the conversation in one tab, so the popup asks that
+// saved place belongs to the conversation in one tab, so the popup asks that
 // tab's content script directly. Sending a message to a tab that runs this
 // extension's content script needs no permission.
 
 import { api } from "./api.js";
 
+/** Report whether a place is saved, save one, return to it, clear it. */
 export const MARK_REQUESTS = Object.freeze(["status", "set", "go", "clear"]);
 
 const isRequest = (message) =>
   message !== null && typeof message === "object" && MARK_REQUESTS.includes(message.readelaMark);
 
 /**
- * Answer reading-mark requests in a content script. The answer may be a
- * promise, so that "saved" is said only once it is true.
+ * Answer saved-place requests in a content script. The answer may be a
+ * promise, so that "saved" and "returned" are said only once they are true.
  *
  * @param {(request: "status" | "set" | "go" | "clear") => object | Promise<object>} answer
  */
@@ -38,7 +39,7 @@ async function targetTab() {
 }
 
 /**
- * Ask the page in the target tab about its reading mark.
+ * Ask the page in the target tab about its saved place.
  *
  * @param {"status" | "set" | "go" | "clear"} request
  * @returns {Promise<{ status: string }>} `unavailable` when the tab is not a

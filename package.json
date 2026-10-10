@@ -16,7 +16,7 @@
     "source-package": "node scripts/source-package.mjs",
     "store-images": "node scripts/store-images.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "test": "node --test \"test/core/*.test.mjs\" \"test/page/*.test.mjs\"",
+    "test": "node --test \"test/core/*.test.mjs\" \"test/page/*.test.mjs\" \"test/browser/*.test.mjs\"",
     "test:e2e": "node test/e2e/run.mjs",
     "test:e2e:chrome": "node test/e2e/run.mjs --browser chrome",
     "test:e2e:firefox": "node test/e2e/run.mjs --browser firefox",

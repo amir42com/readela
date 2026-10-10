@@ -14,9 +14,11 @@
 // check, not a substitute for the fixture checks.
 
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { inflateSync } from "node:zlib";
 
 import { getInstalledBrowsers } from "@puppeteer/browsers";
 import puppeteer from "puppeteer-core";
@@ -27,9 +29,18 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
 const results = path.join(root, "test-results");
 const fixtureSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "conversation.html"), "utf8");
 const claudeSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "claude-conversation.html"), "utf8");
+const longSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "claude-long-conversation.html"), "utf8");
 const FIXTURE_URL = "https://chatgpt.com/c/readela-fixture";
 const CLAUDE_FIXTURE_URL = "https://claude.ai/chat/readela-fixture";
-const FIXTURES = { [FIXTURE_URL]: fixtureSource, [CLAUDE_FIXTURE_URL]: claudeSource };
+const LONG_FIXTURE_URL = "https://claude.ai/chat/readela-long-fixture";
+// The single-page sites change the address without loading a document; a
+// reload at such an address is answered with the conversation it belongs to.
+const FIXTURES = {
+  [FIXTURE_URL]: fixtureSource,
+  "https://chatgpt.com/g/g-p-0123456789abcdef-fixture-project/c/readela-fixture": fixtureSource,
+  [CLAUDE_FIXTURE_URL]: claudeSource,
+  [LONG_FIXTURE_URL]: longSource,
+};
 
 // A file inside the installed extension: never a network request.
 const EXTENSION_FILE = /^(?:chrome|moz)-extension:\/\//;
@@ -70,7 +81,7 @@ async function firefoxExecutable() {
 
 // Firefox has no runtime colour-scheme emulation through this protocol; the
 // scheme is fixed for a launch by preference (0 dark, 1 light).
-async function start(name, firefoxScheme = "light") {
+async function start(name, firefoxScheme = "light", userDataDir = undefined) {
   const extensionPath = path.join(root, "dist", name);
   if (!existsSync(path.join(extensionPath, "manifest.json"))) {
     throw new Error(`dist/${name} is missing; run "npm run build" first`);
@@ -79,7 +90,7 @@ async function start(name, firefoxScheme = "light") {
   if (name === "chrome") {
     const executablePath = chromeExecutable();
     if (!executablePath) return { unavailable: "no Chrome or Chromium executable found (set READELA_CHROME)" };
-    const browser = await puppeteer.launch({ browser: "chrome", executablePath, headless, pipe: true, enableExtensions: true });
+    const browser = await puppeteer.launch({ browser: "chrome", executablePath, headless, pipe: true, enableExtensions: true, userDataDir });
     const id = await browser.installExtension(extensionPath);
     return { browser, popupUrl: `chrome-extension://${id}/popup/popup.html`, input: true };
   }
@@ -90,6 +101,7 @@ async function start(name, firefoxScheme = "light") {
     browser: "firefox",
     executablePath,
     headless,
+    userDataDir,
     // Lets the automation protocol open the extension's own popup page.
     args: ["--remote-allow-system-access"],
     extraPrefsFirefox: {
@@ -263,42 +275,93 @@ const hexRgb = (hex) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, off
 const isColour = (computed, hex) => rgb(computed).join() === hexRgb(hex).join();
 
 // Colours of elements as rendered: the text colour, the element's own
-// background and the first opaque background behind it.
+// background and the first background behind it that covers what is under it
+// (a faint see-through tint is not what text is read against), with its
+// shape. How opaque a colour is, is asked of the browser itself, by painting it.
 const colours = (page, selectors) =>
   page.evaluate((list) => {
-    const clear = (colour) => colour === "transparent" || /(?:,\s*0|\/\s*0)\)$/.test(colour);
+    const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    const painted = (colour) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = "#000";
+      context.fillStyle = colour;
+      context.fillRect(0, 0, 1, 1);
+      return context.getImageData(0, 0, 1, 1).data[3];
+    };
     const facts = {};
     for (const selector of list) {
       const element = document.querySelector(selector);
       const style = getComputedStyle(element);
       let background = style.backgroundColor;
-      for (let node = element.parentElement; node && clear(background); node = node.parentElement) {
+      for (let node = element.parentElement; node && painted(background) < 200; node = node.parentElement) {
         background = getComputedStyle(node).backgroundColor;
       }
+      const box = element.getBoundingClientRect();
       facts[selector] = {
         color: style.color,
         own: style.backgroundColor,
-        background: clear(background) ? "rgb(255, 255, 255)" : background,
+        opacity: painted(style.backgroundColor),
+        background: painted(background) < 200 ? "rgb(255, 255, 255)" : background,
         sheet: element.getAttribute("data-readela-sheet"),
+        island: element.getAttribute("data-readela-island"),
         underline: style.textDecorationLine,
+        radius: style.borderTopLeftRadius,
+        overflow: `${style.overflowX} ${style.overflowY}`,
+        edges: [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor].join(" | "),
+        box: [box.left, box.top, box.right, box.bottom].map(Math.round).join(" "),
       };
     }
     return facts;
   }, selectors);
 
-// Paper and Night on one synthetic conversation: the reading surface and its
-// text take the theme's colours at 10:1 or better, a code block keeps the
-// site's own colours on the site's own background, and nothing outside the
-// response changes. Run with the page in a light and in a dark colour scheme,
-// so each theme is checked both with and against the site's own.
+// The first pixel of a PNG image. In the first row every PNG filter leaves
+// the first pixel as it is.
+function firstPixel(png) {
+  const chunks = [];
+  let depth = 0;
+  let colourType = 0;
+  for (let offset = 8; offset < png.length; ) {
+    const length = png.readUInt32BE(offset);
+    const type = png.toString("latin1", offset + 4, offset + 8);
+    const body = png.subarray(offset + 8, offset + 8 + length);
+    if (type === "IHDR") [depth, colourType] = [body[8], body[9]];
+    if (type === "IDAT") chunks.push(body);
+    offset += 12 + length;
+  }
+  assert.ok(depth === 8 && (colourType === 2 || colourType === 6), `PNG format ${depth}/${colourType}`);
+  const raw = inflateSync(Buffer.concat(chunks));
+  return [raw[1], raw[2], raw[3]];
+}
+
+// One pixel of the page as the browser painted it.
+const pixelAt = async (page, x, y) =>
+  firstPixel(Buffer.from(await page.screenshot({ clip: { x: Math.floor(x), y: Math.floor(y), width: 1, height: 1 } })));
+const near = (pixel, expected, tolerance = 4) => pixel.every((value, index) => Math.abs(value - expected[index]) <= tolerance);
+
+// Paper and Night on one synthetic conversation. Readela owns the text of a
+// response and nothing else: the reading surface and its text take the
+// theme's colours at 10:1 or better; a code block stays the site's as a whole,
+// with nothing of another colour showing around its corners; the reader's own
+// messages, the application shell, a layout that is not recognised and a
+// conversation the site keeps hidden do not change at all. Run with the page
+// in a light and in a dark colour scheme, so each theme is checked both with
+// and against the site's own.
 async function checkReadingThemes({ name, page, choose, scheme, parts, report }) {
+  const units = parts.units ?? [];
+  const semantic = parts.semantic ? Object.values(parts.semantic) : [];
   const all = [
     ...new Set([
-      ...parts.text, parts.link, parts.inlineCode, parts.pre, parts.header, parts.sheet, ...parts.outside, ...(parts.island ?? []),
+      ...parts.text, parts.link, parts.inlineCode, parts.header, parts.sheet, parts.site, ...parts.outside, ...semantic,
+      ...units.flatMap((unit) => [unit.frame, unit.unit, ...unit.inside]),
+      ...(parts.pre ? [parts.pre] : []),
     ]),
   ];
-  const original = await colours(page, [...all, "body"]);
-  const site = { surface: original.body.own, text: original.body.color };
+  const original = await colours(page, all);
+  // The site's own colours: the background painted behind the conversation
+  // and the text colour there.
+  const site = { surface: original[parts.site].own, text: original[parts.site].color };
+  assert.equal(original[parts.site].opacity, 255, `the ${scheme} page has a painted background: ${site.surface}`);
+  const kept = parts.kept ? await page.$eval(parts.kept, (element) => element.outerHTML) : null;
 
   for (const [theme, palette] of Object.entries(THEMES)) {
     await choose("theme", theme);
@@ -311,9 +374,9 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
       theme,
     );
     const facts = await colours(page, all);
-    const label = `${theme} on a ${scheme} page`;
+    const label = `${theme} on a ${scheme} ${parts.name} page`;
 
-    assert.equal(facts[parts.sheet].sheet, "", `${label}: the response is the reading surface`);
+    assert.equal(facts[parts.sheet].sheet, "", `${label}: the response text is the reading surface`);
     assert.ok(isColour(facts[parts.sheet].own, palette.surface), `${label}: surface ${facts[parts.sheet].own}`);
     const ratios = {};
     for (const selector of parts.text) {
@@ -328,26 +391,117 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
     assert.ok(isColour(facts[parts.inlineCode].own, palette.code), `${label}: inline code background`);
     assert.ok(isColour(facts[parts.header].own, palette.head), `${label}: table header background`);
 
-    // The code block is the site's own, on the site's own background.
-    assert.equal(facts[parts.pre].own, site.surface, `${label}: code block background`);
-    assert.equal(facts[parts.pre].color, site.text, `${label}: code block text`);
-    // So is a part of the response that is no reading block at all: it sits
-    // on the site's background, and what is inside it is as the site made it.
-    for (const selector of parts.island ?? []) {
-      assert.equal(facts[selector].background, original[selector].background, `${label}: ${selector} background`);
-      assert.equal(facts[selector].color, original[selector].color, `${label}: ${selector} text`);
-      assert.ok(
-        contrast(rgb(facts[selector].color), rgb(facts[selector].background)) >= 4.5,
-        `${label}: ${selector} stays readable`,
+    if (parts.pre) {
+      // A plain pre block with a see-through background: on the site's own
+      // background, with the site's own text colour.
+      assert.equal(facts[parts.pre].own, site.surface, `${label}: code block background`);
+      assert.equal(facts[parts.pre].color, site.text, `${label}: code block text`);
+      assert.equal(facts[parts.pre].island, "surface text", `${label}: code block is a unit of the site's`);
+    }
+
+    // A code block with a header and controls is one unit of the site's:
+    // every colour in it, its own background, its shape and its clipping are
+    // as the site made them.
+    for (const unit of units) {
+      for (const selector of [unit.unit, ...unit.inside]) {
+        assert.deepEqual(
+          { color: facts[selector].color, own: facts[selector].own, radius: facts[selector].radius, overflow: facts[selector].overflow, edges: facts[selector].edges },
+          { color: original[selector].color, own: original[selector].own, radius: original[selector].radius, overflow: original[selector].overflow, edges: original[selector].edges },
+          `${label}: ${selector} is as the site made it`,
+        );
+      }
+      assert.equal(facts[unit.frame].box, facts[unit.unit].box, `${label}: ${unit.frame} is exactly as large as the unit in it`);
+      assert.equal(facts[unit.frame].overflow, original[unit.frame].overflow, `${label}: ${unit.frame} clips nothing it did not clip`);
+      if (original[unit.unit].opacity === 255) {
+        // The unit brings an opaque background: nothing is painted behind it.
+        assert.ok(!facts[unit.frame].island.includes("surface"), `${label}: ${unit.frame} needs no background (${facts[unit.frame].island})`);
+        if (unit.frame !== unit.unit) assert.equal(facts[unit.frame].opacity, 0, `${label}: nothing is painted behind ${unit.unit}`);
+      } else {
+        // The unit is see-through: the site's own background is behind it, in
+        // the unit's own rounded shape.
+        assert.ok(facts[unit.frame].island.includes("surface round"), `${label}: ${unit.frame} (${facts[unit.frame].island})`);
+        assert.equal(facts[unit.frame].own, site.surface, `${label}: the site's background behind ${unit.unit}`);
+        assert.equal(facts[unit.frame].radius, original[unit.unit].radius, `${label}: in the unit's own shape`);
+        assert.notEqual(parseFloat(facts[unit.frame].radius), 0, `${label}: the unit is rounded`);
+      }
+      // What the browser painted just inside the corner of the unit's box,
+      // outside its rounded shape: the reading surface, not a white or black
+      // corner of a wrapper.
+      const corner = await page.evaluate((selector) => {
+        const element = document.querySelector(selector);
+        element.scrollIntoView({ block: "center" });
+        const box = element.getBoundingClientRect();
+        return { x: box.left + 2, y: box.top + 2, inside: [box.left + box.width / 2, box.top + 4] };
+      }, unit.frame);
+      const painted = await pixelAt(page, corner.x, corner.y);
+      assert.ok(near(painted, hexRgb(palette.surface)), `${label}: corner of ${unit.frame} is painted ${painted}, the surface is ${hexRgb(palette.surface)}`);
+      assert.ok(contrast(rgb(facts[unit.inside[0]].color), rgb(facts[unit.inside[0]].background)) >= 4.5, `${label}: ${unit.inside[0]} stays readable`);
+    }
+
+    if (parts.semantic) {
+      const names = parts.semantic;
+      const extra = await page.evaluate((selectors) => {
+        const style = (selector, pseudo) => getComputedStyle(document.querySelector(selector), pseudo);
+        const quote = style(selectors.quote);
+        const sides = ["Left", "Right"].filter((side) => parseFloat(quote[`border${side}Width`]) > 0);
+        const table = document.querySelector(selectors.tableScroll);
+        return {
+          marker: style(selectors.item, "::marker").color,
+          quoteSides: sides.length,
+          quoteBar: quote[`border${sides[0]}Color`],
+          quoteWidth: parseFloat(quote[`border${sides[0]}Width`]),
+          quoteIndent: parseFloat(quote.paddingLeft) + parseFloat(quote.paddingRight),
+          cellEdge: style(selectors.cell).borderTopColor,
+          formulaLine: style(selectors.formulaLine).borderBottomColor,
+          formulaText: style(selectors.formula).color,
+          formulaFont: style(selectors.formula).fontFamily,
+          tableOverflow: getComputedStyle(table).overflowX,
+          tableSheet: table.getAttribute("data-readela-sheet"),
+          tableFrameSheet: document.querySelector(selectors.tableFrame).getAttribute("data-readela-sheet"),
+          tableFrameIsland: document.querySelector(selectors.tableFrame).getAttribute("data-readela-island"),
+        };
+      }, names);
+      const surface = hexRgb(palette.surface);
+      // A list marker, small and struck text: secondary text, still at 7:1.
+      for (const [what, colour] of [["list marker", extra.marker], ["struck text", facts[names.struck].color], ["small text", facts[names.small].color]]) {
+        assert.ok(isColour(colour, palette.muted), `${label}: ${what} ${colour}`);
+        assert.ok(contrast(rgb(colour), surface) >= 7, `${label}: ${what} contrast`);
+      }
+      // A quotation keeps its indentation and a bar that can be seen.
+      assert.equal(extra.quoteSides, 1, `${label}: the quotation has one bar`);
+      assert.ok(isColour(extra.quoteBar, palette.quote), `${label}: quotation bar ${extra.quoteBar}`);
+      assert.ok(extra.quoteWidth >= 2 && extra.quoteIndent >= 8, `${label}: quotation bar ${extra.quoteWidth}px, indent ${extra.quoteIndent}px`);
+      assert.ok(contrast(rgb(extra.quoteBar), surface) >= 3, `${label}: quotation bar contrast`);
+      // Highlighted text stays highlighted.
+      assert.ok(isColour(facts[names.highlight].own, palette.selection), `${label}: highlight ${facts[names.highlight].own}`);
+      assert.ok(contrast(rgb(facts[names.highlight].color), rgb(facts[names.highlight].own)) >= 7, `${label}: highlighted text contrast`);
+      // A table keeps its lines, and its wrappers are part of the surface and
+      // still scroll sideways.
+      assert.ok(isColour(extra.cellEdge, palette.rule), `${label}: table line ${extra.cellEdge}`);
+      assert.deepEqual(
+        { overflow: extra.tableOverflow, scroll: extra.tableSheet, frame: extra.tableFrameSheet, unit: extra.tableFrameIsland },
+        { overflow: "auto", scroll: "inner", frame: "inner", unit: null },
+        `${label}: table wrappers`,
       );
+      // A row of controls inside a response shows no text of its own: it is
+      // the site's, and nothing is painted behind it.
+      assert.equal(facts[names.controls].opacity, 0, `${label}: nothing is painted behind the table's controls`);
+      assert.ok(facts[names.controls].island !== null && !facts[names.controls].island.includes("surface"), `${label}: table controls (${facts[names.controls].island})`);
+      // A formula keeps its own font, and the lines it is drawn with keep the text's colour.
+      assert.equal(extra.formulaLine, extra.formulaText, `${label}: formula line`);
+      assert.ok(isColour(extra.formulaText, palette.text), `${label}: formula text`);
+      assert.match(extra.formulaFont, /Times New Roman/, `${label}: formula font`);
     }
 
     for (const selector of parts.outside) {
       assert.deepEqual(
-        { color: facts[selector].color, own: facts[selector].own, sheet: facts[selector].sheet },
-        { color: original[selector].color, own: original[selector].own, sheet: null },
-        `${label}: ${selector} is outside the reading surface and unchanged`,
+        { color: facts[selector].color, own: facts[selector].own, sheet: facts[selector].sheet, island: facts[selector].island },
+        { color: original[selector].color, own: original[selector].own, sheet: null, island: null },
+        `${label}: ${selector} is not Readela's and is unchanged`,
       );
+    }
+    if (parts.kept) {
+      assert.equal(await page.$eval(parts.kept, (element) => element.outerHTML), kept, `${label}: the hidden conversation is untouched`);
     }
     const selection = await page.evaluate((selector) => {
       const style = getComputedStyle(document.querySelector(selector), "::selection");
@@ -360,17 +514,22 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
       true,
       `${label}: no horizontal scrolling introduced`,
     );
-    ((report.readingThemeContrast ??= {})[parts.site] ??= {})[label] = ratios;
-    await page.screenshot({ path: path.join(results, `${name}-${parts.site}-${theme}-on-${scheme}.png`) });
+    ((report.readingThemeContrast ??= {})[parts.name] ??= {})[label] = ratios;
+    await page.evaluate((selector) => document.querySelector(selector).scrollIntoView({ block: "start" }), parts.sheet);
+    await page.screenshot({ path: path.join(results, `${name}-${parts.name}-${theme}-on-${scheme}.png`) });
+    if (units.length > 0) {
+      await page.evaluate((selector) => document.querySelector(selector).scrollIntoView({ block: "center" }), units[0].frame);
+      await page.screenshot({ path: path.join(results, `${name}-${parts.name}-${theme}-on-${scheme}-code.png`) });
+    }
   }
 
   await choose("theme", "page");
-  await page.waitForFunction(() => document.querySelector("[data-readela-sheet]") === null);
+  await page.waitForFunction(() => document.querySelector("[data-readela-sheet], [data-readela-island]") === null);
   const restored = await colours(page, all);
   for (const selector of all) {
     assert.deepEqual(
-      { color: restored[selector].color, own: restored[selector].own },
-      { color: original[selector].color, own: original[selector].own },
+      { color: restored[selector].color, own: restored[selector].own, radius: restored[selector].radius },
+      { color: original[selector].color, own: original[selector].own, radius: original[selector].radius },
       `Original restores ${selector}`,
     );
   }
@@ -379,30 +538,68 @@ async function checkReadingThemes({ name, page, choose, scheme, parts, report })
     null,
     "nothing is left on the root element",
   );
+  assert.equal(
+    await page.evaluate(() => document.querySelectorAll('[style*="--readela-island"]').length),
+    0,
+    "nothing is left on a code block",
+  );
 }
 
 const CHATGPT_PARTS = {
-  site: "chatgpt",
+  name: "chatgpt",
   sheet: "#md-fa",
-  island: ["#block-wrap", "#block-label", "#block-code", "#block-copy"],
-  text: ["#p-en-start", "#h-fa", "#li-fa-1", "#quote-fa-p", "#td-fa", "#th-fa", "#math", "#inline-code"],
+  // The conversation region paints the page background: opaque black in the dark theme.
+  site: "#main",
+  text: ["#p-en-start", "#h-fa", "#li-fa-1", "#quote-fa-p", "#td-fa", "#th-fa", "#math", "#inline-code", "#p-en", "#li-en-a"],
   link: "#link-text",
   inlineCode: "#inline-code",
   pre: "#code-block",
   header: "#th-fa",
-  // The frame of the reply holds a heading for screen readers; it is no surface.
-  outside: ["#turn-fa", "#nav-title", "#page-button", "#user-bubble", "#composer-textarea", "#send-button", "main"],
+  units: [
+    // A rounded code block without a pre element, inside a plain wrapper.
+    { frame: "#block-wrap", unit: "#block", inside: ["#block-label", "#block-code", "#block-keyword", "#block-copy"] },
+    // The same inside a list item, where it is surrounded by reading text.
+    { frame: "#nested-block", unit: "#nested-block", inside: ["#nested-label", "#nested-code", "#nested-copy"] },
+  ],
+  semantic: {
+    item: "#li-fa-1",
+    quote: "#quote-fa",
+    struck: "#struck-text",
+    small: "#small-text",
+    highlight: "#marked-text",
+    cell: "#td-fa",
+    formula: "#math",
+    formulaLine: "#math-line",
+    tableScroll: "#table-scroll",
+    tableFrame: "#table-frame",
+    controls: "#table-actions",
+  },
+  // The frame of a reply holds a heading for screen readers and controls; the
+  // reader's own bubbles, inside and out; the bar the site keeps on top; a
+  // reply in a layout that is not recognised; the composer; the page itself.
+  outside: [
+    "#turn-fa", "#sr-fa", "#copy-fa", "#nav-title", "#page-button", "#user-bubble-frame", "#user-bubble", "#user-bubble-en",
+    "#thread-bar", "#thread-share", "#turn-other", "#p-ar", "#composer-textarea", "#send-button", "#main", "#scroller",
+  ],
+  kept: "#main-kept",
 };
 
 const CLAUDE_PARTS = {
-  site: "claude",
+  name: "claude",
   sheet: "#c-markdown-fa",
-  text: ["#c-p-en-start", "#c-h-fa", "#c-li-fa-1", "#c-quote-fa-p", "#c-th-fa", "#c-math", "#c-inline-code"],
+  site: "body",
+  text: ["#c-p-en-start", "#c-h-fa", "#c-li-fa-1", "#c-quote-fa-p", "#c-th-fa", "#c-math", "#c-inline-code", "#c-p-en"],
   link: "#c-link-url",
   inlineCode: "#c-inline-code",
-  pre: "#c-code-block",
   header: "#c-th-fa",
-  outside: ["#c-nav-title", "#c-page-button", "#c-user", "#c-ui-p", "#c-input", "#c-send"],
+  units: [
+    // A rounded, see-through code block with a header and a pre element inside.
+    { frame: "#c-code-frame", unit: "#c-code-group", inside: ["#c-code-label", "#c-code-block", "#c-code", "#c-code-keyword", "#c-code-copy"] },
+  ],
+  outside: [
+    "#c-nav-title", "#c-page-button", "#c-user-bubble", "#c-user", "#c-user-rich-bubble", "#c-user-rich-p", "#c-user-code",
+    "#c-ui-p", "#c-input", "#c-send", "#c-scroller",
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -431,22 +628,24 @@ async function checkTheme({ name, ui, page, scheme, emulate, report, choose }) {
     return {
       heading: pair("h1"),
       note: pair("#state-note"),
-      hint: pair("#mark-note"),
+      hint: pair("#place-guide"),
       legend: pair(".group legend"),
       segment: pair(".segments label:not(:has(input:checked)) span"),
       selected: pair(".segments label:has(input:checked) span"),
-      button: pair("#mark-set"),
+      button: pair("#place-save"),
       reset: pair("#reset"),
-      about: pair(".by"),
+      about: pair(".about"),
+      link: pair("#publisher"),
       fits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
       height: Math.ceil(document.querySelector("main").getBoundingClientRect().height),
     };
   });
   assert.equal(shown.fits, true, "no horizontal overflow at 320px");
-  // Browsers cap a popup at about 600px; everything is reachable without scrolling.
+  // Browsers cap a popup at about 600px; at its own size everything is
+  // reachable without scrolling.
   assert.ok(shown.height <= 600, `popup height ${shown.height}`);
   const measured = {};
-  for (const key of ["heading", "note", "hint", "legend", "segment", "selected", "button", "reset", "about"]) {
+  for (const key of ["heading", "note", "hint", "legend", "segment", "selected", "button", "reset", "about", "link"]) {
     const ratio = contrast(rgb(shown[key].color), rgb(shown[key].background));
     measured[key] = Math.round(ratio * 100) / 100;
     assert.ok(ratio >= 4.5, `${key}: contrast ${ratio.toFixed(2)}`);
@@ -495,6 +694,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
   const requests = [];
   const page = await openFixture(browser, requests);
   const popup = await openPopup(browser, popupUrl);
+  const popupRequests = [];
+  popup.on("request", (request) => popupRequests.push(request.url()));
+  await loadPopup(popup, popupUrl);
   await front(page);
 
   const press = (target, selector) =>
@@ -613,8 +815,8 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       const link = document.querySelector("#link-url");
       const box = link.getBoundingClientRect();
       return {
-        sameText: document.querySelector("main").textContent === original.querySelector("main").textContent,
-        sameElements: document.querySelectorAll("main *").length === original.querySelectorAll("main *").length,
+        sameText: document.querySelector("#main").textContent === original.querySelector("#main").textContent,
+        sameElements: document.querySelectorAll("#main *").length === original.querySelectorAll("#main *").length,
         selected,
         expected: original.querySelector("#p-inline").textContent,
         href: link.href,
@@ -685,7 +887,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
   await step("navigation to another conversation is followed", async () => {
     await page.evaluate(() => {
       history.pushState({}, "", "/c/readela-fixture-2");
-      for (const turn of document.querySelectorAll("main .turn")) turn.remove();
+      for (const turn of document.querySelectorAll("#main .turn")) turn.remove();
       const turn = document.createElement("div");
       turn.className = "turn";
       turn.dataset.messageAuthorRole = "assistant";
@@ -696,6 +898,34 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForMark(page, "#p-nav-fa", "rtl");
     await waitForMark(page, "#p-nav-en", "ltr");
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
+  });
+
+  await step("a conversation the site kept hidden is read when it is shown, and the one shown before is let go", async () => {
+    const marksIn = (selector) =>
+      page.$eval(selector, (element) => element.querySelectorAll("[data-readela-dir], [data-readela-top]").length);
+    assert.equal(await marksIn("#main-kept"), 0, "while hidden it is not read");
+    // The site swaps which conversation is shown and changes the address. No
+    // element is added or removed.
+    await page.evaluate(() => {
+      const [kept, shown] = document.querySelectorAll(".page");
+      history.pushState({}, "", "/c/readela-fixture-kept");
+      shown.style.display = "none";
+      shown.dataset.appShellActivePage = "false";
+      kept.style.display = "";
+      kept.dataset.appShellActivePage = "true";
+    });
+    await waitForMark(page, "#kept-p", "ltr");
+    assert.equal(await marksIn("#main"), 0, "nothing is left on the conversation that is no longer shown");
+    await page.evaluate(() => {
+      const [kept, shown] = document.querySelectorAll(".page");
+      history.pushState({}, "", "/c/readela-fixture");
+      kept.style.display = "none";
+      kept.dataset.appShellActivePage = "false";
+      shown.style.display = "";
+      shown.dataset.appShellActivePage = "true";
+    });
+    await page.waitForFunction(() => document.querySelector("#main [data-readela-dir]") !== null, { polling: 200 });
+    await page.waitForFunction(() => document.querySelector("#main-kept [data-readela-dir], #main-kept [data-readela-top]") === null, { polling: 200 });
   });
 
   await step("an explicit direction overrides the automatic decision; code stays left-to-right", async () => {
@@ -740,7 +970,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     );
     const widths = await page.evaluate(() => ({
       paragraph: document.querySelector("#p-en-start").getBoundingClientRect().right,
-      main: document.querySelector("main").getBoundingClientRect().right,
+      main: document.querySelector("#main").getBoundingClientRect().right,
       scroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     }));
     assert.ok(widths.paragraph <= widths.main + 1, "scaled text still fits its column");
@@ -864,7 +1094,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     });
     assert.equal(
       await popup.$eval("#status", (element) => element.textContent),
-      "Settings were reset. Your reading marks are kept.",
+      "Settings were reset. Your saved places are kept.",
     );
   });
 
@@ -890,7 +1120,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
   });
 
   // -------------------------------------------------------------------------
-  // The reading mark, operated from the installed popup
+  // The saved place, operated from the installed popup
 
   const tabOf = (site) =>
     popup.evaluate(async (wanted) => {
@@ -925,42 +1155,73 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       id,
       quality,
     );
-  const waitForNote = async (text) => {
+  const waitForNoPlace = (target) =>
+    target.waitForFunction(() => document.querySelector("[data-readela-mark]") === null, { timeout: 8000, polling: 200 });
+  const waitForNote = async (text, timeout = 8000) => {
     try {
       // Polled on a timer: the popup's tab is not always the one in front,
       // and a tab in the background gets no animation frames to poll on.
       await popup.waitForFunction(
-        (t) => document.querySelector("#mark-note").textContent.startsWith(t),
-        { timeout: 8000, polling: 200 },
+        (t) => document.querySelector("#place-note").textContent.startsWith(t),
+        { timeout, polling: 200 },
         text,
       );
     } catch {
-      const shown = await popup.$eval("#mark-note", (element) => element.textContent);
+      const shown = await popup.$eval("#place-note", (element) => element.textContent);
       throw new Error(`the popup says "${shown}" instead of "${text}"`);
     }
   };
-  const markButton = async (button, target = page) => {
+  const placeButton = async (button, target = page) => {
     await front(popup);
-    await press(popup, `#mark-${button}`);
+    await press(popup, `#place-${button}`);
     await front(target);
   };
-  const inView = (id) =>
-    page.evaluate((i) => {
-      const box = document.getElementById(i).getBoundingClientRect();
-      return box.top >= 0 && box.bottom <= innerHeight;
-    }, id);
-  // The smooth scroll of "Go to mark" has finished with the block in view.
-  const arrived = (id) =>
-    page.waitForFunction(
-      (i) => {
-        const box = document.getElementById(i).getBoundingClientRect();
-        if (box.top < 0 || box.bottom > innerHeight) return false;
-        const settled = window.readelaLastTop === box.top;
-        window.readelaLastTop = box.top;
-        return settled;
+  const buttons = () =>
+    popup.evaluate(() => ({
+      save: document.querySelector("#place-save").textContent,
+      saveOff: document.querySelector("#place-save").disabled,
+      returnOff: document.querySelector("#place-return").disabled,
+      clearOff: document.querySelector("#place-clear").disabled,
+    }));
+  // The conversation scrolls in a region of its own; these move it at once.
+  const scrollTop = (target = page, selector = "#scroller") => target.$eval(selector, (element) => element.scrollTop);
+  const scrollTo = (value, target = page, selector = "#scroller") =>
+    target.$eval(
+      selector,
+      (element, to) => {
+        element.scrollTop = to === "end" ? element.scrollHeight : to;
       },
-      { timeout: 6000, polling: 150 },
+      value,
+    );
+  // Put a block `offset` pixels below the top edge of the scrolling region.
+  const putAt = (id, offset, target = page, selector = "#scroller") =>
+    target.evaluate(
+      (i, o, s) => {
+        const scroller = document.querySelector(s);
+        const box = document.getElementById(i).getBoundingClientRect();
+        scroller.scrollTop += box.top - scroller.getBoundingClientRect().top - o;
+      },
       id,
+      offset,
+      selector,
+    );
+  const select = (id, target = page) =>
+    target.evaluate((i) => {
+      const element = document.getElementById(i);
+      element.scrollIntoView({ block: "center" });
+      getSelection().selectAllChildren(element);
+    }, id);
+  const inView = (id, target = page, selector = "#scroller") =>
+    target.evaluate(
+      (i, s) => {
+        const element = document.getElementById(i);
+        if (element === null) return false;
+        const frame = document.querySelector(s).getBoundingClientRect();
+        const box = element.getBoundingClientRect();
+        return box.top >= Math.max(0, frame.top) && box.bottom <= Math.min(innerHeight, frame.bottom);
+      },
+      id,
+      selector,
     );
   const bar = (id) =>
     page.evaluate((i) => {
@@ -987,148 +1248,251 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       old.replaceWith(fresh);
     }, id);
 
-  await step("Mark here saves the paragraph that holds the selection, as fingerprints only", async () => {
-    await page.setViewport({ width: 1100, height: 420 });
+  await step("Save place saves the response paragraph that holds the selection, as matching metadata only", async () => {
     const tab = await tabOf("ChatGPT");
     assert.ok(Number.isInteger(tab), "the popup can reach the page without a tabs permission");
     popupAddress = `${popupUrl}?tab=${tab}`;
     await loadPopup(popup, popupAddress);
-    await popup.waitForFunction(() => !document.querySelector("#mark-set").disabled, { polling: 200 });
-    await waitForNote("Nothing is marked in this conversation yet.");
-    assert.deepEqual(
-      await popup.evaluate(() => ["#mark-go", "#mark-clear"].map((selector) => document.querySelector(selector).disabled)),
-      [true, true],
+    await popup.waitForFunction(() => !document.querySelector("#place-save").disabled, { polling: 200 });
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+    assert.equal(
+      await popup.$eval("#place-guide", (element) => element.textContent),
+      "Saves the first paragraph in view. Select text to choose another.",
     );
+    assert.equal(await popup.$eval("#place-note", (element) => element.textContent), "", "nothing is claimed before anything is saved");
 
-    await page.evaluate(() => {
-      const paragraph = document.querySelector("#p-en");
-      paragraph.scrollIntoView({ block: "center" });
-      getSelection().selectAllChildren(paragraph);
-    });
-    await markButton("set");
+    await select("p-en");
+    await placeButton("save");
     await waitForPlace(page, "p-en");
-    await waitForNote("Marked. Go to mark brings you back here.");
+    await waitForNote("Place saved.");
+    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
 
     const shown = await bar("p-en");
     assert.equal(shown.width, 5, "a bar, not a hairline");
     assert.equal(parseFloat(shown.left), -14, "on the leading edge of a left-to-right paragraph");
     assert.ok(isColour(shown.colour, PAGE_MARK.mark), shown.colour);
-    assert.notEqual(shown.tint, "rgba(0, 0, 0, 0)", "the marked block is tinted");
+    assert.notEqual(shown.tint, "rgba(0, 0, 0, 0)", "the saved block is tinted");
 
     const stored = await storedMarks();
+    assert.equal(stored.version, 2);
     assert.equal(stored.items.length, 1);
-    assert.deepEqual(Object.keys(stored.items[0]).sort(), ["a", "b", "f", "i", "k"]);
-    for (const key of ["a", "b", "f", "k"]) assert.match(stored.items[0][key], /^[0-9a-f]{16}$/, key);
-    assert.doesNotMatch(JSON.stringify(stored), /Hooks|state|chatgpt|fixture/i, "no readable text or address is stored");
+    const [item] = stored.items;
+    assert.deepEqual(Object.keys(item).sort(), ["a", "b", "f", "i", "k", "m", "n", "p", "s", "t"]);
+    for (const key of ["a", "b", "f", "k", "m"]) assert.match(item[key], /^[0-9a-f]{16}$/, key);
+    assert.deepEqual({ s: item.s, t: item.t, i: item.i, n: item.n }, { s: null, t: "p", i: 1, n: null });
+    assert.ok(Number.isInteger(item.p) && item.p > 0 && item.p < 1000, `position ${item.p}`);
+    assert.doesNotMatch(
+      JSON.stringify(stored),
+      /Hooks|state|chatgpt|fixture|turn-en|readela-|https?:/i,
+      "no readable text, address or site identifier is stored",
+    );
+    // The conversation the site keeps hidden holds the same paragraph in a turn
+    // with the same key. It is not the conversation shown, so it is not read.
+    assert.deepEqual(await places(page), ["p-en:exact"]);
+    assert.equal(await page.$eval("#main-kept", (element) => element.querySelector("[data-readela-mark], [data-readela-dir], [data-readela-top]")), null);
   });
 
-  await step("without a selection the first paragraph in view is marked; a conversation has one mark", async () => {
-    await page.evaluate(() => {
-      getSelection().removeAllRanges();
-      scrollTo(0, document.querySelector("#p-punct").getBoundingClientRect().top + scrollY - 10);
+  await step("without a selection the first readable paragraph at the unobscured top is saved; there is one place per conversation", async () => {
+    await page.setViewport({ width: 1100, height: 520 });
+    await page.evaluate(() => getSelection().removeAllRanges());
+    // At the very top the heading kept for screen readers comes first in the
+    // document. It is not something a reader reads, so the real heading is saved.
+    await scrollTo(0);
+    assert.equal((await buttons()).save, "Update place");
+    await placeButton("save");
+    await waitForPlace(page, "h-fa");
+    await waitForNote("Place saved.");
+    assert.equal((await storedMarks()).items[0].t, "h");
+
+    // The bar the site keeps on top covers the first paragraph and the top of
+    // the second, which is partly in view below it and is the one saved.
+    await putAt("p-punct", 34);
+    const under = await page.evaluate(() => {
+      const edge = document.querySelector("#thread-bar").getBoundingClientRect().bottom;
+      const box = (id) => document.getElementById(id).getBoundingClientRect();
+      return { first: box("p-en-start").bottom <= edge, second: box("p-punct").top < edge && box("p-punct").bottom > edge };
     });
-    await markButton("set");
+    assert.deepEqual(under, { first: true, second: true });
+    await placeButton("save");
     await waitForPlace(page, "p-punct");
     assert.deepEqual(await places(page), ["p-punct:exact"]);
     assert.equal((await storedMarks()).items.length, 1);
     assert.equal(parseFloat((await bar("p-punct")).right), -14, "on the leading edge of a right-to-left paragraph");
+
+    // A selection in the reader's own message is not a response paragraph;
+    // the bubble is the site's and nothing in it is saved or marked.
+    await page.evaluate(() => getSelection().selectAllChildren(document.querySelector("#user-bubble")));
+    await putAt("p-inline", 60);
+    await placeButton("save");
+    await waitForPlace(page, "p-inline");
+    assert.equal(await page.$eval("#user-bubble-frame", (element) => element.querySelector("[data-readela-mark]")), null);
+    await page.evaluate(() => getSelection().removeAllRanges());
   });
 
-  await step("Go to mark brings the place into view and makes it easy to find", async () => {
-    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-    assert.equal(await inView("p-punct"), false);
-    await markButton("go");
-    await page.waitForFunction(
-      () => {
-        const element = document.querySelector("#p-punct");
-        const box = element.getBoundingClientRect();
-        return box.top >= 0 && box.bottom <= innerHeight && element.hasAttribute("data-readela-flash");
-      },
-      { timeout: 6000 },
-    );
-    await waitForNote("You are at your mark.");
+  await step("identical paragraphs that cannot be told apart are not saved, and the place saved before is kept", async () => {
+    const before = await storedMarks();
+    await select("p-same-2");
+    await placeButton("save");
+    await waitForNote("This paragraph cannot be told apart from an identical one beside it.");
+    assert.deepEqual(await storedMarks(), before);
+    assert.deepEqual(await places(page), ["p-inline:exact"]);
+    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
+    await page.evaluate(() => getSelection().removeAllRanges());
+  });
+
+  await step("Return brings the place into view, says so only once it is there, and makes it easy to find", async () => {
+    await scrollTo("end");
+    assert.equal(await inView("p-inline"), false);
+    await placeButton("return");
+    await waitForNote("Returned to your saved place.");
+    // The popup said so after the fact: the place is in view already.
+    assert.equal(await inView("p-inline"), true);
     const emphasis = await page.evaluate(() => {
-      const style = getComputedStyle(document.querySelector("#p-punct"));
-      return { outline: `${style.outlineStyle} ${parseFloat(style.outlineWidth)}`, animation: style.animationName };
+      const element = document.querySelector("#p-inline");
+      const style = getComputedStyle(element);
+      return {
+        flash: element.hasAttribute("data-readela-flash"),
+        outline: `${style.outlineStyle} ${parseFloat(style.outlineWidth)}`,
+        animation: style.animationName,
+      };
     });
-    assert.deepEqual(emphasis, { outline: "solid 3", animation: "readela-flash" });
-    // The emphasis is temporary; the mark itself stays.
-    await page.waitForFunction(() => !document.querySelector("#p-punct").hasAttribute("data-readela-flash"), { timeout: 6000 });
-    assert.deepEqual(await places(page), ["p-punct:exact"]);
+    assert.deepEqual(emphasis, { flash: true, outline: "solid 3", animation: "readela-flash" });
+    // The emphasis is temporary; the place itself stays.
+    await page.waitForFunction(() => !document.querySelector("#p-inline").hasAttribute("data-readela-flash"), { timeout: 6000 });
+    assert.deepEqual(await places(page), ["p-inline:exact"]);
 
     if (input) {
       // With reduced motion the jump is immediate and nothing is animated.
       await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
-      await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-      await markButton("go");
-      await page.waitForFunction(() => document.querySelector("#p-punct").hasAttribute("data-readela-flash"));
-      const calm = await page.evaluate(() => {
-        const element = document.querySelector("#p-punct");
-        const box = element.getBoundingClientRect();
-        return { inView: box.top >= 0 && box.bottom <= innerHeight, animation: getComputedStyle(element).animationName };
-      });
-      assert.deepEqual(calm, { inView: true, animation: "none" });
+      await scrollTo("end");
+      await placeButton("return");
+      await waitForNote("Returned to your saved place.");
+      const calm = await page.evaluate(() => getComputedStyle(document.querySelector("#p-inline")).animationName);
+      assert.equal(await inView("p-inline"), true);
+      assert.equal(calm, "none");
       await page.emulateMediaFeatures([]);
     }
   });
 
-  await step("the mark survives a reload, a re-render, and leaving the conversation and coming back", async () => {
+  await step("the same sentence in another response is never the place: Return goes to the response it was saved in, or nowhere", async () => {
+    // The sentence is in two responses of this conversation and in the hidden one.
+    await select("p-twin-again");
+    await placeButton("save");
+    await waitForPlace(page, "p-twin-again");
+    await waitForNote("Place saved.");
+    await page.evaluate(() => getSelection().removeAllRanges());
+    await scrollTo(0);
+    await placeButton("return");
+    await waitForNote("Returned to your saved place.");
+    assert.deepEqual(await places(page), ["p-twin-again:exact"]);
+    assert.equal(await inView("p-twin-again"), true);
+
+    // The response it was saved in leaves the page. Its twin is still there,
+    // word for word, and is not taken for it.
+    await page.evaluate(() => {
+      window.readelaTwin = document.querySelector('[data-turn-key="turn-twin"]');
+      window.readelaTwinNext = window.readelaTwin.nextElementSibling;
+      window.readelaTwin.remove();
+    });
+    await waitForNoPlace(page);
+    await putAt("p-en", 80);
+    const before = await scrollTop();
+    await placeButton("return");
+    await waitForNote("Your saved place was not found. It is still saved.", 20000);
+    assert.deepEqual(await places(page), [], "no other paragraph is marked");
+    assert.equal(await scrollTop(), before, "the conversation is back where the reader was");
+    assert.equal((await storedMarks()).items.length, 1, "a place that is not found is not deleted");
+    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
+
+    // The response comes back (the site loaded it): so does the place.
+    await page.evaluate(() => window.readelaTwinNext.before(window.readelaTwin));
+    await waitForPlace(page, "p-twin-again");
+  });
+
+  await step("the place survives a reload and a re-render, and belongs to the conversation whichever route shows it", async () => {
     await page.reload({ waitUntil: "load" });
-    await waitForPlace(page, "p-punct");
-    await rerender("p-punct");
-    await waitForPlace(page, "p-punct");
-    await page.evaluate(() => {
-      history.pushState({}, "", "/c/readela-fixture-2");
-      document.querySelector("#turn-other").append(document.createElement("span"));
-    });
-    await page.waitForFunction(() => document.querySelector("[data-readela-mark]") === null);
-    await page.evaluate(() => {
-      history.pushState({}, "", "/c/readela-fixture");
-      document.querySelector("#turn-other").append(document.createElement("span"));
-    });
-    await waitForPlace(page, "p-punct");
-  });
+    await waitForPlace(page, "p-twin-again");
+    await rerender("p-twin-again");
+    await waitForPlace(page, "p-twin-again");
 
-  await step("a changed paragraph between its unchanged neighbours is an approximate place, and is shown as one", async () => {
-    await page.evaluate(() => {
-      const paragraph = document.querySelector("#p-punct");
-      window.readelaMarked = paragraph.textContent;
-      paragraph.textContent = "این پاراگراف دوباره نوشته شده است.";
-      scrollTo(0, document.documentElement.scrollHeight);
-    });
-    await markButton("go");
-    await waitForPlace(page, "p-punct", "approximate");
-    await waitForNote("This is close to your mark. The paragraph itself has changed.");
-    await arrived("p-punct");
-    assert.match((await bar("p-punct")).image, /repeating-linear-gradient/, "an approximate place has a broken bar");
-  });
+    // The same conversation inside a project. The address changes and the
+    // document does not, as when the site shows a conversation it kept.
+    await page.evaluate(() => history.pushState({}, "", "/g/g-p-0123456789abcdef-fixture-project/c/readela-fixture"));
+    await sleep(1600);
+    assert.deepEqual(await places(page), ["p-twin-again:exact"]);
+    await loadPopup(popup, popupAddress);
+    await waitForNote("A place is saved in this conversation.");
+    assert.equal((await buttons()).save, "Update place");
+    await scrollTo(0);
+    await placeButton("return");
+    await waitForNote("Returned to your saved place.");
+    assert.equal(await inView("p-twin-again"), true);
 
-  await step("with no trustworthy place nothing moves, the popup says so, and the saved place is kept", async () => {
-    const before = await page.evaluate(() => {
-      const neighbour = document.querySelector("#p-en-start");
-      window.readelaNeighbour = neighbour.textContent;
-      neighbour.textContent = "این هم متن دیگری است.";
-      scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
-      return scrollY;
-    });
-    await markButton("go");
-    await waitForNote("Saved place not found.");
-    await sleep(700);
-    assert.deepEqual(await places(page), []);
-    assert.equal(await page.evaluate(() => scrollY), before, "the page did not jump anywhere");
+    // Another conversation has no place, though the page shows the same words.
+    await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-2"));
+    await waitForNoPlace(page);
+    await loadPopup(popup, popupAddress);
+    await popup.waitForFunction(() => document.querySelector("#place-save").textContent === "Save place", { polling: 200 });
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+    // A page that shows no conversation cannot hold one.
+    await page.evaluate(() => history.pushState({}, "", "/"));
+    await loadPopup(popup, popupAddress);
+    await waitForNote("Open a conversation to save a place.");
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: true, returnOff: true, clearOff: true });
+
+    await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
+    await waitForPlace(page, "p-twin-again");
+    await loadPopup(popup, popupAddress);
+    await waitForNote("A place is saved in this conversation.");
     assert.equal((await storedMarks()).items.length, 1);
+  });
+
+  await step("a saved paragraph whose text changes is looked at again: approximate between unchanged neighbours, otherwise not found", async () => {
+    // The text changes inside the element that carries the mark.
+    await page.evaluate(() => {
+      const paragraph = document.querySelector("#p-twin-again");
+      window.readelaSaved = paragraph.textContent;
+      paragraph.firstChild.data = "This sentence has been rewritten.";
+    });
+    await waitForPlace(page, "p-twin-again", "approximate");
+    assert.match((await bar("p-twin-again")).image, /repeating-linear-gradient/, "an approximate place has a broken bar");
+    await scrollTo(0);
+    await placeButton("return");
+    await waitForNote("Returned close to your saved place. Its paragraph has changed.");
+    assert.equal(await inView("p-twin-again"), true);
+
+    // A neighbour changes too: nothing is left to trust.
+    await page.evaluate(() => {
+      const neighbour = document.querySelector("#p-twin-intro");
+      window.readelaNeighbour = neighbour.textContent;
+      neighbour.firstChild.data = "Something else stands here now.";
+    });
+    await waitForNoPlace(page);
+    await scrollTo(0);
+    const before = await scrollTop();
+    await placeButton("return");
+    await waitForNote("Your saved place was not found. It is still saved.");
+    await sleep(500);
+    assert.deepEqual(await places(page), []);
+    assert.equal(await scrollTop(), before, "the page did not jump anywhere");
+    assert.equal((await storedMarks()).items.length, 1);
+
     // When the text is there again, so is the place.
     await page.evaluate(() => {
-      document.querySelector("#p-punct").textContent = window.readelaMarked;
-      document.querySelector("#p-en-start").textContent = window.readelaNeighbour;
+      document.querySelector("#p-twin-again").firstChild.data = window.readelaSaved;
+      document.querySelector("#p-twin-intro").firstChild.data = window.readelaNeighbour;
     });
-    await markButton("go");
-    await waitForPlace(page, "p-punct");
-    await waitForNote("You are at your mark.");
-    await arrived("p-punct");
+    await waitForPlace(page, "p-twin-again");
+    await placeButton("return");
+    await waitForNote("Returned to your saved place.");
   });
 
-  await step("the mark stays clear on Paper and Night, with reading text still at 10:1 on its tint", async () => {
+  await step("the place stays clear on Paper and Night, with reading text still at 10:1 on its tint", async () => {
+    await page.evaluate(() => getSelection().selectAllChildren(document.querySelector("#p-punct")));
+    await putAt("p-punct", 120);
+    await placeButton("save");
+    await waitForPlace(page, "p-punct");
+    await page.evaluate(() => getSelection().removeAllRanges());
     for (const [theme, palette] of Object.entries(THEMES)) {
       await choose("theme", theme);
       await page.waitForFunction(
@@ -1142,46 +1506,47 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       const text = await page.$eval("#p-punct", (element) => getComputedStyle(element).color);
       assert.ok(isColour(shown.colour, palette.mark), `${theme}: bar ${shown.colour}`);
       assert.ok(isColour(shown.tint, palette.markTint), `${theme}: tint ${shown.tint}`);
-      assert.ok(contrast(rgb(text), rgb(shown.tint)) >= 10, `${theme}: marked text contrast`);
+      assert.ok(contrast(rgb(text), rgb(shown.tint)) >= 10, `${theme}: saved text contrast`);
       assert.ok(contrast(rgb(shown.colour), hexRgb(palette.surface)) >= 3, `${theme}: bar against the surface`);
-      await page.evaluate(() => document.querySelector("#p-punct").scrollIntoView({ block: "center" }));
-      await page.screenshot({ path: path.join(results, `${name}-mark-${theme}.png`) });
+      await putAt("p-punct", 120);
+      await page.screenshot({ path: path.join(results, `${name}-place-${theme}.png`) });
     }
     await choose("theme", "page");
     await page.waitForFunction(() => document.querySelector("[data-readela-sheet]") === null);
-    await page.screenshot({ path: path.join(results, `${name}-mark-original.png`) });
+    await page.screenshot({ path: path.join(results, `${name}-place-original.png`) });
   });
 
-  await step("turning Readela off hides the mark and keeps the saved place", async () => {
+  await step("turning Readela off hides the place and keeps it saved", async () => {
     await setPreference((p) => press(p, "#enabled"));
     await page.waitForFunction(() => document.querySelector("[data-readela-mark], [data-readela-dir]") === null);
     assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
     assert.equal((await storedMarks()).items.length, 1);
-    await waitForNote("Turn Readela on to use the reading mark.");
+    await waitForNote("Turn Readela on to use saved places.");
     assert.deepEqual(
       await popup.evaluate(() =>
-        ["#settings", "#mark-set", "#mark-go", "#mark-clear"].map((selector) => document.querySelector(selector).disabled),
+        ["#settings", "#place-save", "#place-return", "#place-clear"].map((selector) => document.querySelector(selector).disabled),
       ),
       [true, true, true, true],
     );
     await setPreference((p) => press(p, "#enabled"));
     await waitForPlace(page, "p-punct");
-    await popup.waitForFunction(() => !document.querySelector("#mark-go").disabled, { polling: 200 });
+    await popup.waitForFunction(() => !document.querySelector("#place-return").disabled, { polling: 200 });
   });
 
-  await step("with every aspect Original the mark is the only thing on the page; Clear removes it and the work", async () => {
+  await step("with every aspect Original the place is the only thing on the page; Clear removes it and the work", async () => {
     await choose("direction", "page");
     await page.waitForFunction(() => document.querySelector("[data-readela-dir], [data-readela-top]") === null);
     assert.deepEqual(await places(page), ["p-punct:exact"]);
     assert.deepEqual(await footprint(page), { marked: 1, customProperties: 0 });
-    // The saved mark is still kept current.
+    // The saved place is still kept current.
     await rerender("p-punct");
     await waitForPlace(page, "p-punct");
 
-    await markButton("clear");
-    await waitForNote("Mark cleared.");
+    await placeButton("clear");
+    await waitForNote("Saved place cleared.");
     assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
     assert.deepEqual((await storedMarks()).items, []);
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
     // Nothing is left to keep current, so new content is not read at all.
     await page.evaluate(() => {
       const paragraph = document.createElement("p");
@@ -1197,6 +1562,41 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await page.setViewport({ width: 1100, height: 900 });
   });
 
+  if (input) {
+    await step("a save or a clear the browser refuses is reported as a failure, and nothing on the page says otherwise", async () => {
+      // The extension's own storage is filled to its limit, so the next write fails.
+      const filled = await popup.evaluate(async () => {
+        const extension = globalThis.browser ?? globalThis.chrome;
+        const quota = extension.storage.local.QUOTA_BYTES;
+        if (!Number.isInteger(quota)) return false;
+        const used = await extension.storage.local.getBytesInUse(null);
+        await extension.storage.local.set({ "readela.test.filler": "x".repeat(quota - used - 64) });
+        return true;
+      });
+      assert.equal(filled, true, "the storage limit could be reached");
+      try {
+        await select("p-en");
+        await placeButton("save");
+        await waitForNote("The place could not be saved. Nothing was changed.");
+        assert.deepEqual(await places(page), [], "no place is shown for a save that did not happen");
+        assert.deepEqual((await storedMarks()).items, []);
+        assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+      } finally {
+        await popup.evaluate(async () => {
+          const extension = globalThis.browser ?? globalThis.chrome;
+          await extension.storage.local.remove("readela.test.filler");
+        });
+      }
+      // With room again the same save succeeds.
+      await placeButton("save");
+      await waitForPlace(page, "p-en");
+      await waitForNote("Place saved.");
+      await placeButton("clear");
+      await waitForNote("Saved place cleared.");
+      await page.evaluate(() => getSelection().removeAllRanges());
+    });
+  }
+
   // Where real input cannot reach the extension page, these two checks run on
   // the stand-in rendering of the same popup files.
   const ui = input ? popup : await openStandInPopup(browser, name);
@@ -1207,7 +1607,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
   await step("the popup is fully operable from the keyboard with a visible focus indicator", async () => {
     await front(ui);
     if (input) await loadPopup(popup, popupAddress);
-    if (input) await ui.waitForFunction(() => !document.querySelector("#mark-set").disabled, { polling: 200 });
+    if (input) await ui.waitForFunction(() => !document.querySelector("#place-save").disabled, { polling: 200 });
     await ui.evaluate(() => document.body.focus());
     const visited = [];
     const focused = () =>
@@ -1216,9 +1616,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
         const style = getComputedStyle(element);
         return { id: element.id || element.name, outline: `${style.outlineStyle} ${parseFloat(style.outlineWidth)}` };
       });
-    // Mark here is reachable when the popup acts on a conversation; the two
-    // buttons that need a saved mark are disabled and skipped.
-    const order = ["enabled", "direction", "theme", "font", "size", "spacing", ...(input ? ["mark-set"] : []), "reset"];
+    // Reading settings come first, direction last among them. Save place is
+    // reachable when the popup acts on a conversation; the two buttons that
+    // need a saved place are disabled and skipped. The publisher's link is last.
+    const order = [
+      "enabled", "theme", "font", "size", "spacing", "direction", ...(input ? ["place-save"] : []), "reset", "publisher",
+    ];
     for (const expected of order) {
       await ui.keyboard.press("Tab");
       visited.push(await focused());
@@ -1465,31 +1868,332 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await claude.waitForFunction(() => document.querySelector("#c-markdown-fa").hasAttribute("data-readela-sheet"));
     const sheets = await claude.evaluate(() => ({
       table: document.querySelector(".md-table-scroll").getAttribute("data-readela-sheet"),
-      ownMessage: document.querySelector("#c-user").closest("[data-readela-sheet]") === null,
+      code: document.querySelector("#c-code-frame").getAttribute("data-readela-island"),
+      ownMessages: [...document.querySelectorAll('[data-testid="user-message"]')].every(
+        (message) => message.closest("[data-readela-sheet]") === null && message.querySelector("[data-readela-sheet], [data-readela-island]") === null,
+      ),
       outside: document.querySelector("#c-ui").hasAttribute("data-readela-sheet"),
+      surfaces: document.querySelectorAll('[data-readela-sheet=""]').length,
     }));
-    assert.deepEqual(sheets, { table: "inner", ownMessage: true, outside: false });
+    assert.deepEqual(sheets, { table: "inner", code: "surface round text", ownMessages: true, outside: false, surfaces: 2 });
     await chooseOnClaude("theme", "page");
     await claude.waitForFunction(() => document.querySelector("[data-readela-sheet]") === null);
-    await checkReadingThemes({ name, page: claude, choose: chooseOnClaude, scheme: "light", parts: CLAUDE_PARTS, report });
+    for (const scheme of schemes) {
+      if (input) await claude.emulateMediaFeatures([{ name: "prefers-color-scheme", value: scheme }]);
+      await sleep(100);
+      assert.equal(await claude.evaluate((value) => matchMedia(`(prefers-color-scheme: ${value})`).matches, scheme), true);
+      await checkReadingThemes({ name, page: claude, choose: chooseOnClaude, scheme, parts: CLAUDE_PARTS, report });
+    }
+    if (input) await claude.emulateMediaFeatures([]);
   });
 
-  await step("Claude: the reading mark works on this site too", async () => {
+  await step("Claude: a place is saved in a response with the row the site numbers, and found again after a reload", async () => {
     const tab = await tabOf("Claude");
     assert.ok(Number.isInteger(tab));
     await loadPopup(popup, `${popupUrl}?tab=${tab}`);
-    await popup.waitForFunction(() => !document.querySelector("#mark-set").disabled, { polling: 200 });
-    await claude.evaluate(() => getSelection().selectAllChildren(document.querySelector("#c-quote-fa-p")));
-    await markButton("set", claude);
+    await popup.waitForFunction(() => !document.querySelector("#place-save").disabled, { polling: 200 });
+    await select("c-quote-fa-p", claude);
+    await placeButton("save", claude);
     await waitForPlace(claude, "c-quote-fa-p");
-    // The popup says so only once the mark is stored.
-    await waitForNote("Marked.");
+    // The popup says so only once the place is stored.
+    await waitForNote("Place saved.");
+    const [item] = (await storedMarks()).items;
+    assert.match(item.m, /^[0-9a-f]{16}$/);
+    assert.equal(item.n, 1, "the row of the response");
     await claude.reload({ waitUntil: "load" });
     await waitForPlace(claude, "c-quote-fa-p");
-    await markButton("clear", claude);
-    await waitForNote("Mark cleared.");
+    // A selection in the reader's own message saves nothing there.
+    await claude.evaluate(() => getSelection().selectAllChildren(document.querySelector("#c-user-rich-p")));
+    await placeButton("save", claude);
+    await waitForNote("Place saved.");
+    assert.equal(await claude.$eval("#c-user-rich-bubble", (element) => element.querySelector("[data-readela-mark]")), null);
+    assert.equal((await places(claude)).length, 1);
+    await claude.evaluate(() => getSelection().removeAllRanges());
+    await placeButton("clear", claude);
+    await waitForNote("Saved place cleared.");
     assert.deepEqual(await places(claude), []);
+  });
+
+  // -------------------------------------------------------------------------
+  // A long conversation as a virtual list: only the rows near the viewport are
+  // in the document, and every reply ends with the same sentence.
+
+  const LONG = "#l-scroller";
+  const rows = () => claude.evaluate(() => window.readelaRows());
+  // Row 21 is a reply some way up from the end; rows are 90px and 310px tall in turn.
+  const ROW_21_TOP = 10 * 400 + 90;
+  const awayFromPlace = async (to) => {
+    await scrollTo(to, claude, LONG);
+    await claude.waitForFunction(() => !window.readelaRows().includes(21), { polling: 100 });
+    await waitForNoPlace(claude);
+  };
+
+  await step("a place in a response that is not in the document is found on Return by a bounded search, and nothing identical is taken for it", async () => {
+    await claude.goto(LONG_FIXTURE_URL, { waitUntil: "load" });
+    await claude.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
+    await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
+    await popup.waitForFunction(() => !document.querySelector("#place-save").disabled, { polling: 200 });
+    // The conversation opened at its end; most of it is not in the document.
+    const atEnd = await rows();
+    assert.ok(atEnd.length < 12 && atEnd.includes(59) && !atEnd.includes(21), `rows ${atEnd}`);
+
+    // The closing sentence of reply 21: the same words end every reply.
+    await scrollTo(ROW_21_TOP - 120, claude, LONG);
+    await claude.waitForFunction(() => document.querySelector("#l-same-21") !== null, { polling: 100 });
+    await select("l-same-21", claude);
+    await placeButton("save", claude);
+    await waitForPlace(claude, "l-same-21");
+    await waitForNote("Place saved.");
+    await claude.evaluate(() => getSelection().removeAllRanges());
+    const [item] = (await storedMarks()).items;
+    assert.equal(item.n, 21);
+
+    // From the beginning and from the end of the conversation.
+    for (const from of [0, "end"]) {
+      await awayFromPlace(from);
+      // Seen from here the same sentence is in view in another reply. It is not marked.
+      assert.deepEqual(await places(claude), []);
+      await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
+      await waitForNote("A place is saved in this conversation.");
+      await placeButton("return", claude);
+      await waitForNote("Returned to your saved place.", 20000);
+      assert.deepEqual(await places(claude), ["l-same-21:exact"], `from ${from}`);
+      assert.equal(await inView("l-same-21", claude, LONG), true, `from ${from}: the place is in view`);
+      assert.equal(await claude.$eval("#l-same-21", (element) => element.hasAttribute("data-readela-flash")), true);
+    }
+  });
+
+  await step("a search for a place stops when the reader scrolls, when the conversation changes and when Readela is turned off; the place stays saved", async () => {
+    // A page that takes its time to bring rows into the document, and never
+    // brings the one the place is in, so each search lasts until it is stopped.
+    await awayFromPlace(0);
+    await claude.evaluate(() => {
+      window.readelaMountDelay = 300;
+      window.readelaNeverMount = 21;
+    });
+
+    // The reader takes over with the wheel.
+    await awayFromPlace(0);
+    await placeButton("return", claude);
+    await waitForNote("Looking for your saved place");
+    await claude.mouse.move(700, 300);
+    await claude.mouse.wheel({ deltaY: 160 });
+    await waitForNote("Return was stopped. Your place is still saved.", 20000);
+    const where = await scrollTop(claude, LONG);
+    await sleep(900);
+    assert.equal(await scrollTop(claude, LONG), where, "nothing moves the conversation after the reader took over");
+    assert.equal((await storedMarks()).items.length, 1);
+
+    // The conversation changes under the search.
+    await awayFromPlace(0);
+    await placeButton("return", claude);
+    await waitForNote("Looking for your saved place");
+    await claude.evaluate(() => history.pushState({}, "", "/chat/readela-another-conversation"));
+    await waitForNote("Return was stopped. Your place is still saved.", 20000);
+    assert.deepEqual(await places(claude), []);
+    await claude.evaluate(() => history.pushState({}, "", "/chat/readela-long-fixture"));
+    assert.equal((await storedMarks()).items.length, 1);
+
+    // Readela is turned off during the search.
+    await awayFromPlace(0);
+    await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
+    await waitForNote("A place is saved in this conversation.");
+    await placeButton("return", claude);
+    await waitForNote("Looking for your saved place");
+    await onClaude((p) => press(p, "#enabled"));
+    await claude.waitForFunction(() => document.querySelector("[data-readela-dir], [data-readela-mark]") === null, { polling: 100 });
+    const stopped = await scrollTop(claude, LONG);
+    await sleep(900);
+    assert.equal(await scrollTop(claude, LONG), stopped, "nothing moves the conversation once Readela is off");
+    assert.equal((await storedMarks()).items.length, 1);
+    await onClaude((p) => press(p, "#enabled"));
+    await claude.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 100 });
+    await claude.evaluate(() => {
+      window.readelaMountDelay = 40;
+      window.readelaNeverMount = undefined;
+    });
+  });
+
+  await step("a search that cannot find the place ends at its limits, says so, puts the conversation back and keeps the place", async () => {
+    // The response the place is in never enters the document.
+    await awayFromPlace(0);
+    await claude.evaluate(() => {
+      window.readelaNeverMount = 21;
+    });
+    await loadPopup(popup, `${popupUrl}?tab=${await tabOf("Claude")}`);
+    await waitForNote("A place is saved in this conversation.");
+    const began = Date.now();
+    await placeButton("return", claude);
+    await waitForNote("Your saved place was not found. It is still saved.", 30000);
+    const took = Date.now() - began;
+    report.searchLimitMs = took;
+    assert.ok(took < 16000, `the search ended after ${took} ms`);
+    assert.deepEqual(await places(claude), [], "no other paragraph is marked");
+    assert.equal(await scrollTop(claude, LONG), 0, "the conversation is back where the reader was");
+    assert.equal((await storedMarks()).items.length, 1);
+    assert.deepEqual(await buttons(), { save: "Update place", saveOff: false, returnOff: false, clearOff: false });
+
+    // When the response can be loaded again, the same place is found.
+    await claude.evaluate(() => {
+      window.readelaNeverMount = undefined;
+    });
+    await placeButton("return", claude);
+    await waitForNote("Returned to your saved place.", 20000);
+    assert.deepEqual(await places(claude), ["l-same-21:exact"]);
+    await placeButton("clear", claude);
+    await waitForNote("Saved place cleared.");
     await loadPopup(popup, popupAddress);
+  });
+
+  // -------------------------------------------------------------------------
+  // The popup itself
+
+  await step("popup: reading comes first; a selected choice, the keyboard focus and the off state are told apart without an underline", async () => {
+    await front(ui);
+    if (input) await loadPopup(popup, popupAddress);
+    await ui.setViewport({ width: 320, height: 640 });
+    const layout = await ui.evaluate(() => {
+      const text = (element) => element.textContent.trim().replace(/\s+/g, " ");
+      const link = document.querySelector("#publisher");
+      const reset = getComputedStyle(document.querySelector("#reset"));
+      return {
+        order: [...document.querySelectorAll("main h1, #settings .group > legend, main h2, #reset, .about")].map(text),
+        direction: [...document.querySelectorAll('input[name="direction"]')].map((radio) => radio.value),
+        link: { text: text(link), href: link.href, target: link.target, rel: link.rel, tab: link.tabIndex },
+        linksInPopup: document.querySelectorAll("a").length,
+        reset: { border: `${reset.borderTopStyle} ${parseFloat(reset.borderTopWidth)}`, underline: reset.textDecorationLine },
+        scrolls: getComputedStyle(document.documentElement).overflowY,
+      };
+    });
+    assert.match(layout.order.at(-1), /^By Amir42 Version \d+\.\d+\.\d+$/);
+    assert.deepEqual(layout.order.slice(0, -1), [
+      "Readela", "Appearance", "Font", "Text size", "Line spacing", "Text direction", "Saved place", "Reset settings",
+    ]);
+    assert.deepEqual(layout.direction, ["page", "auto", "rtl", "ltr"]);
+    assert.deepEqual(layout.link, { text: "Amir42", href: "https://amir42.com/", target: "_blank", rel: "noopener noreferrer", tab: 0 });
+    assert.equal(layout.linksInPopup, 1);
+    assert.deepEqual(layout.reset, { border: "solid 1", underline: "none" }, "Reset is a quiet outlined button");
+    assert.equal(layout.scrolls, "auto");
+
+    // Selection, on a choice that does not have the keyboard.
+    const segment = (selector) =>
+      ui.evaluate((s) => {
+        const input = document.querySelector(s);
+        const label = getComputedStyle(input.closest("label"));
+        const span = getComputedStyle(input.closest("label").querySelector("span"));
+        const ring = getComputedStyle(input);
+        return {
+          background: label.backgroundColor,
+          border: `${label.borderTopStyle} ${label.borderTopColor}`,
+          weight: Number(label.fontWeight),
+          underline: span.textDecorationLine,
+          colour: span.color,
+          ring: `${ring.outlineStyle} ${parseFloat(ring.outlineWidth)}`,
+          ringColour: ring.outlineColor,
+        };
+      }, selector);
+    await ui.evaluate(() => document.activeElement?.blur());
+    const selected = await segment('input[name="size"]:checked');
+    const plain = await segment('input[name="size"]:not(:checked)');
+    assert.equal(selected.underline, "none", "no underline on the selected choice");
+    assert.notEqual(selected.background, plain.background, "selected: its own fill");
+    assert.notEqual(selected.border, plain.border, "selected: its own outline");
+    assert.ok(selected.weight >= 600 && plain.weight <= 500, `selected: heavier text (${selected.weight} against ${plain.weight})`);
+    assert.equal(selected.ring.split(" ")[0], "none", "selection alone shows no focus ring");
+
+    // Focus, reached with the keyboard: a ring of its own in another colour,
+    // on a choice that is selected as well. Selection looks the same with it.
+    await ui.focus("#enabled");
+    await ui.keyboard.press("Tab");
+    assert.equal(await ui.evaluate(() => document.activeElement.name), "theme");
+    const focused = await segment('input[name="theme"]:checked');
+    assert.equal(focused.ring, "solid 3");
+    assert.notEqual(focused.ringColour, focused.border.split(" ").slice(1).join(" "), "the focus ring is not the selection outline");
+    assert.deepEqual(
+      { background: focused.background, border: focused.border, weight: focused.weight },
+      { background: selected.background, border: selected.border, weight: selected.weight },
+    );
+    await ui.screenshot({ path: path.join(results, `${name}-popup-focus.png`) });
+
+    // Off: every choice is still readable and the selected one still marked.
+    await ui.$eval("#enabled", (element) => element.click());
+    await ui.waitForFunction(() => document.querySelector("#settings").disabled);
+    const off = await ui.evaluate(() => {
+      const behind = (element) => {
+        let background = "rgba(0, 0, 0, 0)";
+        for (let node = element; node && /rgba\(0, 0, 0, 0\)|transparent/.test(background); node = node.parentElement) {
+          background = getComputedStyle(node).backgroundColor;
+        }
+        return background;
+      };
+      const pair = (selector) => {
+        const element = document.querySelector(selector);
+        return { color: getComputedStyle(element).color, background: behind(element) };
+      };
+      const chosen = getComputedStyle(document.querySelector('input[name="size"]:checked').closest("label"));
+      return {
+        plain: pair('.segments label:not(:has(input:checked)) span'),
+        chosen: pair('.segments label:has(input:checked) span'),
+        button: pair("#place-save"),
+        note: document.querySelector("#state-note").textContent,
+        opacity: getComputedStyle(document.querySelector("#settings")).opacity,
+        chosenBorder: chosen.borderTopStyle,
+        chosenWeight: Number(chosen.fontWeight),
+      };
+    });
+    for (const key of ["plain", "chosen", "button"]) {
+      const ratio = contrast(rgb(off[key].color), rgb(off[key].background));
+      assert.ok(ratio >= 4.5, `off: ${key} contrast ${ratio.toFixed(2)}`);
+    }
+    assert.equal(off.opacity, "1", "the off state is not a faded copy");
+    assert.ok(off.chosenBorder !== "none" && off.chosenWeight >= 600, "off: the selected choice is still marked");
+    assert.match(off.note, /Readela is off\..*saved places are kept\./);
+    await ui.screenshot({ path: path.join(results, `${name}-popup-off.png`) });
+    await ui.$eval("#enabled", (element) => element.click());
+    await ui.waitForFunction(() => !document.querySelector("#settings").disabled);
+
+    // A short window: the content scrolls, nothing is cut off.
+    await ui.setViewport({ width: 320, height: 360 });
+    const short = await ui.evaluate(() => {
+      const scrolling = document.scrollingElement;
+      scrolling.scrollTop = scrolling.scrollHeight;
+      const last = document.querySelector("#publisher").getBoundingClientRect();
+      const reached = last.bottom <= innerHeight && last.top >= 0;
+      const facts = { taller: scrolling.scrollHeight > innerHeight, reached, wide: scrolling.scrollWidth <= scrolling.clientWidth };
+      scrolling.scrollTop = 0;
+      return facts;
+    });
+    assert.deepEqual(short, { taller: true, reached: true, wide: true });
+    await ui.setViewport({ width: 320, height: 640 });
+
+    if (input) {
+      // Forced colours: selection is the system's highlight, and the focus
+      // ring is still there beside it.
+      const session = await ui.createCDPSession();
+      await session.send("Emulation.setEmulatedMedia", { features: [{ name: "forced-colors", value: "active" }] });
+      assert.equal(await ui.evaluate(() => matchMedia("(forced-colors: active)").matches), true);
+      await ui.evaluate(() => document.activeElement?.blur());
+      const forcedSelected = await segment('input[name="size"]:checked');
+      const forcedPlain = await segment('input[name="size"]:not(:checked)');
+      assert.notEqual(forcedSelected.background, forcedPlain.background, "forced colours: selected fill");
+      assert.notEqual(forcedSelected.colour, forcedPlain.colour, "forced colours: selected text");
+      assert.ok(contrast(rgb(forcedSelected.colour), rgb(forcedSelected.background)) >= 4.5, "forced colours: selected text contrast");
+      await ui.focus("#enabled");
+      await ui.keyboard.press("Tab");
+      assert.equal(await ui.evaluate(() => document.activeElement.name), "theme");
+      const forcedFocus = await segment('input[name="theme"]:checked');
+      assert.equal(forcedFocus.ring, "solid 3", "forced colours: focus ring");
+      assert.notEqual(forcedFocus.ringColour, forcedFocus.background, "forced colours: the ring stands out from the selection");
+      await ui.screenshot({ path: path.join(results, `${name}-popup-forced-colours.png`) });
+      await session.send("Emulation.setEmulatedMedia", { features: [] });
+      await session.detach();
+      report.forcedColours = "checked in the installed popup with the forced-colours media feature emulated";
+    } else {
+      report.forcedColours = "not checked in this browser: the automation protocol cannot switch it";
+    }
+    // The popup asked for nothing outside the extension, opening or in use.
+    assert.deepEqual(popupRequests.filter((url) => !EXTENSION_FILE.test(url) && !url.startsWith("data:")), []);
+    await front(page);
   });
 
   for (const scheme of schemes) {
@@ -1506,16 +2210,16 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     for (const url of requests.filter((entry) => EXTENSION_FILE.test(entry))) {
       assert.match(url, /\/fonts\/Vazirmatn-NL-wght\.woff2$/, url);
     }
-    assert.ok(requests.includes(FIXTURE_URL) && requests.includes(CLAUDE_FIXTURE_URL));
+    assert.ok(requests.includes(FIXTURE_URL) && requests.includes(CLAUDE_FIXTURE_URL) && requests.includes(LONG_FIXTURE_URL));
     const stored = await popup.evaluate(async () => {
       const api = globalThis.browser ?? globalThis.chrome;
       return api.storage.local.get(null);
     });
-    assert.deepEqual(Object.keys(stored).sort(), ["readela.marks", "readela.preferences"], "only preferences and reading marks are stored");
+    assert.deepEqual(Object.keys(stored).sort(), ["readela.marks", "readela.preferences"], "only preferences and saved places are stored");
     assert.deepEqual(Object.keys(stored["readela.preferences"]).sort(), [
       "direction", "enabled", "font", "size", "spacing", "theme", "version",
     ]);
-    assert.deepEqual(stored["readela.marks"], { version: 1, items: [] });
+    assert.deepEqual(stored["readela.marks"], { version: 2, items: [] });
   });
 
   report.fixtureRequests = [...new Set(requests)].map((url) => (url.startsWith("data:") ? `${url.slice(0, 24)}…` : url));
@@ -1593,6 +2297,90 @@ async function runLive(name, browser, address, label) {
 }
 
 // ---------------------------------------------------------------------------
+// A saved place across a restart of the browser
+//
+// The browser is started twice on one profile directory made for this check
+// and removed after it. The place is saved in the first run and found in the
+// second, from what the browser itself kept in the extension's local storage.
+
+async function checkRestart(name) {
+  const profile = mkdtempSync(path.join(os.tmpdir(), `readela-${name}-restart-`));
+  let browser = null;
+  const session = async () => {
+    const started = await start(name, "light", profile);
+    browser = started.browser;
+    const page = await openFixture(browser, []);
+    await waitForMark(page, "#p-en-start", "rtl");
+    const popup = await openPopup(browser, started.popupUrl);
+    const tab = await popup.evaluate(async () => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      for (const candidate of await extension.tabs.query({})) {
+        try {
+          if ((await extension.tabs.sendMessage(candidate.id, { readelaMark: "status" }))?.site === "ChatGPT") return candidate.id;
+        } catch {
+          // Not a page this extension runs on.
+        }
+      }
+      return null;
+    });
+    await loadPopup(popup, `${started.popupUrl}?tab=${tab}`);
+    await popup.waitForFunction(() => !document.querySelector("#place-save").disabled, { polling: 200 });
+    const click = async (button) => {
+      await popup.$eval(`#place-${button}`, (element) => element.click());
+      await front(page);
+    };
+    const note = (text) =>
+      popup.waitForFunction((t) => document.querySelector("#place-note").textContent.startsWith(t), { timeout: 15000, polling: 200 }, text);
+    const stored = () =>
+      popup.evaluate(async () => {
+        const extension = globalThis.browser ?? globalThis.chrome;
+        return (await extension.storage.local.get("readela.marks"))["readela.marks"] ?? null;
+      });
+    return { page, popup, click, note, stored };
+  };
+
+  try {
+    const first = await session();
+    assert.deepEqual((await first.stored())?.items ?? [], [], "the profile starts with no saved place");
+    await first.page.evaluate(() => {
+      const paragraph = document.querySelector("#p-twin-again");
+      paragraph.scrollIntoView({ block: "center" });
+      getSelection().selectAllChildren(paragraph);
+    });
+    await first.click("save");
+    await first.note("Place saved.");
+    const saved = await first.stored();
+    assert.equal(saved.items.length, 1);
+    await browser.close();
+    browser = null;
+
+    const second = await session();
+    assert.deepEqual(await second.stored(), saved, "the browser kept the place over the restart");
+    await second.page.waitForFunction(
+      () => document.querySelector("#p-twin-again")?.getAttribute("data-readela-mark") === "exact" && document.querySelectorAll("[data-readela-mark]").length === 1,
+      { timeout: 8000, polling: 200 },
+    );
+    await second.note("A place is saved in this conversation.");
+    await second.page.$eval("#scroller", (element) => {
+      element.scrollTop = 0;
+    });
+    await second.click("return");
+    await second.note("Returned to your saved place.");
+    const arrived = await second.page.evaluate(() => {
+      const frame = document.querySelector("#scroller").getBoundingClientRect();
+      const box = document.querySelector("#p-twin-again").getBoundingClientRect();
+      return box.top >= frame.top && box.bottom <= frame.bottom;
+    });
+    assert.equal(arrived, true, "the place is in view");
+    await second.click("clear");
+    await second.note("Saved place cleared.");
+  } finally {
+    await browser?.close().catch(() => {});
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 mkdirSync(results, { recursive: true });
 const summary = { startedAt: new Date().toISOString(), browsers: {} };
@@ -1636,6 +2424,20 @@ for (const name of selected) {
     }
   } finally {
     await browser.close();
+  }
+
+  {
+    const title = "a saved place survives a restart of the browser and is returned to afterwards";
+    try {
+      await checkRestart(name);
+      report.steps.push({ title, ok: true });
+      console.log(`  ok    ${title}`);
+    } catch (error) {
+      failed = true;
+      const detail = String(error?.message ?? error).split("\n").slice(0, 12).join("\n");
+      report.steps.push({ title, ok: false, error: detail });
+      console.log(`  FAIL  ${title}\n        ${detail}`);
+    }
   }
 
   if (!started.input) {

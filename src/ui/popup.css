@@ -6,8 +6,8 @@
   --muted: #5a5246;
   --border: #857b6c;
   --accent: #1d4f8a;
-  --selected: #211d18;
-  --selected-text: #fbf8f2;
+  --radius: 8px;
+  --radius-inner: 6px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,13 +18,17 @@
     --muted: #bdb4a5;
     --border: #948b7c;
     --accent: #9cc7f5;
-    --selected: #efe9dd;
-    --selected-text: #1f1d1a;
   }
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Taller than the browser allows a popup to be, the content scrolls; nothing
+   is clipped. */
+html {
+  overflow-y: auto;
 }
 
 body {
@@ -38,8 +42,8 @@ body {
 
 main {
   display: grid;
-  gap: 9px;
-  padding: 14px 16px;
+  gap: 7px;
+  padding: 10px 16px 12px;
 }
 
 header {
@@ -111,13 +115,13 @@ p {
 }
 
 .switch input:checked {
-  border-color: var(--selected);
-  background: var(--selected);
+  border-color: var(--text);
+  background: var(--text);
 }
 
 .switch input:checked::before {
   left: 21px;
-  background: var(--selected-text);
+  background: var(--background);
 }
 
 /* Settings */
@@ -131,105 +135,98 @@ fieldset {
 
 .settings {
   display: grid;
-  gap: 9px;
+  gap: 7px;
 }
 
 .group {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .segments {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
+  gap: 2px;
+  padding: 2px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
-  overflow: hidden;
 }
 
 .segments label {
   position: relative;
   display: grid;
-  min-height: 28px;
+  min-height: 24px;
   place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-inner);
   cursor: pointer;
-}
-
-.segments label + label {
-  border-inline-start: 1px solid var(--border);
 }
 
 /* The radio covers its segment, so its focus ring is the segment's. */
 .segments input {
   appearance: none;
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: -1px;
   margin: 0;
-  border-radius: 0;
+  border-radius: var(--radius-inner);
   background: transparent;
   cursor: pointer;
 }
 
 .segments span {
-  padding: 4px 6px;
+  padding: 3px 6px;
   text-align: center;
   white-space: nowrap;
 }
 
-/* Selected: filled, bold and underlined inside the segment, not colour alone. */
+/* Selected: a raised segment with an outline of its own and heavier text, so
+   the choice does not rest on colour. Focus is a separate, thicker ring in
+   the accent colour around whichever segment has the keyboard. */
 .segments label:has(input:checked) {
-  background: var(--selected);
-  color: var(--selected-text);
-  font-weight: 700;
+  border-color: var(--text);
+  background: var(--background);
+  font-weight: 650;
 }
 
-.segments label:has(input:checked) span {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+/* Off: the choices stay readable and the selected one stays marked. */
+.settings:disabled .segments label {
+  color: var(--muted);
+  cursor: default;
 }
 
-.settings:disabled {
-  opacity: 0.55;
+.settings:disabled .segments label:has(input:checked) {
+  border-color: var(--border);
+  border-style: dashed;
 }
 
-.settings:disabled .segments label,
 .settings:disabled .segments input,
 button:disabled {
   cursor: default;
 }
 
-/* Reading mark and footer */
+/* Saved place and footer */
 
-.mark,
+.place,
 footer {
   display: grid;
-  gap: 6px;
-  padding-top: 10px;
+  gap: 5px;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
 }
 
-.foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .actions {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 6px;
 }
 
 button {
   min-height: 30px;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -237,26 +234,22 @@ button {
   cursor: pointer;
 }
 
-.actions button:not(.quiet) {
-  flex: 1;
-}
-
-button.quiet {
+/* A quiet button for something done rarely. */
+button.secondary {
   justify-self: start;
-  border-color: transparent;
   background: transparent;
-  font-weight: 400;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  font-weight: 500;
 }
 
 button:disabled {
-  opacity: 0.55;
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
 }
 
 .note,
 .hint,
-.by {
+.about {
   color: var(--muted);
   font-size: 12px;
 }
@@ -266,30 +259,50 @@ button:disabled {
   display: none;
 }
 
+.about {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.about a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: 3px;
+}
+
 :focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
 .segments input:focus-visible {
-  outline-offset: -3px;
-}
-
-.segments label:has(input:checked) input:focus-visible {
-  outline-color: var(--selected-text);
-  box-shadow: inset 0 0 0 5px var(--accent);
+  outline-offset: 0;
 }
 
 @media (forced-colors: active) {
   .segments label:has(input:checked) {
     forced-color-adjust: none;
+    border-color: Highlight;
     background: Highlight;
     color: HighlightText;
+  }
+
+  .settings:disabled .segments label:has(input:checked) {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
   }
 
   .switch input:checked {
     forced-color-adjust: none;
     background: Highlight;
     border-color: Highlight;
+  }
+
+  :focus-visible {
+    outline-color: CanvasText;
   }
 }

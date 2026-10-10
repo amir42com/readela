@@ -1,5 +1,5 @@
 // Popup controls. Settings are read from and written to the shared
-// preferences; the page reacts to the stored change. The reading mark belongs
+// preferences; the page reacts to the stored change. The saved place belongs
 // to the conversation in the active tab, so those three buttons ask that page.
 
 import { api } from "../browser/api.js";
@@ -7,17 +7,11 @@ import { askPage } from "../browser/messages.js";
 import { loadPreferences, savePreferences } from "../browser/storage.js";
 import { resetPreferences } from "../core/index.js";
 
-const GROUPS = ["direction", "theme", "font", "size", "spacing"];
+const GROUPS = ["theme", "font", "size", "spacing", "direction"];
 
 // One plain sentence for the choice that is selected. Original needs none:
 // the line under the heading says what it means everywhere.
 const HINTS = {
-  direction: {
-    page: "",
-    auto: "Chosen for each paragraph from its words.",
-    rtl: "All text reads right-to-left.",
-    ltr: "All text reads left-to-right.",
-  },
   theme: {
     page: "",
     paper: "Warm, light paper colours for responses.",
@@ -27,43 +21,61 @@ const HINTS = {
     page: "",
     sans: "Built-in Vazirmatn for Persian and Arabic.",
   },
-};
-
-const MARK_NOTES = {
-  unavailable: "Open a ChatGPT or Claude conversation to use the reading mark.",
-  off: "Turn Readela on to use the reading mark.",
-  none: "Nothing is marked in this conversation yet.",
-  exact: "A place is marked in this conversation.",
-  approximate: "A place is marked. Its paragraph has changed, so the mark is approximate.",
-  missing: "Saved place not found. It may not be loaded yet, or the text has changed.",
-  nothing: "There is no paragraph in view to mark.",
-  failed: "The mark could not be saved. Please try again.",
-};
-
-const MARK_RESULTS = {
-  set: { exact: "Marked. Go to mark brings you back here." },
-  go: {
-    exact: "You are at your mark.",
-    approximate: "This is close to your mark. The paragraph itself has changed.",
+  direction: {
+    page: "",
+    auto: "Chosen for each paragraph from its words.",
+    rtl: "All text reads right-to-left.",
+    ltr: "All text reads left-to-right.",
   },
-  clear: { none: "Mark cleared." },
 };
+
+// What is known about the conversation in the tab.
+const PLACE_NOTES = {
+  unavailable: "Open a ChatGPT or Claude conversation to save a place.",
+  nowhere: "Open a conversation to save a place.",
+  off: "Turn Readela on to use saved places.",
+  none: "",
+  saved: "A place is saved in this conversation.",
+};
+
+// What an action did. Each is said only when the page reports it as true.
+const PLACE_RESULTS = {
+  set: {
+    saved: "Place saved.",
+    nothing: "No response paragraph is in view to save.",
+    ambiguous: "This paragraph cannot be told apart from an identical one beside it. Choose another.",
+    failed: "The place could not be saved. Nothing was changed.",
+  },
+  go: {
+    arrived: "Returned to your saved place.",
+    approximate: "Returned close to your saved place. Its paragraph has changed.",
+    unresolved: "Your saved place was not found. It is still saved.",
+    stopped: "Return was stopped. Your place is still saved.",
+    failed: "Return did not finish. Your place is still saved.",
+  },
+  clear: {
+    none: "Saved place cleared.",
+    failed: "The place could not be cleared. It is still saved.",
+  },
+};
+
+const BUSY_NOTES = { go: "Looking for your saved place…" };
 
 const enabled = document.getElementById("enabled");
 const enabledLabel = document.getElementById("enabled-label");
 const stateNote = document.getElementById("state-note");
 const settings = document.getElementById("settings");
 const status = document.getElementById("status");
-const markNote = document.getElementById("mark-note");
-const markButtons = {
-  set: document.getElementById("mark-set"),
-  go: document.getElementById("mark-go"),
-  clear: document.getElementById("mark-clear"),
+const placeNote = document.getElementById("place-note");
+const placeButtons = {
+  set: document.getElementById("place-save"),
+  go: document.getElementById("place-return"),
+  clear: document.getElementById("place-clear"),
 };
 const radios = Object.fromEntries(GROUPS.map((name) => [name, [...document.querySelectorAll(`input[name="${name}"]`)]]));
 
 let preferences;
-let mark = "unavailable";
+let place = "unavailable";
 
 // Requests to the page are answered one at a time and in the order they were
 // made, so a slow first report can never overwrite the result of a later action.
@@ -79,24 +91,25 @@ function render() {
   enabledLabel.textContent = preferences.enabled ? "On" : "Off";
   stateNote.textContent = preferences.enabled
     ? "Original keeps that part as the site shows it."
-    : "Readela is off. Pages look exactly as the site shows them. Your settings and reading marks are kept.";
+    : "Readela is off. Pages look exactly as the site shows them. Your settings and saved places are kept.";
   settings.disabled = !preferences.enabled;
   for (const name of GROUPS) {
     for (const radio of radios[name]) radio.checked = radio.value === preferences[name];
     const hint = document.getElementById(`${name}-hint`);
     if (hint) hint.textContent = HINTS[name][preferences[name]];
   }
-  renderMark();
+  renderPlace();
 }
 
-function renderMark(message) {
-  const state = preferences.enabled ? mark : mark === "unavailable" ? "unavailable" : "off";
-  const usable = state !== "unavailable" && state !== "off";
-  const saved = state === "exact" || state === "approximate" || state === "missing";
-  markButtons.set.disabled = !usable;
-  markButtons.go.disabled = !(usable && saved);
-  markButtons.clear.disabled = !(usable && saved);
-  markNote.textContent = message ?? MARK_NOTES[state] ?? "";
+function renderPlace(message) {
+  const state = preferences.enabled ? place : place === "unavailable" ? "unavailable" : "off";
+  const usable = state !== "unavailable" && state !== "off" && state !== "nowhere";
+  const saved = state === "saved";
+  placeButtons.set.textContent = saved ? "Update place" : "Save place";
+  placeButtons.set.disabled = !usable;
+  placeButtons.go.disabled = !(usable && saved);
+  placeButtons.clear.disabled = !(usable && saved);
+  placeNote.textContent = message ?? PLACE_NOTES[state] ?? "";
 }
 
 async function update(change, message = "") {
@@ -110,40 +123,35 @@ async function update(change, message = "") {
   }
 }
 
-async function refreshMark() {
-  mark = (await ask("status")).status;
-  renderMark();
+const known = (answer) => (answer in PLACE_NOTES ? answer : "unavailable");
+
+async function refreshPlace() {
+  place = known((await ask("status")).status);
+  renderPlace();
 }
 
-// Bring the buttons in line with the page without replacing the message shown.
-async function refreshMarkQuietly() {
-  const shown = markNote.textContent;
-  mark = (await ask("status")).status;
-  renderMark(shown);
-}
-
-// Counts the reader's own reading-mark actions, so a report asked for before
+// Counts the reader's own saved-place actions, so a report asked for before
 // an action never replaces that action's result.
 let acted = 0;
 
 async function act(request) {
   acted += 1;
+  if (request in BUSY_NOTES) renderPlace(BUSY_NOTES[request]);
   const answer = (await ask(request)).status;
-  // "nothing" and "failed" report that nothing changed; what was saved before still is.
-  if (answer === "nothing" || answer === "failed") {
-    renderMark(MARK_NOTES[answer]);
-    refreshMarkQuietly();
-    return;
-  }
-  mark = answer;
-  renderMark(MARK_RESULTS[request][answer] ?? MARK_NOTES[answer]);
+  // What the action did is said in its own words; what is saved now is asked
+  // again, so the buttons never run ahead of the page.
+  const result = PLACE_RESULTS[request][answer];
+  place = known((await ask("status")).status);
+  renderPlace(result ?? PLACE_NOTES[place]);
+  // A button that has just switched itself off hands the keyboard on.
+  if (placeButtons[request].disabled && !placeButtons.set.disabled) placeButtons.set.focus();
 }
 
 enabled.addEventListener("change", async () => {
   await update({ enabled: enabled.checked });
   // The page applies the stored change a moment later.
   const before = acted;
-  setTimeout(() => before === acted && refreshMark(), 150);
+  setTimeout(() => before === acted && refreshPlace(), 150);
 });
 for (const name of GROUPS) {
   for (const radio of radios[name]) {
@@ -151,9 +159,9 @@ for (const name of GROUPS) {
   }
 }
 document.getElementById("reset").addEventListener("click", () => {
-  update(resetPreferences(preferences), "Settings were reset. Your reading marks are kept.");
+  update(resetPreferences(preferences), "Settings were reset. Your saved places are kept.");
 });
-for (const [request, button] of Object.entries(markButtons)) {
+for (const [request, button] of Object.entries(placeButtons)) {
   button.addEventListener("click", () => act(request));
 }
 
@@ -162,5 +170,5 @@ document.getElementById("version").textContent = api.runtime.getManifest?.().ver
 loadPreferences().then((stored) => {
   preferences = stored;
   render();
-  refreshMark();
+  refreshPlace();
 });

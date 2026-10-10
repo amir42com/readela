@@ -12,18 +12,19 @@ controls behind it are in
 Readela works entirely inside your browser. It reads the text of the
 conversation shown on `chatgpt.com` and `claude.ai` to decide which direction
 each paragraph should be read in and, from version 0.3.0, to find the place
-you marked. It changes only how that text is presented. It does not send
+you saved. It changes only how that text is presented. It does not send
 anything anywhere and it does not keep any of the text. It saves your own
-settings and, from version 0.3.0, the reading marks you set, on your own
-device.
+settings and, from version 0.3.0, the places you save, on your own device.
 
 ## What Readela reads, and what happens to it
 
 - **Website content.** On `chatgpt.com` and `claude.ai`, Readela reads the
   text of the conversation on the page (messages, headings, lists, quotations,
   tables) so it can count the words in each writing script, choose a reading
-  direction and, from version 0.3.0, recognise a marked paragraph. Editable
-  fields, such as the message composer, are never read.
+  direction and, from version 0.3.0, recognise a saved paragraph. For that it
+  also reads the conversation's address and the identifiers the site writes
+  on its messages. Editable fields, such as the message composer, are never
+  read.
 - **Processed in memory only.** The text is used at that moment, inside the
   page, and nothing readable is kept. Readela does not store, log, copy or
   transmit conversation content, page addresses or your browsing history.
@@ -40,13 +41,18 @@ the extension.
 - **Your settings:** whether Readela is on, the direction mode, and your font,
   text size and line spacing choices; from version 0.3.0 also the reading
   appearance. The same settings apply on both supported sites.
-- **Your reading marks (from version 0.3.0):** only when you choose Mark here,
-  Readela saves where you stopped in that conversation, at most 100 marks and
-  one per conversation. A mark does not contain the text you marked or the
-  address of the conversation. It contains short one-way fingerprints — of the
-  conversation's address, of the marked paragraph and of the paragraphs before
-  and after it — and the paragraph's position number. A fingerprint cannot be
-  turned back into text. Clear removes the mark of a conversation.
+- **Your saved places (from version 0.3.0):** only when you choose Save
+  place, Readela saves where you stopped in that conversation, at most 100
+  places and one per conversation. A saved place does not contain the text of
+  the paragraph, the title or the address of the conversation. It contains
+  short one-way fingerprints — of the conversation's identifier, of the
+  message the paragraph is in, of the paragraph and of the paragraphs before
+  and after it — and a few small numbers: the kind of paragraph, its position
+  in the message, the message's row number where the site gives one, and
+  roughly how far along the conversation it is. A fingerprint cannot be turned
+  back into text. It is matching information kept on your device, not
+  encryption. Clear removes the saved place of a conversation; a place that
+  cannot be found is kept until you clear or replace it.
 
 No message content, site name, address or history is stored in readable form.
 
@@ -69,7 +75,7 @@ No message content, site name, address or history is stored in readable form.
 | Permission | Why Readela needs it |
 | --- | --- |
 | Access to `chatgpt.com` and `claude.ai` | To read the conversation text on those two sites and present it with the right direction, colours and typography. No other site is accessed. |
-| `storage` | To remember your settings and reading marks on this device. |
+| `storage` | To remember your settings and saved places on this device. |
 
 Nothing else is requested. From version 0.3.0 the packaged font file is made
 available to those two sites so their pages can display it; this is not a

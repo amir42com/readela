@@ -44,10 +44,61 @@ test("every rule is keyed on a Readela mark, so the sheet is inert on an unmarke
 
 test("reading themes colour the reading surface and its text, and nothing outside it", () => {
   const css = buildCss();
-  const themed = css.split("\n").filter((line) => /--readela-(surface|text|link|rule|code|head|selection|site)/.test(line) && line.includes("{"));
+  const themed = css
+    .split("\n")
+    .filter((line) => /--readela-(surface|text|muted|link|rule|quote|code|head|selection|site|island)/.test(line) && line.includes("{"));
+  assert.ok(themed.length > 12);
   for (const line of themed) {
     const selector = line.slice(0, line.indexOf("{"));
     // Either the declaration of the palette on the root, or a rule inside a reading surface.
     assert.ok(/^html\[data-readela-theme="\w+"\] $/.test(selector) || selector.includes("[data-readela-sheet]"), selector);
   }
+});
+
+test("what a part of the text means keeps a token of its own, and a unit that stays the site's is never recoloured", () => {
+  const css = buildCss();
+  const rule = (needle) => css.split("\n").filter((line) => line.includes(needle));
+  // Links, inline code, table lines and headers, quotation bars, secondary text,
+  // list markers and highlighted text each have their rule.
+  for (const [needle, token] of [
+    [":is(a, a *)", "--readela-link"],
+    [":is(code, kbd, samp)", "--readela-code"],
+    [":is(table, thead, tbody, tfoot, tr, th, td)", "--readela-rule"],
+    [":is(th)", "--readela-head"],
+    [":is(blockquote)", "--readela-quote"],
+    [":is(small, del, s, caption, figcaption)", "--readela-muted"],
+    ["::marker", "--readela-muted"],
+    [" mark:not(", "--readela-selection"],
+  ]) {
+    const lines = rule(needle);
+    assert.equal(lines.length, 1, needle);
+    assert.ok(lines[0].includes(`var(${token})`), `${needle} uses ${token}`);
+  }
+  // Borders are recoloured only on tables and quotations, so the lines a
+  // formula is drawn with keep the text's colour.
+  const borders = css.split("\n").filter((line) => line.includes("border-color") && line.includes("data-readela-top"));
+  assert.equal(borders.length, 2);
+  // Every rule for reading text leaves a kept unit and everything in it alone.
+  const prose = css.split("\n").filter((line) => line.includes("[data-readela-sheet] > [data-readela-top]"));
+  assert.ok(prose.length >= 10);
+  for (const line of prose) {
+    assert.ok(line.includes("[data-readela-top]:not(pre, [data-readela-island])"), line);
+    if (line.includes(" :not(") || line.includes("):not(")) assert.ok(line.includes("[data-readela-island] *"), line);
+  }
+  // A kept unit gets only what the reader noted it needs: the site's text
+  // colour, the site's background behind it, a rounded shape from its own
+  // radii. A bare mark changes nothing, so a unit with an opaque background
+  // and a colour of its own stays exactly as the site made it.
+  const units = rule("[data-readela-island~=");
+  assert.deepEqual(
+    units.map((line) => line.slice(line.indexOf("[data-readela-island")).replace(/ !important/, "")),
+    [
+      '[data-readela-island~="text"] { color: var(--readela-site-text); }',
+      '[data-readela-island~="surface"] { background-color: var(--readela-site-surface); }',
+      '[data-readela-island~="round"] { border-radius: var(--readela-island-radius); }',
+    ],
+  );
+  assert.ok(!css.includes("[data-readela-island] {"), "the bare mark has no rule of its own");
+  // Nothing clips: no rule sets overflow, which would cut a focus ring or a control.
+  assert.doesNotMatch(css, /overflow/);
 });

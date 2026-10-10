@@ -10,7 +10,7 @@ laid out left-to-right, list markers land on the wrong side and punctuation
 jumps to the wrong end. Readela decides the direction of each paragraph from
 its whole text and presents it accordingly, without changing the text. Around
 that it offers warm reading colours, a packaged Persian and Arabic font, text
-size and line spacing, and a mark for the place where you stopped.
+size and line spacing, and a saved place for where you stopped.
 
 Readela is distributed through the Chrome Web Store and Firefox Add-ons
 (AMO). The dated evidence under `docs/evidence/` records which version was
@@ -21,24 +21,29 @@ built and loaded for development, as described below.
 ## What it does
 
 - **On/off switch.** Off shows the page exactly as the site presents it and
-  keeps your settings and reading marks.
+  keeps your settings and saved places.
 - **Every setting has an Original choice** that leaves that part of the page
   as the site shows it.
-- **Direction:** Original, Auto, RTL or LTR. Auto is the default: paragraphs,
-  headings, lists, quotations and tables read right-to-left when at least 40%
-  of their words are in a right-to-left script, whatever the first word is.
-  Lists and tables are decided as a unit, so markers, indentation and column
-  order agree with the text.
-- **Reading appearance:** Original, Paper or Night. Warm light or warm dark
-  reading colours for responses, whichever theme the site itself is in. Only
-  the response text area changes; primary text is held at a contrast ratio of
-  10:1 or better.
+- **Appearance:** Original, Paper or Night. Warm light or warm dark reading
+  colours for the text of responses, whichever theme the site itself is in.
+  Your own messages, the site's navigation and controls, and code blocks stay
+  as the site shows them. Links, inline code, lists, quotations and tables
+  stay distinct; primary text is held at a contrast ratio of 10:1 or better.
 - **Font:** Original or Readela Sans. Persian and Arabic are shown in
   Vazirmatn, which is packaged with the extension; other scripts use your
   device's sans-serif fonts.
 - **Text size** (up to 140%) and **line spacing.**
-- **Reading mark:** Mark here, Go to mark and Clear, one mark per
-  conversation, kept on this device.
+- **Text direction:** Original, Auto, RTL or LTR. Auto is the default:
+  paragraphs, headings, lists, quotations and tables read right-to-left when
+  at least 40% of their words are in a right-to-left script, whatever the
+  first word is. Lists and tables are decided as a unit, so markers,
+  indentation and column order agree with the text.
+- **Saved place:** Save place, Return and Clear, one place per conversation,
+  kept on this device. Save place takes the first paragraph of a response in
+  view, or the paragraph you selected text in. Return goes back to it, also
+  when the site has not loaded that part of the conversation yet, and never
+  to a look-alike paragraph somewhere else: if the place cannot be found for
+  certain, nothing moves, the popup says so, and the place stays saved.
 - **Remembers your choices** on this device, for both sites.
 
 Code blocks, inline code, mathematics and web addresses stay left-to-right and
@@ -53,9 +58,10 @@ on Windows 11:
 | | ChatGPT | Claude |
 | --- | --- | --- |
 | Synthetic conversation page: direction for Persian, Arabic, Hebrew, English, mixed | passed in both browsers | passed in both browsers (Persian, English, mixed) |
-| Synthetic conversation page: Paper and Night, Readela Sans, reading mark | passed in both browsers, page light and dark | passed in both browsers |
+| Synthetic conversation page: Paper and Night (who owns what, code blocks, links, lists, quotations, tables), Readela Sans | passed in both browsers, page light and dark | passed in both browsers (light and dark in Chrome, light in Firefox) |
+| Synthetic conversation page: saved place (identical paragraphs, routes, reload, browser restart, failed save) | passed in both browsers (failed save: Chrome) | passed in both browsers, including a long conversation of which only the part near the viewport is in the document |
 | Real start page, signed out, nothing sent | content script ran, nothing disturbed (a bot check in headless Chrome) | content script ran, nothing disturbed (sign-in page in Firefox, a bot check in headless Chrome) |
-| Real signed-in conversation | page structure read once, without the text, to shape the checks; the 0.3.0 extension was not run there by the automated checks | the same |
+| Real signed-in conversation | page structure read twice, without the text, to shape the adapters and the checks; the 0.3.0 extension was not run there by the automated checks | the same |
 
 The owner reported manually testing earlier builds on real ChatGPT and Claude
 conversations and finding them working correctly. Those are reports, not part
@@ -65,7 +71,9 @@ The minimum browser versions declared in the manifests (Chrome 121, Firefox
 140) have not been exercised. The exact cases, method and limits are in the
 dated evidence:
 
+- [docs/evidence/2026-10-10-readela-0.3.0-correction.md](docs/evidence/2026-10-10-readela-0.3.0-correction.md)
 - [docs/evidence/2026-10-10-readela-0.3.0-implementation.md](docs/evidence/2026-10-10-readela-0.3.0-implementation.md)
+  (the first 0.3.0 implementation; superseded by the correction where they differ)
 - [docs/evidence/2026-10-02-claude-support.md](docs/evidence/2026-10-02-claude-support.md)
 - [docs/evidence/2026-10-02-first-evaluation-build.md](docs/evidence/2026-10-02-first-evaluation-build.md)
 
@@ -108,8 +116,8 @@ signed**; release versions of Firefox will not install it permanently.
 ### Use
 
 Open a conversation on `chatgpt.com` or `claude.ai` and use the Readela
-toolbar button to switch it on or off, to change direction, reading
-appearance, font, size and spacing, and to mark or return to a place.
+toolbar button to switch it on or off, to change appearance, font, size,
+spacing and direction, and to save or return to a place.
 
 ### Manual check on a real conversation
 
@@ -121,23 +129,27 @@ On each site:
    English word read right-to-left; list markers sit on the right; code and
    the formula stay left-to-right.
 3. Your own message and the composer behave as before while you type.
-4. Choose Paper, then Night: only the response changes colour; code blocks,
-   the composer and the site's controls stay as the site shows them.
-5. Mark a paragraph, scroll away, choose Go to mark; reload and do it again.
+4. Choose Paper, then Night: only the text of responses changes colour; your
+   own messages, code blocks, the composer and the site's controls stay as the
+   site shows them, and no corner of another colour shows around a code block.
+5. Save a place, scroll far away, choose Return; reload and do it again; close
+   and reopen the browser and do it again. Try it in a long conversation, and
+   on a sentence that occurs more than once.
 6. Switch Readela off: the page returns to the site's own presentation.
 7. Open another conversation: the new one is handled without a reload.
 
 ## Privacy and permissions
 
 Readela works on your device. It has no backend, sends nothing anywhere, loads
-no remote code or fonts, and stores only your preferences and your reading
-marks. A reading mark holds one-way fingerprints, never your text or the
-address of the conversation.
+no remote code or fonts, and stores only your preferences and your saved
+places. A saved place holds one-way fingerprints and a few small numbers,
+never your text, a title or the address of the conversation. That is matching
+information kept on your device, not encryption.
 
 | Permission | Reason |
 | --- | --- |
-| Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction, find the reading mark and mark blocks for presentation. |
-| `storage` | Remember preferences and reading marks locally. |
+| Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction, find the saved place and mark blocks for presentation. |
+| `storage` | Remember preferences and saved places locally. |
 
 One font file, Vazirmatn, is packaged with the extension and made available to
 those two sites so their pages can display it. It is distributed under the SIL
@@ -158,20 +170,30 @@ controls and how they are verified:
   override.
 - RTL and LTR apply to all prose in the conversation, not to a single
   message, and preferences are shared by both sites.
-- Paper and Night colour the text area of responses. Your own messages, the
-  composer and the site's controls keep the site's colours. A code block, and
-  anything else in a response that is not text, keeps the site's own colours
-  on the site's own background, so under a theme opposite to the site's it
-  stands out as a block of the site's colour. Colours the site gave to
-  individual words are replaced by the theme's text colour.
-- The reading mark is found again by the text of the marked paragraph. In a
-  conversation whose earlier messages are not on the page yet, it is reported
-  as not found until they are. The mark is visual; a screen reader is told
-  about it in the popup, not in the page.
+- Paper and Night colour the text of responses, where Readela recognises it.
+  Your own messages, the composer and the site's controls keep the site's
+  colours, and so does a response in a layout Readela does not recognise. A
+  code block, and anything else in a response that is not text, stays as the
+  site made it, so under a theme opposite to the site's it stands out as a
+  block of the site's colour. Colours the site gave to individual words are
+  replaced by the theme's colours for text, links and secondary text.
+- A place can be saved in a response, not in your own message. It is found
+  again only in the response it was saved in. If that response was
+  regenerated or removed, or the paragraph and its neighbours were rewritten,
+  the place is reported as not found and stays saved until you clear or
+  replace it. A paragraph that has an identical twin right beside it with the
+  same neighbours cannot be saved.
+- Return looks for a place that is not on the page for at most about twelve
+  seconds, and stops as soon as you scroll, click or type. In a very long
+  conversation on a slow connection that may not be enough; scroll nearer and
+  choose Return again.
+- The saved place is shown visually; a screen reader is told about it in the
+  popup, not in the page.
 - On Claude, only message content is handled. Right-to-left text there keeps
   the side padding the site gives every text block.
-- On ChatGPT, a reader's own message is handled when the site renders it as
-  paragraphs or in the layout the adapter knows; other layouts are not.
+- On ChatGPT, direction and typography are applied to a reader's own message
+  when the site renders it as paragraphs or in the layout the adapter knows;
+  other layouts are not.
 - A web address that is not a link is not isolated from surrounding
   right-to-left text.
 - Text size scales whole blocks, including code inside them.

@@ -25,17 +25,23 @@ export {
   changesPage,
   resolveTypography,
 } from "./preferences.js";
-export { THEMES, PAGE_MARK, relativeLuminance, contrastRatio } from "./theme.js";
+export { THEMES, PAGE_MARK, relativeLuminance, contrastRatio, colourAlpha } from "./theme.js";
 export {
   MARKS_KEY,
   MARKS_VERSION,
   MARK_LIMIT,
+  BLOCK_KINDS,
+  POSITION_STEPS,
   fingerprint,
+  conversationId,
   conversationKey,
-  createMark,
-  locateMark,
+  messageKey,
+  blockKind,
+  createPlace,
+  locatePlace,
   normalizeMarks,
   findMark,
   saveMark,
   removeMark,
+  samePlace,
 } from "./marker.js";

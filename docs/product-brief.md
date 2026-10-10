@@ -3,8 +3,10 @@
 First prepared on 2026-10-02 for the first release and reconciled the same day
 with the owner's accepted decisions (DEC-100, DEC-102, DEC-103, DEC-104).
 Revised on 2026-10-10 for version 0.3.0 under DEC-116 and DEC-136 and the
-owner's instruction of that day. Approval of this brief and the project's
-managerial status are tracked in the managerial system, not in this file.
+owner's instruction of that day, and again the same day under DEC-140 after
+the owner's first review of the 0.3.0 build. Approval of this brief and the
+project's managerial status are tracked in the managerial system, not in this
+file.
 
 ## Purpose
 
@@ -38,21 +40,24 @@ Firefox builds come from one shared codebase.
 ## Scope (version 0.3.0)
 
 1. **On/off.** One clear switch. Off returns the page exactly to the
-   presentation the site gives it, and keeps the reader's settings and reading
-   marks.
+   presentation the site gives it, and keeps the reader's settings and saved
+   places.
 2. **Independent reading aspects.** While Readela is on, each aspect below is
    set on its own. Every aspect has an unchanged state, shown as **Original**,
    in which Readela leaves that part of the page as the site presents it; there
    are no separate per-aspect switches.
-3. **Direction:** Original, Auto, RTL or LTR.
-4. **Reading appearance:** Original, Paper or Night.
-5. **Font:** Original or Readela Sans.
-6. **Text size and line spacing:** Original or one of three bounded choices
+3. **Appearance:** Original, Paper or Night.
+4. **Font:** Original or Readela Sans.
+5. **Text size and line spacing:** Original or one of three bounded choices
    each.
-7. **Reading mark.** Mark here, Go to mark and Clear, one mark per
-   conversation.
-8. **Local persistence.** Choices and marks are remembered on the device and
-   shared by both supported sites.
+6. **Text direction:** Original, Auto, RTL or LTR.
+7. **Saved place.** Save place (Update place once one exists), Return and
+   Clear, one place per conversation.
+8. **Local persistence.** Choices and saved places are remembered on the
+   device; choices are shared by both supported sites.
+
+The popup presents them in this order: reading comes first, and direction is
+one reading setting among the others.
 
 ### Defaults
 
@@ -72,36 +77,73 @@ direction and alignment of blocks whose text calls for it.
 - **RTL and LTR** apply to all prose in the conversation. Code and mathematics
   stay left-to-right under every setting. **Original** direction decides
   nothing and leaves every block to the site.
-- **Reading appearance.** Paper is a warm, light reading surface; Night is a
-  warm, dark one. Either can be chosen whatever theme the site itself is in.
-  They colour the reading surface of responses only: the container of a
-  response's text, its text, links, inline code and tables. The site's
-  navigation, composer, message controls and the reader's own messages are not
-  recoloured. A code block, and any other part of a response that is not text,
-  keeps the site's own colours on the site's own background, so it stays
-  readable under either theme. Primary reading text on Paper and Night has a
-  contrast ratio of at least 10:1 against every surface it sits on; links are
-  underlined as well as coloured. The themes are described as warm, comfortable
-  reading colours and make no health claim. Readela is not a general
-  dark-mode or site-recolouring tool.
+- **Appearance.** Paper is a warm, light reading surface; Night is a warm,
+  dark one. Either can be chosen whatever theme the site itself is in.
+  Ownership is explicit. Readela owns the text of responses, where the site
+  adapter recognises it: that becomes the reading surface. The site owns
+  everything else: its navigation, header, composer and controls; the
+  reader's own messages, inside and out; and anything the adapter does not
+  recognise, which is left unchanged rather than coloured by a general rule.
+  Inside a response, what a part of the text means stays visible: links
+  (underlined as well as coloured), inline code, list markers, quotations
+  with their indentation and bar, tables with their lines, headers and
+  sideways scrolling, and highlighted, small and struck text each keep a
+  distinct treatment from a small set of theme colours. A code block is one
+  unit of the site's: its background, syntax colours, header and controls are
+  kept, and nothing of another colour shows around its corners; a dark code
+  block on Paper is intended. A formula keeps its renderer's presentation.
+  Primary reading text on Paper and Night has a contrast ratio of at least
+  10:1 against every surface it sits on, secondary text at least 7:1. The
+  themes are described as warm, comfortable reading colours and make no
+  health claim. Readela is not a general dark-mode or site-recolouring tool.
 - **Readela Sans.** Persian and Arabic script is shown in Vazirmatn, which is
   packaged with the extension, so it does not depend on fonts installed on the
   device. Latin, Hebrew and every other script use the device's own sans-serif
   fonts. Code keeps its monospaced font and mathematics its own.
 - **Text size** scales reading blocks to 110%, 125% or 140%. **Line spacing**
   is 1.6, 1.9 or 2.2.
-- **Reading mark.** Mark here saves the paragraph that holds a selection in
-  view, otherwise the first paragraph whose beginning can be seen. The marked
-  paragraph gets a bar on its leading edge and a tinted background. Go to mark
-  scrolls it into view and emphasises it briefly; with reduced motion the jump
-  is immediate and nothing is animated. A mark survives re-rendering, reloads,
-  leaving the conversation and restarting the browser. If the marked paragraph
-  has changed but the paragraphs on either side of it are unchanged, the place
-  is shown and reported as approximate. If no trustworthy place exists,
-  nothing moves, the popup says "Saved place not found", and the saved mark is
-  kept until the reader replaces or clears it. Readela never scrolls by itself.
+- **Saved place.** One place per conversation, in the text of a response.
+  - *Saving.* Save place saves the readable paragraph that holds a selection
+    in view, otherwise the first readable paragraph of a response at the top
+    of the reading area that is not covered by something the site keeps on
+    top; a paragraph that begins above the area counts. Nothing is guessed
+    about where the reader is looking. Elements kept only for screen readers,
+    controls and the reader's own messages are never saved. The popup says
+    "Saves the first paragraph in view. Select text to choose another." A
+    paragraph that cannot be told from an identical one beside it is not
+    saved, and the popup says so.
+  - *Showing.* The saved paragraph gets a bar on its leading edge and a tinted
+    background.
+  - *Returning.* Return scrolls the place into view and emphasises it briefly;
+    with reduced motion the jump is immediate and nothing is animated. A place
+    is trusted only inside the response it was saved in, which the site's own
+    identifier for that response establishes where the site gives one; the
+    same sentence in another response is never taken for it. If the saved
+    paragraph has changed but the paragraphs on either side of it are
+    unchanged, the place is shown and reported as close to the saved place.
+    Where the response is not on the page (the site has not loaded it, or
+    keeps only what is near the viewport in the document), Return searches the
+    conversation in a bounded number of steps and a bounded time, stops as
+    soon as the reader scrolls, clicks or types, when the conversation changes
+    or Readela is turned off, and puts the conversation back where it was if
+    it finds nothing.
+  - *Truthful reports.* "Place saved" is said after the browser has stored it;
+    "Returned to your saved place" after the place is seen in view; a place
+    that is not found is reported as not found and still saved. A failed
+    lookup never removes a place: it is kept until the reader replaces or
+    clears it. A wrong place is never shown in order to show something.
+  - *Same conversation, any route.* A conversation opened directly and the
+    same conversation opened inside a project are one conversation; different
+    conversations never share a place.
+  - A place survives re-rendering, reloads, leaving the conversation and
+    restarting the browser. Readela never scrolls by itself.
 - **Reset** returns every reading aspect to its default, keeps the on/off
-  state and keeps the reading marks.
+  state and keeps the saved places. It is a quiet button and asks for no
+  confirmation.
+- **Popup.** A selected choice is shown by its own outline, fill and heavier
+  text, without an underline; the keyboard focus is a separate ring. The
+  footer reads "By Amir42" with a link to amir42.com that opens in a new tab,
+  and the version.
 - **One preference set.** The same choices apply on both sites; there are no
   per-site preferences.
 
@@ -116,7 +158,7 @@ direction and alignment of blocks whose text calls for it.
 Readela follows newly streamed answers and navigation between conversations.
 Turning it on repeatedly stacks nothing; turning it off removes everything it
 added and stops observing the page. When every aspect is Original and no
-reading mark is saved, the page is not read at all.
+place is saved, the page is not read at all.
 
 ## Languages, sites and browsers
 
@@ -129,9 +171,11 @@ browser versions, sites and cases were exercised and how.
 
 Readela works locally: no backend, no telemetry, no remote code, no upload of
 conversation content and no network request. It stores the preferences and the
-reading marks, and a mark holds one-way fingerprints, never readable text or an
-address. It requests access to `chatgpt.com` and `claude.ai` and to extension
-storage, and nothing else. One font file is packaged with the extension and
+saved places, and a saved place holds one-way fingerprints and a few small
+numbers, never readable text, a title or an address. These are matching
+information kept on the device, not anonymisation or encryption. It requests
+access to `chatgpt.com` and `claude.ai` and to extension storage, and
+nothing else. One font file is packaged with the extension and
 made available to those two sites. Details and the reason for each entry are
 in [privacy-and-permissions.md](privacy-and-permissions.md).
 
@@ -145,7 +189,9 @@ submitted and what each store reported.
 ## Out of scope
 
 - Custom fonts chosen by the reader, serif or Naskh font choices.
-- Notes, durable highlighting, read aloud, focus modes.
+- Notes, durable highlighting, read aloud, focus modes, translation.
+- Saved places in the reader's own messages; a sign in the site's sidebar or
+  history that a conversation has a saved place.
 - Per-site preferences, other websites.
 - Safari and Microsoft Edge. Safari is an accepted planned public platform
   (DEC-104) and Edge a planned later one (DEC-116); nothing here implements
@@ -172,15 +218,20 @@ builds, on both supported sites:
 7. The popup is operable by keyboard with a visible focus indicator and meets
    text contrast in light and dark themes.
 8. The extension makes no network request and stores only the preferences and
-   the reading marks.
-9. Paper and Night colour the reading surface only, hold primary reading text
-   at 10:1 or better with the site in a light and in a dark theme, and leave
-   code blocks readable.
+   the saved places.
+9. Paper and Night colour the text of responses only, hold primary reading text
+   at 10:1 or better with the site in a light and in a dark theme, leave the
+   reader's own messages and unrecognised layouts unchanged, keep a code block
+   whole with nothing of another colour around its corners, and keep links,
+   inline code, list markers, quotations and tables distinct.
 10. Persian and Arabic text in Readela Sans is rendered with the packaged
     font; Latin and Hebrew text is not.
-11. The reading mark is saved, shown, found again after a reload and a
-    re-render, reported as approximate or not found when that is the truth,
-    and never moves the page to an untrusted place.
+11. The saved place is saved, shown, found again after a reload, a re-render
+    and a restart of the browser, and under every route to its conversation;
+    it is never confused with an identical paragraph elsewhere; it is found by
+    a bounded search when its response is not on the page; it is reported as
+    saved, reached, close or not found only when that is the truth; and a
+    place that is not found is kept.
 
 ## Accepted owner decisions reflected here
 
@@ -193,7 +244,11 @@ builds, on both supported sites:
 - DEC-115: Readela as the store and installed-extension name.
 - DEC-116: Readela as a minimal reading-comfort product.
 - DEC-136: the 0.3.0 scope: independent reading aspects, reading themes, the
-  reading mark, simplified typography with bundled Vazirmatn, a minimal popup.
+  reading-position marker, simplified typography with bundled Vazirmatn, a
+  minimal popup.
+- DEC-140: the correction of 0.3.0 before integration: a saved place that is
+  trusted only where it is certain, explicit ownership of reading surfaces,
+  coherent code and semantic content, and a reading-first popup.
 
 ## Still separate from this brief
 
