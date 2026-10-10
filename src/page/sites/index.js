@@ -7,6 +7,8 @@
 //                (<body> is used when it matches nothing)
 //   within       optional selector; when set, only blocks inside a matching
 //                element are read
+//   surface      optional selector; when set, a reading theme colours only
+//                containers inside (or matching) it
 //   extraBlocks  optional selector of text containers that are not
 //                paragraph-like elements
 //   exclude      selector of everything that is never read or changed

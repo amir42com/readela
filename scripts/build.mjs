@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 
+import { BUNDLED_FONT } from "../src/core/index.js";
 import { buildCss } from "../src/page/style.js";
 import { createZip } from "./lib/zip.mjs";
 
@@ -23,6 +24,15 @@ const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
 const { version } = readJson(path.join(root, "package.json"));
 
 const BROWSERS = ["chrome", "firefox"];
+
+// How the content stylesheet names the packaged font. Chrome resolves a
+// relative address in a content stylesheet against the page, so the address
+// is spelled out with the extension's own identifier, which the browser fills
+// in. Firefox resolves it against the stylesheet, inside the extension.
+const FONT_URLS = {
+  chrome: `chrome-extension://__MSG_@@extension_id__/${BUNDLED_FONT.file}`,
+  firefox: BUNDLED_FONT.file,
+};
 
 async function buildFor(browser) {
   const output = path.join(dist, browser);
@@ -45,10 +55,15 @@ async function buildFor(browser) {
     logLevel: "warning",
   });
 
-  writeFileSync(path.join(output, "content.css"), buildCss());
+  writeFileSync(path.join(output, "content.css"), buildCss({ fontUrl: FONT_URLS[browser] }));
   cpSync(path.join(source, "ui", "popup.html"), path.join(output, "popup", "popup.html"));
   cpSync(path.join(source, "ui", "popup.css"), path.join(output, "popup", "popup.css"));
   cpSync(path.join(source, "icons"), path.join(output, "icons"), { recursive: true });
+  // The packaged font with its licence; the notes about it stay in the source.
+  mkdirSync(path.join(output, "fonts"));
+  for (const name of [path.basename(BUNDLED_FONT.file), "OFL.txt"]) {
+    cpSync(path.join(source, "fonts", name), path.join(output, "fonts", name));
+  }
 
   const manifest = {
     ...readJson(path.join(source, "manifest", "base.json")),

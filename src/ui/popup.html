@@ -10,55 +10,85 @@
   <body>
     <main>
       <header>
-        <h1>Readela <span class="by">by Amir42</span></h1>
+        <h1>Readela</h1>
         <label class="switch" for="enabled">
-          <input type="checkbox" role="switch" id="enabled" />
-          <span id="enabled-label">On</span>
+          <span id="enabled-label" aria-hidden="true">On</span>
+          <input type="checkbox" role="switch" id="enabled" aria-label="Readela" aria-describedby="state-note" />
         </label>
       </header>
-      <p class="note" id="state-note"></p>
+      <p class="note" id="state-note">Original keeps that part as the site shows it.</p>
 
-      <fieldset>
-        <legend>Text direction</legend>
-        <div class="choices">
-          <label><input type="radio" name="direction" value="auto" /> Automatic</label>
-          <label><input type="radio" name="direction" value="rtl" /> Right to left</label>
-          <label><input type="radio" name="direction" value="ltr" /> Left to right</label>
-        </div>
+      <fieldset id="settings" class="settings">
+        <legend class="hidden">Reading settings</legend>
+
+        <fieldset class="group" aria-describedby="direction-hint">
+          <legend>Direction</legend>
+          <div class="segments">
+            <label><input type="radio" name="direction" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="direction" value="auto" /><span>Auto</span></label>
+            <label><input type="radio" name="direction" value="rtl" aria-label="RTL, right to left" /><span>RTL</span></label>
+            <label><input type="radio" name="direction" value="ltr" aria-label="LTR, left to right" /><span>LTR</span></label>
+          </div>
+          <p class="hint" id="direction-hint"></p>
+        </fieldset>
+
+        <fieldset class="group" aria-describedby="theme-hint">
+          <legend>Reading appearance</legend>
+          <div class="segments">
+            <label><input type="radio" name="theme" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="theme" value="paper" /><span>Paper</span></label>
+            <label><input type="radio" name="theme" value="night" /><span>Night</span></label>
+          </div>
+          <p class="hint" id="theme-hint"></p>
+        </fieldset>
+
+        <fieldset class="group" aria-describedby="font-hint">
+          <legend>Font</legend>
+          <div class="segments">
+            <label><input type="radio" name="font" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="font" value="sans" /><span>Readela Sans</span></label>
+          </div>
+          <p class="hint" id="font-hint"></p>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Text size</legend>
+          <div class="segments">
+            <label><input type="radio" name="size" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="size" value="110" /><span>110%</span></label>
+            <label><input type="radio" name="size" value="125" /><span>125%</span></label>
+            <label><input type="radio" name="size" value="140" /><span>140%</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Line spacing</legend>
+          <div class="segments">
+            <label><input type="radio" name="spacing" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="spacing" value="1.6" /><span>1.6</span></label>
+            <label><input type="radio" name="spacing" value="1.9" /><span>1.9</span></label>
+            <label><input type="radio" name="spacing" value="2.2" /><span>2.2</span></label>
+          </div>
+        </fieldset>
       </fieldset>
 
-      <div class="field">
-        <label for="font">Font</label>
-        <select id="font">
-          <option value="page">Page default</option>
-          <option value="sans">Sans-serif (installed fonts)</option>
-          <option value="serif">Serif / Naskh (installed fonts)</option>
-        </select>
-      </div>
+      <section class="mark" aria-labelledby="mark-title">
+        <h2 id="mark-title">Reading mark</h2>
+        <div class="actions">
+          <button type="button" id="mark-set" title="Marks the paragraph you selected, or the first one in view">Mark here</button>
+          <button type="button" id="mark-go" title="Scrolls back to the marked paragraph">Go to mark</button>
+          <button type="button" id="mark-clear" class="quiet" title="Removes the mark from this conversation">Clear</button>
+        </div>
+        <p class="hint" id="mark-note" role="status" aria-live="polite"></p>
+      </section>
 
-      <div class="field">
-        <label for="size">Text size</label>
-        <select id="size">
-          <option value="page">Page default</option>
-          <option value="110">110%</option>
-          <option value="125">125%</option>
-          <option value="140">140%</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="spacing">Line spacing</label>
-        <select id="spacing">
-          <option value="page">Page default</option>
-          <option value="1.6">1.6</option>
-          <option value="1.9">1.9</option>
-          <option value="2.2">2.2</option>
-        </select>
-      </div>
-
-      <button type="button" id="reset">Reset reading settings</button>
-      <p class="note" id="status" role="status" aria-live="polite"></p>
-      <p class="note">Works on ChatGPT and Claude. Settings stay on this device.</p>
+      <footer>
+        <div class="foot">
+          <button type="button" id="reset" class="quiet">Reset settings</button>
+          <span class="by">Amir42 · <span id="version"></span></span>
+        </div>
+        <p class="note" id="status" role="status" aria-live="polite"></p>
+      </footer>
     </main>
     <script src="popup.js"></script>
   </body>

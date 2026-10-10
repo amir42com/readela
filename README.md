@@ -1,14 +1,16 @@
 # Readela
 
-**Readela by Amir42** — a browser extension that makes multilingual text
-easier to read within the original page. It supports ChatGPT (`chatgpt.com`)
-and Claude (`claude.ai`), in Chrome and Firefox.
+**Readela by Amir42** — a small reading-comfort extension that makes long and
+multilingual text easier to read within the original page. It supports ChatGPT
+(`chatgpt.com`) and Claude (`claude.ai`), in Chrome and Firefox.
 
 Mixed right-to-left and left-to-right answers often come out with the wrong
 paragraph direction: a Persian sentence that starts with an English word is
 laid out left-to-right, list markers land on the wrong side and punctuation
 jumps to the wrong end. Readela decides the direction of each paragraph from
-its whole text and presents it accordingly, without changing the text.
+its whole text and presents it accordingly, without changing the text. Around
+that it offers warm reading colours, a packaged Persian and Arabic font, text
+size and line spacing, and a mark for the place where you stopped.
 
 Readela is distributed through the Chrome Web Store and Firefox Add-ons
 (AMO). The dated evidence under `docs/evidence/` records which version was
@@ -18,15 +20,25 @@ built and loaded for development, as described below.
 
 ## What it does
 
-- **On/off switch.** Off shows the page exactly as the site presents it.
-- **Direction per paragraph, automatic by default.** Paragraphs, headings,
-  lists, quotations and tables read right-to-left when at least 40% of their
-  words are in a right-to-left script, whatever the first word is.
-- **Direction override.** Automatic, right-to-left or left-to-right.
-- **Lists and tables as a unit**, so markers, indentation and column order
-  agree with the text.
-- **Typography.** Font (page default, sans-serif, serif/Naskh — from fonts
-  installed on your device), text size (up to 140%) and line spacing.
+- **On/off switch.** Off shows the page exactly as the site presents it and
+  keeps your settings and reading marks.
+- **Every setting has an Original choice** that leaves that part of the page
+  as the site shows it.
+- **Direction:** Original, Auto, RTL or LTR. Auto is the default: paragraphs,
+  headings, lists, quotations and tables read right-to-left when at least 40%
+  of their words are in a right-to-left script, whatever the first word is.
+  Lists and tables are decided as a unit, so markers, indentation and column
+  order agree with the text.
+- **Reading appearance:** Original, Paper or Night. Warm light or warm dark
+  reading colours for responses, whichever theme the site itself is in. Only
+  the response text area changes; primary text is held at a contrast ratio of
+  10:1 or better.
+- **Font:** Original or Readela Sans. Persian and Arabic are shown in
+  Vazirmatn, which is packaged with the extension; other scripts use your
+  device's sans-serif fonts.
+- **Text size** (up to 140%) and **line spacing.**
+- **Reading mark:** Mark here, Go to mark and Clear, one mark per
+  conversation, kept on this device.
 - **Remembers your choices** on this device, for both sites.
 
 Code blocks, inline code, mathematics and web addresses stay left-to-right and
@@ -35,22 +47,25 @@ touched. The underlying text, selection and copying are unchanged.
 
 ## What has been checked
 
-Automated checks, in Chrome 154.0.8037.58 and Firefox 157.0 on Windows 11:
+Automated checks of version 0.3.0, in Chrome 154.0.8037.98 and Firefox 157.0
+on Windows 11:
 
 | | ChatGPT | Claude |
 | --- | --- | --- |
-| Synthetic conversation page: Persian, Arabic, Hebrew, English, mixed | passed in both browsers | passed in both browsers (Persian, English, mixed) |
-| Real start page, signed out, nothing sent | loaded, nothing disturbed | sign-in page loaded, nothing disturbed |
-| Real signed-in conversation | not exercised by the automated checks | not exercised by the automated checks |
+| Synthetic conversation page: direction for Persian, Arabic, Hebrew, English, mixed | passed in both browsers | passed in both browsers (Persian, English, mixed) |
+| Synthetic conversation page: Paper and Night, Readela Sans, reading mark | passed in both browsers, page light and dark | passed in both browsers |
+| Real start page, signed out, nothing sent | content script ran, nothing disturbed (a bot check in headless Chrome) | content script ran, nothing disturbed (sign-in page in Firefox, a bot check in headless Chrome) |
+| Real signed-in conversation | page structure read once, without the text, to shape the checks; the 0.3.0 extension was not run there by the automated checks | the same |
 
-The owner reported manually testing the earlier build on several real ChatGPT
-conversations and finding it working correctly. That is a report, not part of
-the automated evidence, and it predates Claude support.
+The owner reported manually testing earlier builds on real ChatGPT and Claude
+conversations and finding them working correctly. Those are reports, not part
+of the automated evidence, and they predate 0.3.0.
 
 The minimum browser versions declared in the manifests (Chrome 121, Firefox
 140) have not been exercised. The exact cases, method and limits are in the
 dated evidence:
 
+- [docs/evidence/2026-10-10-readela-0.3.0-implementation.md](docs/evidence/2026-10-10-readela-0.3.0-implementation.md)
 - [docs/evidence/2026-10-02-claude-support.md](docs/evidence/2026-10-02-claude-support.md)
 - [docs/evidence/2026-10-02-first-evaluation-build.md](docs/evidence/2026-10-02-first-evaluation-build.md)
 
@@ -66,8 +81,8 @@ npm run package
 This writes two loadable directories and two archives:
 
 ```
-dist/chrome/                              dist/packages/readela-0.2.1-chrome.zip
-dist/firefox/                             dist/packages/readela-0.2.1-firefox.zip
+dist/chrome/                              dist/packages/readela-0.3.0-chrome.zip
+dist/firefox/                             dist/packages/readela-0.3.0-firefox.zip
 ```
 
 ### Chrome — load unpacked (development install)
@@ -77,7 +92,9 @@ dist/firefox/                             dist/packages/readela-0.2.1-firefox.zi
 3. Choose **Load unpacked** and select the `dist/chrome` directory.
 
 Chrome loads a directory, not the archive; unzip the archive first if you
-received only that. This is not a Chrome Web Store installation.
+received only that. This is not a Chrome Web Store installation. If the store
+version of Readela is installed in the same profile, turn it off on that page
+while the unpacked one is on: two copies would both mark the same page.
 
 ### Firefox — temporary add-on (development install)
 
@@ -91,8 +108,8 @@ signed**; release versions of Firefox will not install it permanently.
 ### Use
 
 Open a conversation on `chatgpt.com` or `claude.ai` and use the Readela
-toolbar button to switch it on or off and to change direction, font, size and
-spacing.
+toolbar button to switch it on or off, to change direction, reading
+appearance, font, size and spacing, and to mark or return to a place.
 
 ### Manual check on a real conversation
 
@@ -104,18 +121,29 @@ On each site:
    English word read right-to-left; list markers sit on the right; code and
    the formula stay left-to-right.
 3. Your own message and the composer behave as before while you type.
-4. Switch Readela off: the page returns to the site's own presentation.
-5. Open another conversation: the new one is handled without a reload.
+4. Choose Paper, then Night: only the response changes colour; code blocks,
+   the composer and the site's controls stay as the site shows them.
+5. Mark a paragraph, scroll away, choose Go to mark; reload and do it again.
+6. Switch Readela off: the page returns to the site's own presentation.
+7. Open another conversation: the new one is handled without a reload.
 
 ## Privacy and permissions
 
 Readela works on your device. It has no backend, sends nothing anywhere, loads
-no remote code or fonts, and stores only your preferences.
+no remote code or fonts, and stores only your preferences and your reading
+marks. A reading mark holds one-way fingerprints, never your text or the
+address of the conversation.
 
 | Permission | Reason |
 | --- | --- |
-| Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction and mark blocks for presentation. |
-| `storage` | Remember preferences locally. |
+| Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction, find the reading mark and mark blocks for presentation. |
+| `storage` | Remember preferences and reading marks locally. |
+
+One font file, Vazirmatn, is packaged with the extension and made available to
+those two sites so their pages can display it. It is distributed under the SIL
+Open Font License 1.1; the licence is in every package next to the font, and
+[src/fonts/README.md](src/fonts/README.md) records its source, version and
+digest.
 
 Privacy policy: [docs/privacy-policy.md](docs/privacy-policy.md). Technical
 controls and how they are verified:
@@ -128,16 +156,24 @@ controls and how they are verified:
 - The automatic decision is a word-share rule. A paragraph split almost evenly
   between scripts can be judged differently from how you read it; use the
   override.
-- The override applies to all prose in the conversation, not to a single
+- RTL and LTR apply to all prose in the conversation, not to a single
   message, and preferences are shared by both sites.
+- Paper and Night colour the text area of responses. Your own messages, the
+  composer and the site's controls keep the site's colours. A code block, and
+  anything else in a response that is not text, keeps the site's own colours
+  on the site's own background, so under a theme opposite to the site's it
+  stands out as a block of the site's colour. Colours the site gave to
+  individual words are replaced by the theme's text colour.
+- The reading mark is found again by the text of the marked paragraph. In a
+  conversation whose earlier messages are not on the page yet, it is reported
+  as not found until they are. The mark is visual; a screen reader is told
+  about it in the popup, not in the page.
 - On Claude, only message content is handled. Right-to-left text there keeps
   the side padding the site gives every text block.
 - On ChatGPT, a reader's own message is handled when the site renders it as
   paragraphs or in the layout the adapter knows; other layouts are not.
 - A web address that is not a link is not isolated from surrounding
   right-to-left text.
-- No fonts are bundled. A font choice has an effect only if a listed font is
-  installed; otherwise the browser falls back.
 - Text size scales whole blocks, including code inside them.
 - A newly streamed block is marked within about a tenth of a second; it can
   show the site's own direction for that moment.
@@ -175,8 +211,8 @@ npm run package   # dist/chrome, dist/firefox and dist/packages/*.zip
   byte-for-byte with Node.js 20.20.2; the bundler output does not depend on
   the operating system.
 - `dist/firefox/` is the content of the Firefox package and `dist/chrome/`
-  the content of the Chrome package; the only difference is `manifest.json`.
-  Each has 12 files.
+  the content of the Chrome package; they differ in `manifest.json` and in
+  how `content.css` names the packaged font. Each has 14 files.
 - The archives are written by `scripts/lib/zip.mjs` with sorted entries and a
   fixed timestamp, so the same files give the same archive bytes. If an
   archive differs, compare the extracted files: they are what the browser

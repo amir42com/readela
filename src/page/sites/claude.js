@@ -22,6 +22,10 @@ export const claude = Object.freeze({
   // Only blocks inside a message or a rendered-Markdown container are read.
   within: `${MESSAGES}, ${MARKDOWN}`,
 
+  // A reading theme colours rendered Markdown only, not the message frame
+  // around it (which also holds a heading for screen readers and controls).
+  surface: MARKDOWN,
+
   // A reader's own message can be one pre-wrapped block with no paragraphs.
   extraBlocks: '[data-testid="user-message"]',
 

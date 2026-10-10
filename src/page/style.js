@@ -4,25 +4,51 @@
 // sheet does nothing until the reader marks elements and nothing again once
 // the marks are removed. The build writes this text to `content.css`.
 
-import { FONT_CHOICES, SIZE_CHOICES, SPACING_CHOICES, resolveTypography } from "../core/index.js";
+import {
+  BUNDLED_FONT,
+  FONT_CHOICES,
+  PAGE_MARK,
+  SIZE_CHOICES,
+  SPACING_CHOICES,
+  THEMES,
+  resolveTypography,
+} from "../core/index.js";
 
-/** Attribute and custom-property names: the whole footprint Readela leaves in a page. */
+/** Attribute names: with the custom properties below, the whole footprint Readela leaves in a page. */
 export const MARK = Object.freeze({
   dir: "data-readela-dir",
   top: "data-readela-top",
   ltr: "data-readela-ltr",
   align: "data-readela-align",
   mirror: "data-readela-mirror",
+  sheet: "data-readela-sheet",
+  place: "data-readela-mark",
+  flash: "data-readela-flash",
   font: "data-readela-font",
   size: "data-readela-size",
   spacing: "data-readela-spacing",
+  theme: "data-readela-theme",
 });
 
-export const ELEMENT_MARKS = Object.freeze([MARK.dir, MARK.top, MARK.ltr, MARK.align, MARK.mirror]);
+export const ELEMENT_MARKS = Object.freeze([
+  MARK.dir,
+  MARK.top,
+  MARK.ltr,
+  MARK.align,
+  MARK.mirror,
+  MARK.sheet,
+  MARK.place,
+  MARK.flash,
+]);
 /** Marks on the root element, keyed by the preference each one carries. */
-export const ROOT_MARKS = Object.freeze({ font: MARK.font, size: MARK.size, spacing: MARK.spacing });
+export const ROOT_MARKS = Object.freeze({
+  font: MARK.font,
+  size: MARK.size,
+  spacing: MARK.spacing,
+  theme: MARK.theme,
+});
 
-/** Custom properties set on a mirrored container; see `mirrorDeclarations`. */
+/** Custom properties set on a mirrored container; see `mirrorFor` in the reader. */
 export const MIRROR_PROPERTIES = Object.freeze([
   "--readela-padding-start",
   "--readela-padding-end",
@@ -32,13 +58,126 @@ export const MIRROR_PROPERTIES = Object.freeze([
   "--readela-border-end",
 ]);
 
+/**
+ * Custom properties set on the root element while a reading theme is on: the
+ * site's own background and text colour, as measured, for the parts of a
+ * response that keep the site's presentation.
+ */
+export const SITE_PROPERTIES = Object.freeze({ surface: "--readela-site-surface", text: "--readela-site-text" });
+
+/** Paragraph-like elements: the blocks a reader reads and can mark. */
+export const TEXT_BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, dt, dd, th, td, caption, summary, figcaption";
+
 /** Code, keyboard input and mathematics keep their own order, font and direction. */
 export const PROTECTED = "pre, code, kbd, samp, var, math, .katex, mjx-container";
 
 const CONTAINERS = "ul, ol, table, blockquote";
 
-export function buildCss() {
+// Inside a themed response these keep the site's own colours: a code block is
+// a unit with its own background and syntax colours, and a drawing has its
+// own fills.
+const KEPT = "pre, pre *, svg *";
+
+// Direct children of a reading surface that are part of the text flow without
+// being reading blocks; they follow the surface instead of becoming islands.
+const FLOWING = "hr, br, math, .katex, .katex-display, mjx-container";
+
+function themeRules() {
+  const themed = `html[${MARK.theme}]`;
+  const sheet = `${themed} [${MARK.sheet}]`;
+  const prose = `${sheet} > [${MARK.top}]:not(pre)`;
+  const unmarked = `:not([${MARK.place}])`;
+  const rules = [];
+
+  for (const [name, theme] of Object.entries(THEMES)) {
+    rules.push(
+      `html[${MARK.theme}="${name}"] {`,
+      `  --readela-surface: ${theme.surface};`,
+      `  --readela-text: ${theme.text};`,
+      `  --readela-link: ${theme.link};`,
+      `  --readela-rule: ${theme.rule};`,
+      `  --readela-code: ${theme.code};`,
+      `  --readela-head: ${theme.head};`,
+      `  --readela-selection: ${theme.selection};`,
+      `  --readela-selection-text: ${theme.selectionText};`,
+      `}`,
+      // The reading mark takes the theme's colours only on a themed surface.
+      `html[${MARK.theme}="${name}"] [${MARK.sheet}] { --readela-mark: ${theme.mark}; --readela-mark-tint: ${theme.markTint}; }`,
+    );
+  }
+
+  rules.push(
+    // The reading surface: the container of a response's text. The spread
+    // shadow gives it a margin of its own colour without moving anything.
+    `${sheet} { background-color: var(--readela-surface) !important; color: var(--readela-text) !important; }`,
+    `${sheet}:not([${MARK.sheet}="inner"]) { box-shadow: 0 0 0 0.625rem var(--readela-surface) !important; border-radius: 0.25rem !important; }`,
+
+    // Reading text takes the theme's colours whatever the site gave it, and
+    // gives up backgrounds made for the site's own theme.
+    `:is(${prose}, ${prose} :not(${KEPT}, a, a *)) { color: var(--readela-text) !important; border-color: var(--readela-rule) !important; }`,
+    `:is(${prose}, ${prose} :not(${KEPT}, code, kbd, samp, th))${unmarked} { background-color: transparent !important; }`,
+    `${prose} :is(a, a *):not(${KEPT}) { color: var(--readela-link) !important; }`,
+    `${prose} a { text-decoration-line: underline !important; }`,
+    `${prose} :is(code, kbd, samp):not(${KEPT})${unmarked} { background-color: var(--readela-code) !important; }`,
+    `${prose} th${unmarked} { background-color: var(--readela-head) !important; }`,
+    `${sheet} > hr { color: var(--readela-rule) !important; border-color: var(--readela-rule) !important; background-color: var(--readela-rule) !important; }`,
+    `${sheet} ::selection { background-color: var(--readela-selection) !important; color: var(--readela-selection-text) !important; }`,
+
+    // Everything else in a response (a code block, a widget, an image) stays
+    // as the site made it, on the site's own background, so it remains
+    // readable whichever theme the site itself is in.
+    `${sheet} > :not([${MARK.top}], [${MARK.sheet}], ${FLOWING}), ${sheet} pre {`,
+    `  background-color: var(${SITE_PROPERTIES.surface}) !important;`,
+    `  color: var(${SITE_PROPERTIES.text}) !important;`,
+    `}`,
+  );
+  return rules;
+}
+
+function markRules() {
+  const place = `[${MARK.place}]`;
+  const bar = `var(--readela-mark, ${PAGE_MARK.mark})`;
+  const tint = `var(--readela-mark-tint, ${PAGE_MARK.markTint})`;
+  return [
+    // The reading mark: a tinted block with a bar on its leading edge. Both
+    // are drawn outside the text box, so nothing moves.
+    `${place} { position: relative !important; background-color: ${tint} !important; box-shadow: 0 0 0 0.375rem ${tint} !important; border-radius: 0.125rem !important; }`,
+    `${place}::before {`,
+    `  content: "" !important; position: absolute !important; display: block !important;`,
+    `  inset-block: -0.375rem !important; inset-inline: -0.875rem auto !important;`,
+    `  inline-size: 0.3125rem !important; block-size: auto !important;`,
+    `  margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0.1875rem !important;`,
+    `  background: ${bar} !important; opacity: 1 !important; transform: none !important; pointer-events: none !important;`,
+    `}`,
+    // An approximate place has a broken bar.
+    `[${MARK.place}="approximate"]::before { background: repeating-linear-gradient(to bottom, ${bar} 0 0.5rem, transparent 0.5rem 0.8125rem) !important; }`,
+
+    // Shown briefly after "Go to mark" so the eye finds the place.
+    `[${MARK.flash}] { outline: 0.1875rem solid ${bar} !important; outline-offset: 0.5rem !important; animation: readela-flash 1.4s ease-out 1 !important; }`,
+    `@keyframes readela-flash { from { outline-offset: 1.5rem; outline-color: transparent; } 35% { outline-color: ${bar}; } to { outline-offset: 0.5rem; } }`,
+    `@media (prefers-reduced-motion: reduce) { [${MARK.flash}] { animation: none !important; } }`,
+    `@media (forced-colors: active) { ${place} { outline: 2px solid Highlight !important; } ${place}::before { forced-color-adjust: none !important; background: Highlight !important; } }`,
+  ];
+}
+
+/**
+ * @param {object} [options]
+ * @param {string} [options.fontUrl] address of the packaged font as the
+ *   stylesheet must name it; it differs between browsers, see the build.
+ */
+export function buildCss({ fontUrl = BUNDLED_FONT.file } = {}) {
   const rules = [
+    // The packaged font, for Arabic-script characters only. It is fetched from
+    // the extension itself, and only when such text is shown in this family.
+    `@font-face {`,
+    `  font-family: "${BUNDLED_FONT.family}";`,
+    `  src: url("${fontUrl}") format("woff2");`,
+    `  font-weight: ${BUNDLED_FONT.weight};`,
+    `  font-style: normal;`,
+    `  font-display: swap;`,
+    `  unicode-range: ${BUNDLED_FONT.unicodeRange};`,
+    `}`,
+
     // Base direction per marked block. `isolate` is the browser default for
     // block elements; stating it defeats first-strong (`plaintext`) handling
     // that would otherwise ignore the direction.
@@ -80,10 +219,12 @@ export function buildCss() {
   for (const spacing of SPACING_CHOICES) {
     const { lineHeight } = resolveTypography({ spacing });
     if (lineHeight === null) continue;
+    const scope = `html[${MARK.spacing}="${spacing}"] [${MARK.top}]`;
     rules.push(
-      `html[${MARK.spacing}="${spacing}"] [${MARK.dir}]:not(${CONTAINERS}) { line-height: ${lineHeight} !important; }`,
+      `${scope}:not(${CONTAINERS}, pre), ${scope}:not(pre) :is(${TEXT_BLOCKS}) { line-height: ${lineHeight} !important; }`,
     );
   }
 
+  rules.push(...themeRules(), ...markRules());
   return `${rules.join("\n")}\n`;
 }

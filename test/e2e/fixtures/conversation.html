@@ -8,7 +8,10 @@
       A synthetic conversation page written for these tests. It reproduces the
       structural traits Readela has to cope with (paragraphs carrying
       dir="auto", first-strong "plaintext" handling, logical and physical list
-      indentation, an editable composer). It contains no real conversation.
+      indentation, an editable composer). The first reply also has the frame
+      observed on the site on 2026-10-10: a heading kept for screen readers
+      beside the container of the rendered text, and a code block that is a
+      unit of its own without a pre element. It contains no real conversation.
     -->
     <style>
       body { margin: 0; font: 16px/1.75 system-ui, sans-serif; color: #111; background: #fff; }
@@ -27,6 +30,11 @@
       th { text-align: left; }
       td, th { padding: 4px 8px; border: 1px solid #8884; }
       .katex { font-family: "Times New Roman", serif; }
+      .sr-only { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+      [data-markdown-copy] { margin: 0 0 12px; border: 1px solid #8884; border-radius: 12px; background: #f6f6f6; overflow: clip; }
+      [data-markdown-copy] .bar { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 13px; }
+      [data-markdown-copy] code { display: block; padding: 0 12px 10px; white-space: pre-wrap; }
+      @media (prefers-color-scheme: dark) { [data-markdown-copy] { background: #171717; } }
       form { margin-top: 24px; border: 1px solid #8886; padding: 8px; }
       [contenteditable] { min-height: 24px; }
     </style>
@@ -45,6 +53,8 @@
         </div>
 
         <div class="turn" data-message-author-role="assistant" id="turn-fa">
+          <h4 class="sr-only" id="sr-fa">ChatGPT said:</h4>
+          <div id="md-fa" dir="auto" data-markdown-text-style="assistant-message">
           <h2 id="h-fa" dir="auto">React Hooks چیست و چرا مهم است؟</h2>
           <p id="p-en-start" dir="auto" class="plaintext">React یک کتابخانه جاوااسکریپت برای ساخت رابط کاربری است.</p>
           <p id="p-punct" dir="auto" class="plaintext">قیمت 25 دلار است (تقریباً 1,050,000 تومان)!</p>
@@ -69,12 +79,19 @@
           </blockquote>
           <pre id="code-block"><code id="code">const [count, setCount] = useState(0); // شمارنده
 if (count &gt; 10) { reset(); }</code></pre>
+          <div id="block-wrap">
+            <div id="block" data-markdown-copy="code-block">
+              <div class="bar"><span id="block-label">JavaScript</span><button id="block-copy" type="button">Copy</button></div>
+              <div dir="ltr"><code id="block-code">useEffect(() =&gt; { load(); }, []);</code></div>
+            </div>
+          </div>
           <p id="p-math" dir="auto" class="plaintext">فرمول <span class="katex" id="math">E = mc^2</span> معروف است.</p>
           <p id="p-neutral" dir="auto">1,234.50</p>
           <table id="table-fa">
             <thead><tr><th id="th-fa">نام Hook</th><th>کاربرد</th></tr></thead>
             <tbody><tr><td id="td-fa">useMemo</td><td>ذخیرهٔ نتیجهٔ محاسبه</td></tr></tbody>
           </table>
+          </div>
         </div>
 
         <div class="turn" data-message-author-role="assistant" id="turn-en">

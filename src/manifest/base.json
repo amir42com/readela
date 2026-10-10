@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Readela",
   "short_name": "Readela",
-  "description": "Makes long and multilingual text easier to read on ChatGPT and Claude, with automatic text direction and comfortable typography.",
+  "description": "Comfortable reading on ChatGPT and Claude: automatic text direction, warm Paper and Night colours, clear fonts and a reading mark.",
   "homepage_url": "https://amir42.com",
   "icons": {
     "16": "icons/icon-16.png",
@@ -22,6 +22,12 @@
     }
   },
   "permissions": ["storage"],
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/Vazirmatn-NL-wght.woff2"],
+      "matches": ["https://chatgpt.com/*", "https://claude.ai/*"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*", "https://claude.ai/*"],

@@ -21,6 +21,8 @@ import { fileURLToPath } from "node:url";
 import { getInstalledBrowsers } from "@puppeteer/browsers";
 import puppeteer from "puppeteer-core";
 
+import { PAGE_MARK, THEMES } from "../../src/core/index.js";
+
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const results = path.join(root, "test-results");
 const fixtureSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "conversation.html"), "utf8");
@@ -28,6 +30,9 @@ const claudeSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "cl
 const FIXTURE_URL = "https://chatgpt.com/c/readela-fixture";
 const CLAUDE_FIXTURE_URL = "https://claude.ai/chat/readela-fixture";
 const FIXTURES = { [FIXTURE_URL]: fixtureSource, [CLAUDE_FIXTURE_URL]: claudeSource };
+
+// A file inside the installed extension: never a network request.
+const EXTENSION_FILE = /^(?:chrome|moz)-extension:\/\//;
 
 const FIREFOX_ADDON_ID = "readela@amir42.com";
 const FIREFOX_UUID = "5f0d3b0e-6a57-4a3e-9d1f-7c1c2f4a9b10"; // fixed so the popup address is known
@@ -110,6 +115,8 @@ async function openFixture(browser, requests, address = FIXTURE_URL) {
     requests.push(url);
     if (url in FIXTURES) {
       request.respond({ status: 200, contentType: "text/html; charset=utf-8", body: FIXTURES[url] });
+    } else if (EXTENSION_FILE.test(url)) {
+      request.continue();
     } else {
       request.abort();
     }
@@ -139,8 +146,10 @@ const front = (target) => target.bringToFront().catch(() => {});
 async function openStandInPopup(browser, name) {
   const directory = path.join(root, "dist", name, "popup");
   const standIn =
-    "globalThis.browser = (() => { const data = {}; return { runtime: { id: 'stand-in' }, storage: { local: { " +
-    "get: async () => ({ ...data }), set: async (values) => { Object.assign(data, values); } }, " +
+    "globalThis.browser = (() => { const data = {}; return { " +
+    "runtime: { id: 'stand-in', getManifest: () => ({ version: '0.0.0' }) }, " +
+    "tabs: { query: async () => [], sendMessage: async () => { throw new Error('no page'); } }, " +
+    "storage: { local: { get: async () => ({ ...data }), set: async (values) => { Object.assign(data, values); } }, " +
     "onChanged: { addListener() {}, removeListener() {} } } }; })();";
   const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript" };
   const page = await browser.newPage();
@@ -250,11 +259,156 @@ function contrast(foreground, background) {
 }
 
 const rgb = (value) => value.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+const hexRgb = (hex) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+const isColour = (computed, hex) => rgb(computed).join() === hexRgb(hex).join();
+
+// Colours of elements as rendered: the text colour, the element's own
+// background and the first opaque background behind it.
+const colours = (page, selectors) =>
+  page.evaluate((list) => {
+    const clear = (colour) => colour === "transparent" || /(?:,\s*0|\/\s*0)\)$/.test(colour);
+    const facts = {};
+    for (const selector of list) {
+      const element = document.querySelector(selector);
+      const style = getComputedStyle(element);
+      let background = style.backgroundColor;
+      for (let node = element.parentElement; node && clear(background); node = node.parentElement) {
+        background = getComputedStyle(node).backgroundColor;
+      }
+      facts[selector] = {
+        color: style.color,
+        own: style.backgroundColor,
+        background: clear(background) ? "rgb(255, 255, 255)" : background,
+        sheet: element.getAttribute("data-readela-sheet"),
+        underline: style.textDecorationLine,
+      };
+    }
+    return facts;
+  }, selectors);
+
+// Paper and Night on one synthetic conversation: the reading surface and its
+// text take the theme's colours at 10:1 or better, a code block keeps the
+// site's own colours on the site's own background, and nothing outside the
+// response changes. Run with the page in a light and in a dark colour scheme,
+// so each theme is checked both with and against the site's own.
+async function checkReadingThemes({ name, page, choose, scheme, parts, report }) {
+  const all = [
+    ...new Set([
+      ...parts.text, parts.link, parts.inlineCode, parts.pre, parts.header, parts.sheet, ...parts.outside, ...(parts.island ?? []),
+    ]),
+  ];
+  const original = await colours(page, [...all, "body"]);
+  const site = { surface: original.body.own, text: original.body.color };
+
+  for (const [theme, palette] of Object.entries(THEMES)) {
+    await choose("theme", theme);
+    await page.waitForFunction(
+      (selector, value) =>
+        document.documentElement.getAttribute("data-readela-theme") === value &&
+        document.querySelector(selector).hasAttribute("data-readela-sheet"),
+      {},
+      parts.sheet,
+      theme,
+    );
+    const facts = await colours(page, all);
+    const label = `${theme} on a ${scheme} page`;
+
+    assert.equal(facts[parts.sheet].sheet, "", `${label}: the response is the reading surface`);
+    assert.ok(isColour(facts[parts.sheet].own, palette.surface), `${label}: surface ${facts[parts.sheet].own}`);
+    const ratios = {};
+    for (const selector of parts.text) {
+      assert.ok(isColour(facts[selector].color, palette.text), `${label}: ${selector} text ${facts[selector].color}`);
+      const ratio = contrast(rgb(facts[selector].color), rgb(facts[selector].background));
+      ratios[selector] = Math.round(ratio * 100) / 100;
+      assert.ok(ratio >= 10, `${label}: ${selector} contrast ${ratio.toFixed(2)}`);
+    }
+    assert.ok(isColour(facts[parts.link].color, palette.link), `${label}: link colour ${facts[parts.link].color}`);
+    assert.match(facts[parts.link].underline, /underline/, `${label}: links are underlined, not colour alone`);
+    assert.ok(contrast(rgb(facts[parts.link].color), rgb(facts[parts.link].background)) >= 7, `${label}: link contrast`);
+    assert.ok(isColour(facts[parts.inlineCode].own, palette.code), `${label}: inline code background`);
+    assert.ok(isColour(facts[parts.header].own, palette.head), `${label}: table header background`);
+
+    // The code block is the site's own, on the site's own background.
+    assert.equal(facts[parts.pre].own, site.surface, `${label}: code block background`);
+    assert.equal(facts[parts.pre].color, site.text, `${label}: code block text`);
+    // So is a part of the response that is no reading block at all: it sits
+    // on the site's background, and what is inside it is as the site made it.
+    for (const selector of parts.island ?? []) {
+      assert.equal(facts[selector].background, original[selector].background, `${label}: ${selector} background`);
+      assert.equal(facts[selector].color, original[selector].color, `${label}: ${selector} text`);
+      assert.ok(
+        contrast(rgb(facts[selector].color), rgb(facts[selector].background)) >= 4.5,
+        `${label}: ${selector} stays readable`,
+      );
+    }
+
+    for (const selector of parts.outside) {
+      assert.deepEqual(
+        { color: facts[selector].color, own: facts[selector].own, sheet: facts[selector].sheet },
+        { color: original[selector].color, own: original[selector].own, sheet: null },
+        `${label}: ${selector} is outside the reading surface and unchanged`,
+      );
+    }
+    const selection = await page.evaluate((selector) => {
+      const style = getComputedStyle(document.querySelector(selector), "::selection");
+      return { background: style.backgroundColor, color: style.color };
+    }, parts.text[0]);
+    assert.ok(isColour(selection.background, palette.selection), `${label}: selection background ${selection.background}`);
+    assert.ok(contrast(rgb(selection.color), rgb(selection.background)) >= 7, `${label}: selected text contrast`);
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+      true,
+      `${label}: no horizontal scrolling introduced`,
+    );
+    ((report.readingThemeContrast ??= {})[parts.site] ??= {})[label] = ratios;
+    await page.screenshot({ path: path.join(results, `${name}-${parts.site}-${theme}-on-${scheme}.png`) });
+  }
+
+  await choose("theme", "page");
+  await page.waitForFunction(() => document.querySelector("[data-readela-sheet]") === null);
+  const restored = await colours(page, all);
+  for (const selector of all) {
+    assert.deepEqual(
+      { color: restored[selector].color, own: restored[selector].own },
+      { color: original[selector].color, own: original[selector].own },
+      `Original restores ${selector}`,
+    );
+  }
+  assert.equal(
+    await page.evaluate(() => document.documentElement.getAttribute("style")),
+    null,
+    "nothing is left on the root element",
+  );
+}
+
+const CHATGPT_PARTS = {
+  site: "chatgpt",
+  sheet: "#md-fa",
+  island: ["#block-wrap", "#block-label", "#block-code", "#block-copy"],
+  text: ["#p-en-start", "#h-fa", "#li-fa-1", "#quote-fa-p", "#td-fa", "#th-fa", "#math", "#inline-code"],
+  link: "#link-text",
+  inlineCode: "#inline-code",
+  pre: "#code-block",
+  header: "#th-fa",
+  // The frame of the reply holds a heading for screen readers; it is no surface.
+  outside: ["#turn-fa", "#nav-title", "#page-button", "#user-bubble", "#composer-textarea", "#send-button", "main"],
+};
+
+const CLAUDE_PARTS = {
+  site: "claude",
+  sheet: "#c-markdown-fa",
+  text: ["#c-p-en-start", "#c-h-fa", "#c-li-fa-1", "#c-quote-fa-p", "#c-th-fa", "#c-math", "#c-inline-code"],
+  link: "#c-link-url",
+  inlineCode: "#c-inline-code",
+  pre: "#c-code-block",
+  header: "#c-th-fa",
+  outside: ["#c-nav-title", "#c-page-button", "#c-user", "#c-ui-p", "#c-input", "#c-send"],
+};
 
 // ---------------------------------------------------------------------------
 // Theme check, shared by the main suite and the Firefox dark-theme pass
 
-async function checkTheme({ name, ui, page, scheme, emulate, report }) {
+async function checkTheme({ name, ui, page, scheme, emulate, report, choose }) {
   const prepare = async (target) => {
     if (emulate) await target.emulateMediaFeatures([{ name: "prefers-color-scheme", value: scheme }]);
     await sleep(100);
@@ -265,7 +419,7 @@ async function checkTheme({ name, ui, page, scheme, emulate, report }) {
   await front(ui);
   await ui.setViewport({ width: 320, height: 640 });
   await prepare(ui);
-  const colours = await ui.evaluate(() => {
+  const shown = await ui.evaluate(() => {
     const pair = (selector) => {
       const element = document.querySelector(selector);
       let background = "rgba(0, 0, 0, 0)";
@@ -275,18 +429,25 @@ async function checkTheme({ name, ui, page, scheme, emulate, report }) {
       return { color: getComputedStyle(element).color, background };
     };
     return {
-      body: pair("h1"),
-      note: pair("main > .note:last-child"),
-      select: pair("#font"),
-      button: pair("#reset"),
-      label: pair(".choices label"),
+      heading: pair("h1"),
+      note: pair("#state-note"),
+      hint: pair("#mark-note"),
+      legend: pair(".group legend"),
+      segment: pair(".segments label:not(:has(input:checked)) span"),
+      selected: pair(".segments label:has(input:checked) span"),
+      button: pair("#mark-set"),
+      reset: pair("#reset"),
+      about: pair(".by"),
       fits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      height: Math.ceil(document.querySelector("main").getBoundingClientRect().height),
     };
   });
-  assert.equal(colours.fits, true, "no horizontal overflow at 320px");
+  assert.equal(shown.fits, true, "no horizontal overflow at 320px");
+  // Browsers cap a popup at about 600px; everything is reachable without scrolling.
+  assert.ok(shown.height <= 600, `popup height ${shown.height}`);
   const measured = {};
-  for (const key of ["body", "note", "select", "button", "label"]) {
-    const ratio = contrast(rgb(colours[key].color), rgb(colours[key].background));
+  for (const key of ["heading", "note", "hint", "legend", "segment", "selected", "button", "reset", "about"]) {
+    const ratio = contrast(rgb(shown[key].color), rgb(shown[key].background));
     measured[key] = Math.round(ratio * 100) / 100;
     assert.ok(ratio >= 4.5, `${key}: contrast ${ratio.toFixed(2)}`);
   }
@@ -307,6 +468,7 @@ async function checkTheme({ name, ui, page, scheme, emulate, report }) {
   assert.equal(readable.mark, "rtl");
   assert.ok(contrast(rgb(readable.color), rgb(readable.background)) >= 4.5, "page text keeps its contrast");
   await page.screenshot({ path: path.join(results, `${name}-fixture-${scheme}.png`) });
+  await checkReadingThemes({ name, page, choose, scheme, parts: CHATGPT_PARTS, report });
   if (emulate) await page.emulateMediaFeatures([]);
 }
 
@@ -322,6 +484,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       console.log(`  ok    ${title}`);
     } catch (error) {
       const detail = String(error?.message ?? error).split("\n").slice(0, 16);
+      // Where in this file the check stopped.
+      const where = String(error?.stack ?? "").split("\n").find((line) => /run\.mjs:\d+/.test(line));
+      if (where) detail.push(where.trim());
       steps.push({ title, ok: false, error: detail.join("\n") });
       console.log(`  FAIL  ${title}\n        ${detail.join("\n        ")}`);
     }
@@ -340,6 +505,21 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await action(popup);
     await front(page);
   };
+  const choose = (group, value) => setPreference((p) => press(p, `input[name="${group}"][value="${value}"]`));
+  const picked = (target) =>
+    target.evaluate(() => {
+      const value = (group) => document.querySelector(`input[name="${group}"]:checked`).value;
+      return {
+        direction: value("direction"),
+        theme: value("theme"),
+        font: value("font"),
+        size: value("size"),
+        spacing: value("spacing"),
+        enabled: document.querySelector("#enabled").checked,
+      };
+    });
+  // The address of the popup once it has been told which tab it acts on.
+  let popupAddress = popupUrl;
 
   await step("the content script runs on the matched address and marks the conversation", async () => {
     await waitForMark(page, "#p-en-start", "rtl");
@@ -542,14 +722,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
   let before;
   await step("font, size and line spacing apply to prose and leave code in its own font", async () => {
     before = await inspect(page, ["#p-en-start", "#code", "#h-fa", "#li-fa-1"]);
-    await setPreference(async (p) => {
-      await p.select("#font", "serif");
-      await p.select("#size", "125");
-      await p.select("#spacing", "2.2");
-    });
+    await choose("font", "sans");
+    await choose("size", "125");
+    await choose("spacing", "2.2");
     await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-spacing") === "2.2");
     const after = await inspect(page, ["#p-en-start", "#code", "#h-fa", "#li-fa-1", "#ul-fa", "#code-block"]);
-    assert.match(after["#p-en-start"].fontFamily, /serif$/);
+    assert.match(after["#p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, system-ui/);
     assert.notEqual(after["#p-en-start"].fontFamily, before["#p-en-start"].fontFamily);
     assert.equal(after["#code"].fontFamily, before["#code"].fontFamily);
     assert.equal(Number(after["#p-en-start"].zoom), 1.25);
@@ -569,6 +747,24 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(widths.scroll, true, "no horizontal scrolling introduced");
   });
 
+  await step("Readela Sans shows Arabic-script text in the packaged font and leaves other scripts to system fonts", async () => {
+    // Text is measured on a canvas that is never added to the page. A face
+    // that is in use changes the width of the text it covers and of no other.
+    const measured = await page.evaluate(async () => {
+      const context = document.createElement("canvas").getContext("2d");
+      const width = (font, text) => {
+        context.font = font;
+        return context.measureText(text).width;
+      };
+      const packaged = '40px "Readela Sans Arabic", monospace';
+      const differs = (text) => width(packaged, text) !== width("40px monospace", text);
+      const deadline = Date.now() + 8000;
+      while (!differs("سلام دنیا") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      return { persian: differs("سلام دنیا"), arabic: differs("مرحبا بالعالم"), latin: differs("Hello world 123"), hebrew: differs("שלום עולם") };
+    });
+    assert.deepEqual(measured, { persian: true, arabic: true, latin: false, hebrew: false });
+  });
+
   await step("preferences persist: a reloaded page and a reopened popup show the saved choices", async () => {
     await page.reload({ waitUntil: "load" });
     await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-size") === "125");
@@ -577,16 +773,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       font: document.documentElement.getAttribute("data-readela-font"),
       spacing: document.documentElement.getAttribute("data-readela-spacing"),
     }));
-    assert.deepEqual(rootMarks, { font: "serif", spacing: "2.2" });
+    assert.deepEqual(rootMarks, { font: "sans", spacing: "2.2" });
     await loadPopup(popup, popupUrl);
-    await popup.waitForFunction(() => document.querySelector("#size").value === "125");
-    const shown = await popup.evaluate(() => ({
-      font: document.querySelector("#font").value,
-      spacing: document.querySelector("#spacing").value,
-      direction: document.querySelector('input[name="direction"]:checked').value,
-      enabled: document.querySelector("#enabled").checked,
-    }));
-    assert.deepEqual(shown, { font: "serif", spacing: "2.2", direction: "auto", enabled: true });
+    await popup.waitForFunction(() => document.querySelector('input[name="size"]:checked')?.value === "125");
+    assert.deepEqual(await picked(popup), {
+      direction: "auto", theme: "page", font: "sans", size: "125", spacing: "2.2", enabled: true,
+    });
     await front(page);
   });
 
@@ -667,17 +859,342 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       mark: document.querySelector("#p-en-start").getAttribute("data-readela-dir"),
     }));
     assert.deepEqual(state, { root: [], zoom: "1", mark: "rtl" });
-    const shown = await popup.evaluate(() => ({
-      font: document.querySelector("#font").value,
-      size: document.querySelector("#size").value,
-      spacing: document.querySelector("#spacing").value,
-      direction: document.querySelector('input[name="direction"]:checked').value,
-      enabled: document.querySelector("#enabled").checked,
-      status: document.querySelector("#status").textContent,
-    }));
-    assert.deepEqual(shown, {
-      font: "page", size: "page", spacing: "page", direction: "auto", enabled: true, status: "Reading settings were reset.",
+    assert.deepEqual(await picked(popup), {
+      direction: "auto", theme: "page", font: "page", size: "page", spacing: "page", enabled: true,
     });
+    assert.equal(
+      await popup.$eval("#status", (element) => element.textContent),
+      "Settings were reset. Your reading marks are kept.",
+    );
+  });
+
+  await step("Original direction leaves the page's own direction alone while other aspects still apply", async () => {
+    await choose("direction", "page");
+    await choose("size", "110");
+    await page.waitForFunction(
+      () =>
+        document.documentElement.getAttribute("data-readela-size") === "110" &&
+        document.querySelector("[data-readela-dir]") === null,
+    );
+    const facts = await inspect(page, ["#p-en-start", "#p-en"]);
+    assert.equal(facts["#p-en-start"].mark, null);
+    assert.equal(facts["#p-en-start"].unicodeBidi, "plaintext", "the page's own first-strong handling");
+    assert.equal(facts["#p-en-start"].top, true, "still a reading block for the other aspects");
+    assert.equal(Number(facts["#p-en-start"].zoom), 1.1);
+    assert.equal(Number(facts["#p-en"].zoom), 1.1);
+    assert.equal((await footprint(page)).customProperties, 0, "nothing is mirrored");
+    await choose("direction", "auto");
+    await choose("size", "page");
+    await waitForMark(page, "#p-en-start", "rtl");
+    await page.waitForFunction(() => !document.documentElement.hasAttribute("data-readela-size"));
+  });
+
+  // -------------------------------------------------------------------------
+  // The reading mark, operated from the installed popup
+
+  const tabOf = (site) =>
+    popup.evaluate(async (wanted) => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      for (const tab of await extension.tabs.query({})) {
+        try {
+          const answer = await extension.tabs.sendMessage(tab.id, { readelaMark: "status" });
+          if (answer?.site === wanted) return tab.id;
+        } catch {
+          // Not a page this extension runs on.
+        }
+      }
+      return null;
+    }, site);
+  const storedMarks = () =>
+    popup.evaluate(async () => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      return (await extension.storage.local.get("readela.marks"))["readela.marks"] ?? null;
+    });
+  const places = (target) =>
+    target.evaluate(() =>
+      [...document.querySelectorAll("[data-readela-mark]")].map(
+        (element) => `${element.id}:${element.getAttribute("data-readela-mark")}`,
+      ),
+    );
+  const waitForPlace = (target, id, quality = "exact") =>
+    target.waitForFunction(
+      (i, q) =>
+        document.querySelectorAll("[data-readela-mark]").length === 1 &&
+        document.getElementById(i)?.getAttribute("data-readela-mark") === q,
+      { timeout: 8000, polling: 200 },
+      id,
+      quality,
+    );
+  const waitForNote = async (text) => {
+    try {
+      // Polled on a timer: the popup's tab is not always the one in front,
+      // and a tab in the background gets no animation frames to poll on.
+      await popup.waitForFunction(
+        (t) => document.querySelector("#mark-note").textContent.startsWith(t),
+        { timeout: 8000, polling: 200 },
+        text,
+      );
+    } catch {
+      const shown = await popup.$eval("#mark-note", (element) => element.textContent);
+      throw new Error(`the popup says "${shown}" instead of "${text}"`);
+    }
+  };
+  const markButton = async (button, target = page) => {
+    await front(popup);
+    await press(popup, `#mark-${button}`);
+    await front(target);
+  };
+  const inView = (id) =>
+    page.evaluate((i) => {
+      const box = document.getElementById(i).getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight;
+    }, id);
+  // The smooth scroll of "Go to mark" has finished with the block in view.
+  const arrived = (id) =>
+    page.waitForFunction(
+      (i) => {
+        const box = document.getElementById(i).getBoundingClientRect();
+        if (box.top < 0 || box.bottom > innerHeight) return false;
+        const settled = window.readelaLastTop === box.top;
+        window.readelaLastTop = box.top;
+        return settled;
+      },
+      { timeout: 6000, polling: 150 },
+      id,
+    );
+  const bar = (id) =>
+    page.evaluate((i) => {
+      const element = document.getElementById(i);
+      const before = getComputedStyle(element, "::before");
+      return {
+        width: parseFloat(before.width),
+        left: before.left,
+        right: before.right,
+        colour: before.backgroundColor,
+        image: before.backgroundImage,
+        tint: getComputedStyle(element).backgroundColor,
+      };
+    }, id);
+  // A paragraph the site rendered again: a new element with the same text.
+  const rerender = (id) =>
+    page.evaluate((i) => {
+      const old = document.getElementById(i);
+      const fresh = document.createElement("p");
+      fresh.id = old.id;
+      fresh.className = old.className;
+      fresh.setAttribute("dir", "auto");
+      fresh.textContent = old.textContent;
+      old.replaceWith(fresh);
+    }, id);
+
+  await step("Mark here saves the paragraph that holds the selection, as fingerprints only", async () => {
+    await page.setViewport({ width: 1100, height: 420 });
+    const tab = await tabOf("ChatGPT");
+    assert.ok(Number.isInteger(tab), "the popup can reach the page without a tabs permission");
+    popupAddress = `${popupUrl}?tab=${tab}`;
+    await loadPopup(popup, popupAddress);
+    await popup.waitForFunction(() => !document.querySelector("#mark-set").disabled, { polling: 200 });
+    await waitForNote("Nothing is marked in this conversation yet.");
+    assert.deepEqual(
+      await popup.evaluate(() => ["#mark-go", "#mark-clear"].map((selector) => document.querySelector(selector).disabled)),
+      [true, true],
+    );
+
+    await page.evaluate(() => {
+      const paragraph = document.querySelector("#p-en");
+      paragraph.scrollIntoView({ block: "center" });
+      getSelection().selectAllChildren(paragraph);
+    });
+    await markButton("set");
+    await waitForPlace(page, "p-en");
+    await waitForNote("Marked. Go to mark brings you back here.");
+
+    const shown = await bar("p-en");
+    assert.equal(shown.width, 5, "a bar, not a hairline");
+    assert.equal(parseFloat(shown.left), -14, "on the leading edge of a left-to-right paragraph");
+    assert.ok(isColour(shown.colour, PAGE_MARK.mark), shown.colour);
+    assert.notEqual(shown.tint, "rgba(0, 0, 0, 0)", "the marked block is tinted");
+
+    const stored = await storedMarks();
+    assert.equal(stored.items.length, 1);
+    assert.deepEqual(Object.keys(stored.items[0]).sort(), ["a", "b", "f", "i", "k"]);
+    for (const key of ["a", "b", "f", "k"]) assert.match(stored.items[0][key], /^[0-9a-f]{16}$/, key);
+    assert.doesNotMatch(JSON.stringify(stored), /Hooks|state|chatgpt|fixture/i, "no readable text or address is stored");
+  });
+
+  await step("without a selection the first paragraph in view is marked; a conversation has one mark", async () => {
+    await page.evaluate(() => {
+      getSelection().removeAllRanges();
+      scrollTo(0, document.querySelector("#p-punct").getBoundingClientRect().top + scrollY - 10);
+    });
+    await markButton("set");
+    await waitForPlace(page, "p-punct");
+    assert.deepEqual(await places(page), ["p-punct:exact"]);
+    assert.equal((await storedMarks()).items.length, 1);
+    assert.equal(parseFloat((await bar("p-punct")).right), -14, "on the leading edge of a right-to-left paragraph");
+  });
+
+  await step("Go to mark brings the place into view and makes it easy to find", async () => {
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+    assert.equal(await inView("p-punct"), false);
+    await markButton("go");
+    await page.waitForFunction(
+      () => {
+        const element = document.querySelector("#p-punct");
+        const box = element.getBoundingClientRect();
+        return box.top >= 0 && box.bottom <= innerHeight && element.hasAttribute("data-readela-flash");
+      },
+      { timeout: 6000 },
+    );
+    await waitForNote("You are at your mark.");
+    const emphasis = await page.evaluate(() => {
+      const style = getComputedStyle(document.querySelector("#p-punct"));
+      return { outline: `${style.outlineStyle} ${parseFloat(style.outlineWidth)}`, animation: style.animationName };
+    });
+    assert.deepEqual(emphasis, { outline: "solid 3", animation: "readela-flash" });
+    // The emphasis is temporary; the mark itself stays.
+    await page.waitForFunction(() => !document.querySelector("#p-punct").hasAttribute("data-readela-flash"), { timeout: 6000 });
+    assert.deepEqual(await places(page), ["p-punct:exact"]);
+
+    if (input) {
+      // With reduced motion the jump is immediate and nothing is animated.
+      await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+      await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+      await markButton("go");
+      await page.waitForFunction(() => document.querySelector("#p-punct").hasAttribute("data-readela-flash"));
+      const calm = await page.evaluate(() => {
+        const element = document.querySelector("#p-punct");
+        const box = element.getBoundingClientRect();
+        return { inView: box.top >= 0 && box.bottom <= innerHeight, animation: getComputedStyle(element).animationName };
+      });
+      assert.deepEqual(calm, { inView: true, animation: "none" });
+      await page.emulateMediaFeatures([]);
+    }
+  });
+
+  await step("the mark survives a reload, a re-render, and leaving the conversation and coming back", async () => {
+    await page.reload({ waitUntil: "load" });
+    await waitForPlace(page, "p-punct");
+    await rerender("p-punct");
+    await waitForPlace(page, "p-punct");
+    await page.evaluate(() => {
+      history.pushState({}, "", "/c/readela-fixture-2");
+      document.querySelector("#turn-other").append(document.createElement("span"));
+    });
+    await page.waitForFunction(() => document.querySelector("[data-readela-mark]") === null);
+    await page.evaluate(() => {
+      history.pushState({}, "", "/c/readela-fixture");
+      document.querySelector("#turn-other").append(document.createElement("span"));
+    });
+    await waitForPlace(page, "p-punct");
+  });
+
+  await step("a changed paragraph between its unchanged neighbours is an approximate place, and is shown as one", async () => {
+    await page.evaluate(() => {
+      const paragraph = document.querySelector("#p-punct");
+      window.readelaMarked = paragraph.textContent;
+      paragraph.textContent = "این پاراگراف دوباره نوشته شده است.";
+      scrollTo(0, document.documentElement.scrollHeight);
+    });
+    await markButton("go");
+    await waitForPlace(page, "p-punct", "approximate");
+    await waitForNote("This is close to your mark. The paragraph itself has changed.");
+    await arrived("p-punct");
+    assert.match((await bar("p-punct")).image, /repeating-linear-gradient/, "an approximate place has a broken bar");
+  });
+
+  await step("with no trustworthy place nothing moves, the popup says so, and the saved place is kept", async () => {
+    const before = await page.evaluate(() => {
+      const neighbour = document.querySelector("#p-en-start");
+      window.readelaNeighbour = neighbour.textContent;
+      neighbour.textContent = "این هم متن دیگری است.";
+      scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+      return scrollY;
+    });
+    await markButton("go");
+    await waitForNote("Saved place not found.");
+    await sleep(700);
+    assert.deepEqual(await places(page), []);
+    assert.equal(await page.evaluate(() => scrollY), before, "the page did not jump anywhere");
+    assert.equal((await storedMarks()).items.length, 1);
+    // When the text is there again, so is the place.
+    await page.evaluate(() => {
+      document.querySelector("#p-punct").textContent = window.readelaMarked;
+      document.querySelector("#p-en-start").textContent = window.readelaNeighbour;
+    });
+    await markButton("go");
+    await waitForPlace(page, "p-punct");
+    await waitForNote("You are at your mark.");
+    await arrived("p-punct");
+  });
+
+  await step("the mark stays clear on Paper and Night, with reading text still at 10:1 on its tint", async () => {
+    for (const [theme, palette] of Object.entries(THEMES)) {
+      await choose("theme", theme);
+      await page.waitForFunction(
+        (value) =>
+          document.documentElement.getAttribute("data-readela-theme") === value &&
+          document.querySelector("#md-fa").hasAttribute("data-readela-sheet"),
+        {},
+        theme,
+      );
+      const shown = await bar("p-punct");
+      const text = await page.$eval("#p-punct", (element) => getComputedStyle(element).color);
+      assert.ok(isColour(shown.colour, palette.mark), `${theme}: bar ${shown.colour}`);
+      assert.ok(isColour(shown.tint, palette.markTint), `${theme}: tint ${shown.tint}`);
+      assert.ok(contrast(rgb(text), rgb(shown.tint)) >= 10, `${theme}: marked text contrast`);
+      assert.ok(contrast(rgb(shown.colour), hexRgb(palette.surface)) >= 3, `${theme}: bar against the surface`);
+      await page.evaluate(() => document.querySelector("#p-punct").scrollIntoView({ block: "center" }));
+      await page.screenshot({ path: path.join(results, `${name}-mark-${theme}.png`) });
+    }
+    await choose("theme", "page");
+    await page.waitForFunction(() => document.querySelector("[data-readela-sheet]") === null);
+    await page.screenshot({ path: path.join(results, `${name}-mark-original.png`) });
+  });
+
+  await step("turning Readela off hides the mark and keeps the saved place", async () => {
+    await setPreference((p) => press(p, "#enabled"));
+    await page.waitForFunction(() => document.querySelector("[data-readela-mark], [data-readela-dir]") === null);
+    assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
+    assert.equal((await storedMarks()).items.length, 1);
+    await waitForNote("Turn Readela on to use the reading mark.");
+    assert.deepEqual(
+      await popup.evaluate(() =>
+        ["#settings", "#mark-set", "#mark-go", "#mark-clear"].map((selector) => document.querySelector(selector).disabled),
+      ),
+      [true, true, true, true],
+    );
+    await setPreference((p) => press(p, "#enabled"));
+    await waitForPlace(page, "p-punct");
+    await popup.waitForFunction(() => !document.querySelector("#mark-go").disabled, { polling: 200 });
+  });
+
+  await step("with every aspect Original the mark is the only thing on the page; Clear removes it and the work", async () => {
+    await choose("direction", "page");
+    await page.waitForFunction(() => document.querySelector("[data-readela-dir], [data-readela-top]") === null);
+    assert.deepEqual(await places(page), ["p-punct:exact"]);
+    assert.deepEqual(await footprint(page), { marked: 1, customProperties: 0 });
+    // The saved mark is still kept current.
+    await rerender("p-punct");
+    await waitForPlace(page, "p-punct");
+
+    await markButton("clear");
+    await waitForNote("Mark cleared.");
+    assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
+    assert.deepEqual((await storedMarks()).items, []);
+    // Nothing is left to keep current, so new content is not read at all.
+    await page.evaluate(() => {
+      const paragraph = document.createElement("p");
+      paragraph.id = "p-idle";
+      paragraph.textContent = "React در حالت اصلی";
+      document.querySelector("#turn-other").append(paragraph);
+    });
+    await sleep(400);
+    assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
+
+    await choose("direction", "auto");
+    await waitForMark(page, "#p-idle", "rtl");
+    await page.setViewport({ width: 1100, height: 900 });
   });
 
   // Where real input cannot reach the extension page, these two checks run on
@@ -689,7 +1206,8 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 
   await step("the popup is fully operable from the keyboard with a visible focus indicator", async () => {
     await front(ui);
-    if (input) await loadPopup(popup, popupUrl);
+    if (input) await loadPopup(popup, popupAddress);
+    if (input) await ui.waitForFunction(() => !document.querySelector("#mark-set").disabled, { polling: 200 });
     await ui.evaluate(() => document.body.focus());
     const visited = [];
     const focused = () =>
@@ -698,7 +1216,9 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
         const style = getComputedStyle(element);
         return { id: element.id || element.name, outline: `${style.outlineStyle} ${parseFloat(style.outlineWidth)}` };
       });
-    const order = ["enabled", "direction", "font", "size", "spacing", "reset"];
+    // Mark here is reachable when the popup acts on a conversation; the two
+    // buttons that need a saved mark are disabled and skipped.
+    const order = ["enabled", "direction", "theme", "font", "size", "spacing", ...(input ? ["mark-set"] : []), "reset"];
     for (const expected of order) {
       await ui.keyboard.press("Tab");
       visited.push(await focused());
@@ -709,7 +1229,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await ui.keyboard.down("Shift");
     await ui.keyboard.press("Tab");
     await ui.keyboard.up("Shift");
-    assert.equal((await focused()).id, "spacing");
+    assert.equal((await focused()).id, order.at(-2));
 
     // Operate every kind of control without the mouse.
     await ui.focus("#enabled");
@@ -814,8 +1334,8 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
   await step("Claude: the shared preferences apply here too, and only to message content", async () => {
     const before = await inspect(claude, ["#c-ui-p", "#c-code"]);
     await onClaude(async (p) => {
-      await p.select("#font", "serif");
-      await p.select("#size", "125");
+      await press(p, 'input[name="font"][value="sans"]');
+      await press(p, 'input[name="size"][value="125"]');
     });
     await claude.waitForFunction(() => document.documentElement.getAttribute("data-readela-size") === "125");
     // One preference set: the ChatGPT page received the same change.
@@ -825,7 +1345,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(Number(after["#c-user"].zoom), 1.25);
     assert.equal(Number(after["#c-ul-fa"].zoom), 1.25);
     assert.equal(Number(after["#c-li-fa-1"].zoom), 1);
-    assert.match(after["#c-p-en-start"].fontFamily, /serif$/);
+    assert.match(after["#c-p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, system-ui/);
     assert.equal(after["#c-code"].fontFamily, before["#c-code"].fontFamily);
     assert.equal(Number(after["#c-ui-p"].zoom), 1, "page text outside messages is not scaled");
     assert.equal(after["#c-ui-p"].fontFamily, before["#c-ui-p"].fontFamily);
@@ -936,23 +1456,66 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await page.waitForFunction(() => !document.documentElement.hasAttribute("data-readela-size"));
   });
 
+  await step("Claude: Paper and Night colour the response only; a table's own wrapper is part of the same surface", async () => {
+    const chooseOnClaude = (group, value) => onClaude((p) => press(p, `input[name="${group}"][value="${value}"]`));
+    // The conversation of the earlier checks was replaced; start from the fixture again.
+    await claude.goto(CLAUDE_FIXTURE_URL, { waitUntil: "load" });
+    await waitForMark(claude, "#c-p-en-start", "rtl");
+    await chooseOnClaude("theme", "paper");
+    await claude.waitForFunction(() => document.querySelector("#c-markdown-fa").hasAttribute("data-readela-sheet"));
+    const sheets = await claude.evaluate(() => ({
+      table: document.querySelector(".md-table-scroll").getAttribute("data-readela-sheet"),
+      ownMessage: document.querySelector("#c-user").closest("[data-readela-sheet]") === null,
+      outside: document.querySelector("#c-ui").hasAttribute("data-readela-sheet"),
+    }));
+    assert.deepEqual(sheets, { table: "inner", ownMessage: true, outside: false });
+    await chooseOnClaude("theme", "page");
+    await claude.waitForFunction(() => document.querySelector("[data-readela-sheet]") === null);
+    await checkReadingThemes({ name, page: claude, choose: chooseOnClaude, scheme: "light", parts: CLAUDE_PARTS, report });
+  });
+
+  await step("Claude: the reading mark works on this site too", async () => {
+    const tab = await tabOf("Claude");
+    assert.ok(Number.isInteger(tab));
+    await loadPopup(popup, `${popupUrl}?tab=${tab}`);
+    await popup.waitForFunction(() => !document.querySelector("#mark-set").disabled, { polling: 200 });
+    await claude.evaluate(() => getSelection().selectAllChildren(document.querySelector("#c-quote-fa-p")));
+    await markButton("set", claude);
+    await waitForPlace(claude, "c-quote-fa-p");
+    // The popup says so only once the mark is stored.
+    await waitForNote("Marked.");
+    await claude.reload({ waitUntil: "load" });
+    await waitForPlace(claude, "c-quote-fa-p");
+    await markButton("clear", claude);
+    await waitForNote("Mark cleared.");
+    assert.deepEqual(await places(claude), []);
+    await loadPopup(popup, popupAddress);
+  });
+
   for (const scheme of schemes) {
-    await step(`${scheme} theme: popup text contrast, 320px fit, and readable page text`, () =>
-      checkTheme({ name, ui, page, scheme, emulate: input, report }),
+    await step(`${scheme} theme: popup contrast and 320px fit; Paper and Night at 10:1 on the reading surface only`, () =>
+      checkTheme({ name, ui, page, scheme, emulate: input, report, choose }),
     );
   }
 
   await step("the extension makes no network request", async () => {
     // Inline data: resources never reach the network and are not counted.
-    const unexpected = requests.filter((url) => !(url in FIXTURES) && !url.startsWith("data:"));
+    const unexpected = requests.filter((url) => !(url in FIXTURES) && !url.startsWith("data:") && !EXTENSION_FILE.test(url));
     assert.deepEqual(unexpected, [], "every request seen on the fixture pages is a fixture document itself");
+    // The only file a page takes from the extension is the packaged font.
+    for (const url of requests.filter((entry) => EXTENSION_FILE.test(entry))) {
+      assert.match(url, /\/fonts\/Vazirmatn-NL-wght\.woff2$/, url);
+    }
     assert.ok(requests.includes(FIXTURE_URL) && requests.includes(CLAUDE_FIXTURE_URL));
     const stored = await popup.evaluate(async () => {
       const api = globalThis.browser ?? globalThis.chrome;
       return api.storage.local.get(null);
     });
-    assert.deepEqual(Object.keys(stored), ["readela.preferences"], "only the preferences object is stored");
-    assert.deepEqual(Object.keys(stored["readela.preferences"]).sort(), ["direction", "enabled", "font", "size", "spacing", "version"]);
+    assert.deepEqual(Object.keys(stored).sort(), ["readela.marks", "readela.preferences"], "only preferences and reading marks are stored");
+    assert.deepEqual(Object.keys(stored["readela.preferences"]).sort(), [
+      "direction", "enabled", "font", "size", "spacing", "theme", "version",
+    ]);
+    assert.deepEqual(stored["readela.marks"], { version: 1, items: [] });
   });
 
   report.fixtureRequests = [...new Set(requests)].map((url) => (url.startsWith("data:") ? `${url.slice(0, 24)}…` : url));
@@ -1062,13 +1625,13 @@ for (const name of selected) {
     if (report.steps.some((entry) => !entry.ok)) failed = true;
     if (flag("--live")) {
       const popup = await openPopup(browser, popupUrl);
-      await popup.select("#size", "110");
+      await popup.$eval('input[name="size"][value="110"]', (element) => element.click());
       report.live = {};
       for (const [label, address] of [["chatgpt", "https://chatgpt.com/"], ["claude", "https://claude.ai/"]]) {
         report.live[label] = await runLive(name, browser, address, label);
         console.log(`  live ${label}: ${JSON.stringify(report.live[label])}`);
       }
-      await popup.select("#size", "page");
+      await popup.$eval('input[name="size"][value="page"]', (element) => element.click());
       await popup.close();
     }
   } finally {
@@ -1082,9 +1645,12 @@ for (const name of selected) {
       const page = await openFixture(dark.browser, []);
       await waitForMark(page, "#p-en-start", "rtl");
       const ui = await openStandInPopup(dark.browser, name);
-      const title = "dark theme: popup text contrast, 320px fit, and readable page text";
+      const popup = await openPopup(dark.browser, dark.popupUrl);
+      const choose = (group, value) =>
+        popup.$eval(`input[name="${group}"][value="${value}"]`, (element) => element.click());
+      const title = "dark theme: popup contrast and 320px fit; Paper and Night at 10:1 on the reading surface only";
       try {
-        await checkTheme({ name, ui, page, scheme: "dark", emulate: false, report });
+        await checkTheme({ name, ui, page, scheme: "dark", emulate: false, report, choose });
         report.steps.push({ title, ok: true });
         console.log(`  ok    ${title}`);
       } catch (error) {

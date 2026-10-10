@@ -14,11 +14,28 @@ export {
   PREFERENCES_VERSION,
   PREFERENCES_KEY,
   DIRECTION_MODES,
+  THEME_CHOICES,
   FONT_CHOICES,
   SIZE_CHOICES,
   SPACING_CHOICES,
   DEFAULT_PREFERENCES,
+  BUNDLED_FONT,
   normalizePreferences,
   resetPreferences,
+  changesPage,
   resolveTypography,
 } from "./preferences.js";
+export { THEMES, PAGE_MARK, relativeLuminance, contrastRatio } from "./theme.js";
+export {
+  MARKS_KEY,
+  MARKS_VERSION,
+  MARK_LIMIT,
+  fingerprint,
+  conversationKey,
+  createMark,
+  locateMark,
+  normalizeMarks,
+  findMark,
+  saveMark,
+  removeMark,
+} from "./marker.js";
