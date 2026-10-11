@@ -207,6 +207,10 @@ controls and how they are verified:
   Readela does not recolour such a part and gives nothing inside it a
   direction, a font or a size. Colours the site gave to individual words are
   replaced by the theme's colours for text, links and secondary text.
+- Text inside a card, a poll or another part of a response that the site lays
+  out itself is not reading text to Readela: it is not given a direction, a
+  font or a size, and a bookmark cannot be put in it; Save takes the nearest
+  paragraph of the response's own text that begins in view.
 - A place can be saved in a response, not in your own message. It is found
   again only in the response it was saved in. If that response was
   regenerated or removed, or the paragraph and its neighbours were rewritten,
