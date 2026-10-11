@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-correction-4.json",
+  "recordDate": "2026-10-11",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "relatedWorkUnits": ["ENT-240", "ENT-244", "ENT-243"],
+    "title": "Readela 0.3.0: correction of Paper readability, Auto direction in structured layouts, Bookmark access and memory growth on draft pull request 9, after the owner's fourth review",
+    "authorizingDecisions": ["DEC-143", "DEC-142", "DEC-141", "DEC-136", "DEC-116"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-11 continuing ENT-246 under DEC-143, after the owner's review of head 73ec2c3 on real ChatGPT. It authorizes the bounded work in scope.inScope on the existing branch feat/ent-240-readela-0.3.0, its tests, measurements, documentation and evidence, commits and their push to that branch, an accurate description of draft pull request 9, and a fresh local build for owner review. It does not authorize integration, merging pull request 9, marking it ready, a tag, a release, submission or publication to any store, a change to store images or store copy, a change to Personal OS, or anything in scope.outOfScope.",
+    "earlierOpenItem": "OPEN-3 of the third ENT-246 record (a record in Personal OS of the points on which the instruction of that day departed from DEC-141, DEC-142 and DEC-136) is met by DEC-143, Accepted on 2026-10-11, which overrides the earlier specifics on naming, popup status, background command restrictions and Bookmark access and keeps the spacing presets Original, 1.5, 1.75 and 2.0.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": [
+      "docs/project-preflight/ent-246-readela-0.3.0-correction-3.json",
+      "docs/project-preflight/ent-246-readela-0.3.0-correction-2.json",
+      "docs/project-preflight/ent-246-readela-0.3.0-correction.json",
+      "docs/project-preflight/ent-240-readela-0.3.0-reading-comfort.json"
+    ],
+    "status": "All four remain the records for the work they cover and are not edited. The third ENT-246 record names work that leaves its declared scope as an invalidator; this continuation does (see fullPreflightTrigger). This record covers it and reuses none of them as a parent."
+  },
+  "baseCommit": "73ec2c3c2231f14fabbce1b4520f72563a46ff27",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope expands outside the scope covered by the third ENT-246 Preflight: which parts of a response a reading theme owns, which blocks Auto direction decides for, two further browser-managed commands, the popup's first action, and the way the reading area is measured for a bookmark",
+      "the work touches a trust boundary of the product: what Readela may colour and what stays the site's, and what the background component passes on"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. The vendored dev-standards pin is v0.6.0 with the identities below; the verifier passed on baseCommit on 2026-10-11.",
+      "protocolChanged": "No. The revision is v1.23, the revision the earlier records were assessed under; the canonical page was last edited on 2026-10-06."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-11",
+    "branch": "feat/ent-240-readela-0.3.0 at 73ec2c3c2231f14fabbce1b4520f72563a46ff27 locally and on the remote; clean worktree and index.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 locally and on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, head 73ec2c3, mergeable, check verify succeeded.",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree; npm test passed (71).",
+    "product": "package.json version 0.3.0; permissions [\"storage\"]; content-script matches exactly https://chatgpt.com/* and https://claude.ai/*; three web-accessible resources (the packaged fonts); one command (bookmark) with no suggested key and a background component of one file that passes it to the page; no key listener in the page; stored objects readela.preferences (version 2) and readela.marks (version 2, at most 1000 places of ten or eleven values, none dropped).",
+    "releases": "0.2.1 is the public version in both stores. Nothing from 0.3.0 is merged, tagged, submitted or published.",
+    "managerialState": "Protocol v1.23, the Project (Active, Next item ENT-246), ENT-246 (Active, updated 2026-10-11) and DEC-143 (Accepted 2026-10-11) were read on 2026-10-11. DEC-143 extends DEC-136, DEC-141 and DEC-142. Personal OS had been reconciled by the owner before this work; this work does not write there.",
+    "ownerReview": "The owner's fourth review, of the local Chrome build of 73ec2c3 on real ChatGPT, is reported in DEC-143, ENT-246 and the instruction: Bookmark saving and returning and a self-assigned shortcut work in the cases tried; Inter with Vazirmatn and Night stay. Under Paper, tables, statistical cards, charts and diagrams, quotation bars, highlights, badges and interactive polls are close to invisible. Under Auto the figures of a statistical card change place. Memory growth in the one-hour run recorded in docs/evidence/2026-10-11-readela-0.3.0-correction-3.md is a release blocker until understood.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "Ownership under a reading theme, from the cause observed on the site: a response may be made of the site's own components, with text, cards, grids, forms and images side by side under a theme attribute of the site's. Readela colours the reading text it recognises and nothing else; every other part of a response stays the site's as a whole, on the site's own background, whatever it holds. A wrapper that carries text outside reading blocks is such a part. The ChatGPT adapter names which of the site's components are reading text.",
+      "Reading-theme tokens for what Readela does own, where the owner found them too weak: table lines, and the bar of a quotation where a site draws it with a generated box. Original, Night as reviewed, the reader's own messages, code, mathematics, selection and Off are regression requirements.",
+      "Auto direction: a block inside a part of a response that stays the site's takes no direction from Readela, so the site's own layout decides there; and a figure with a unit attached (2M, 103K) is not counted as a word. Auto stays the default; paragraph-level direction elsewhere is unchanged.",
+      "Bookmark: the popup's first action reads Save, then Update; Return and Remove stay; the total stays. Two further browser-managed commands with no default key, for Return and for Remove, delivered by the existing background component to the page functions the popup uses. The popup shows which keys the browser holds.",
+      "An evaluation of one small site-integrated mouse control for the three Bookmark actions against the limits in DEC-143. It is implemented only if it can be done within Readela's present footprint in a page and without fragility; otherwise the limitation and the decision it needs are reported.",
+      "Memory: the cause of the growth recorded for head 73ec2c3, starting with the geometry read for a bookmark and a return; the smallest changes that remove avoidable work; a comparison of no extension, 73ec2c3 and the corrected build by the existing measuring script, including a one-hour run.",
+      "Tests and fixtures for the defects observed, documentation and dated evidence made necessary by the above, a fresh local build for owner review, and an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "Merging pull request 9, marking it ready for review, a v0.3.0 tag, a release, and submission or publication to the Chrome Web Store, Firefox Add-ons or any other provider.",
+      "Store images and store copy (ENT-243, paused), and any write to Personal OS.",
+      "Recolouring the site's own components, charts, forms or controls; per-widget overrides.",
+      "A floating or draggable control, a dashboard, a context-menu entry, a default shortcut, a key recorder of the extension's own, a key listener in the page.",
+      "A third font, a change of the approved typography, further appearance themes, more spacing choices.",
+      "Read aloud, translation, highlighting, focus modes, notes, new sites, mobile, Edge, Safari or other platforms.",
+      "A new permission, a broader match pattern, a persistent background page, polling or timers in the background component, a backend, analytics, telemetry, account or sync infrastructure, remote code, a remote font or any network request.",
+      "Dependency changes, a new build system, a new test framework and unrelated refactors.",
+      "Changes to declared Capabilities or Exceptions, to the dev-standards pin and to the repository ruleset."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "assessment": "The extension remains a browser interface with no backend or operated service."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692",
+    "adoptedInTarget": true,
+    "verification": "node .governance/dev-standards/verify-dev-standards.mjs, locally and as the required verify check."
+  },
+  "externalCapabilities": {
+    "note": "Load-bearing behaviour of the two supported sites and of the browsers. The sites were read in the owner's signed-in Chrome on 2026-10-11, with the build of 73ec2c3 installed there: element names, attribute names, computed styles, geometry and counts only; no conversation text, title or address was recorded and nothing was typed or sent.",
+    "items": [
+      {
+        "capability": "ChatGPT renders some replies as a tree of its own components instead of plain Markdown elements. The tree sits inside the root of the reply's text, under an element that carries the site's theme (data-theme), and every component carries data-d-component. Text components are ordinary elements (p, h1 to h3, ul, ol, li, table, blockquote, code) or spans, and carry data-d-text-flow; a caption is a span laid out as a block. Layout and interactive components (box, row, grid, grid-item, image, svg, badge, divider, form, radio-group, radio, checkbox, button, slider, pressable and others) are div, span, button, form and img elements. A diagram is an img. Components set inline carry data-d-inline. Colours are those of the site's theme: light text, borders and dividers at 5 to 15 percent white.",
+        "authority": "Observed on 2026-10-11 in six conversations of this form and two of the plain form. In the plain form a table sits in three wrappers that hold no text of their own.",
+        "probe": "A fixture built after that structure, in the site's dark and light themes; the end-to-end suite checks what is coloured, what stays the site's and the contrast of both."
+      },
+      {
+        "capability": "ChatGPT statistical card: a bordered box holding a two-column grid; each grid item holds a figure as a title element (h1, tabular numerals) and a label. The component tree takes its direction from one dir=\"auto\" element at its root.",
+        "authority": "Observed on 2026-10-11: of six figures, the two that carried a Latin unit letter had been given a left-to-right mark by the installed build under Auto, and the four made of digits alone had not; all inherit right-to-left from the root otherwise.",
+        "probe": "The fixture carries such a card; the end-to-end suite compares the place of each figure under Original, Auto and RTL."
+      },
+      {
+        "capability": "ChatGPT quotation in the component form: the bar is a generated box (::before) with a border on its leading side at 15 percent white; the blockquote element itself has no border.",
+        "authority": "Observed on 2026-10-11.",
+        "probe": "The fixture draws the bar the same way; the end-to-end suite checks its colour under both themes."
+      },
+      {
+        "capability": "Claude: the direct children of rendered Markdown are reading blocks and elements the site itself marks data-not-prose; no other kind was found.",
+        "authority": "Observed on 2026-10-11 in four conversations.",
+        "probe": "The Claude fixtures; unchanged adapter."
+      },
+      {
+        "capability": "Both browsers accept several commands without suggested keys in one manifest; each is unbound until the user assigns a key, and commands.getAll lists each with its shortcut.",
+        "authority": "developer.chrome.com/docs/extensions/reference/api/commands and MDN manifest.json/commands, as read for the third ENT-246 record; the limit of four applies to suggested keys.",
+        "probe": "The end-to-end suite reads the built manifests, lists the commands in both browsers and delivers each to the background component."
+      }
+    ],
+    "notObserved": [
+      "This build on the real sites: it cannot be installed in the owner's browser by this work.",
+      "A ChatGPT reply of the component form in the site's light theme, and one with a chart drawn by a canvas or an inline drawing; the diagrams seen were images.",
+      "A Claude reply holding a chart, a poll or a card inside rendered Markdown.",
+      "A real key reaching the two new commands."
+    ]
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission, privacy or store-publication rule.",
+      "handling": "Unchanged. The project-local controls in docs/privacy-and-permissions.md apply and are updated in the same change where a contract changes."
+    },
+    {
+      "id": "GAP-2",
+      "gap": "The canonical baseline has no performance or memory budget for a browser extension.",
+      "handling": "DEC-143 makes bounded memory a release gate. The existing measuring script is used with the same workload, browser and definitions as the recorded run; results and their limits are recorded in dated evidence."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "Owner review of the final local build on real ChatGPT and Claude conversations.",
+      "reason": "Automated checks and measurements run on synthetic pages; rendered judgement on real pages, real shortcuts and the integration decision are the owner's.",
+      "revisitTrigger": "The fresh unpacked Chrome build is loaded."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "Release of 0.3.0 and the refresh of store images and copy (ENT-243).",
+      "reason": "Not authorized by this work.",
+      "revisitTrigger": "Owner acceptance of the corrected build."
+    },
+    {
+      "id": "OPEN-3",
+      "item": "The in-page mouse control for Bookmark, if the evaluation finds it cannot be delivered within the limits.",
+      "reason": "DEC-143 asks for the tradeoff to be reported to the owner instead of a brittle control.",
+      "revisitTrigger": "The owner's decision on the reported options."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "Product rigor. Nothing is published by this work.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "Manifest contract tests: permissions stay [\"storage\"], three commands with no suggested key, the background entry and web-accessible resources unchanged. A source test that the background component holds no timer, no network call and no listener but the command's, and that the page code creates no element and listens for no key. End-to-end checks on a fixture of the site's component form, in the site's light and dark themes under Paper and Night: reading text meets 4.5:1 on the surface, every part that stays the site's keeps the site's colours on the site's background at the site's own contrast, nothing light is left on a light surface, a form inside a reply is never written to, and Off restores the page exactly. A check that the figures of a statistical card stand in the same place under Original, Auto and RTL. Checks that each command reaches the page function the popup uses and that none runs while Off. Measurements of memory over a long run, for no extension, the previous head and this build."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-11",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit, their push, and an update of the description of draft pull request 9. It does not cover merging to main, marking the pull request ready, tagging or any publication.",
+      "basis": [
+        "DEC-143 (Accepted) and the owner instruction of 2026-10-11 continuing ENT-246 cover this scope and the push to the existing pull-request branch.",
+        "Protocol v1.23, the Project state, ENT-246 (Active, the Project's Next item) and DEC-143 were read on 2026-10-11; DEC-143 settles the open item of the third record.",
+        "The load-bearing site behaviour was observed on the real site before the contract was frozen.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the continuation."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before a merge to main, bound to the exact pull-request head, a green verify check, the owner's acceptance of the review, and memory evidence the owner accepts as bounded. Recorded in dated evidence under docs/evidence/."
+    },
+    "publication": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; see openItems OPEN-2."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope.",
+    "A permission, a broader match pattern, a persistent background page, a timer or network call in the background component, or a default shortcut becomes necessary.",
+    "An element would have to be created in a page, or a key listened for in a page.",
+    "Readable conversation text, a title, an address or a page snapshot would have to be stored.",
+    "The approved typography would have to change.",
+    "Declared Capabilities or Exceptions change.",
+    "The applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before integration."
+  ]
+}
