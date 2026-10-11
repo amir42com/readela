@@ -7,6 +7,7 @@
 //   node test/perf/run.mjs memory [options]   memory of a settled page, state by state, several fresh browsers each
 //   node test/perf/run.mjs allocators [options]  the same page's memory by allocator: what is held, and what is only kept
 //   node test/perf/run.mjs soak   [options]   a long run, sampled for growth
+//   node test/perf/run.mjs reuse  [options]   one case at a time: a block of work, the page left alone, the same block again
 //   node test/perf/run.mjs firefox [options]  Firefox: processor time and memory of its processes
 //   node test/perf/run.mjs micro              the stored-places functions alone, in Node
 //
@@ -19,6 +20,16 @@
 //   --minutes <n>       how long the soak lasts (default 15)
 //   --settings <n>      soak: change the reading settings on every n-th cycle (default 1; 0 for never)
 //   --allocators        soak: sample memory by allocator as well
+//   --arms a,b          reuse: the cases, in the order they run (default control,night,night+sans;
+//                       control is a browser without the extension, the others are reading states)
+//   --cycles <n>        reuse: cycles in a block (default 150)
+//   --period <ms>       reuse: how long one cycle lasts, work and pause together (default 6400)
+//   --idle <s>          reuse: how long the page is left alone between the blocks (default 300)
+//   --rest <s>          reuse: how long it is left alone after the second block (default as --idle)
+//   --warm <n>          reuse: cycles before anything is measured (default 10)
+//   --settle <s>        reuse: how long the warmed page is left before the first block (default 60)
+//   --every <s>         reuse: how often the processes are read (default 5)
+//   --diagnostic        reuse: force a collection before every memory dump (not a natural run)
 //   --only a,b          only the cases with these names
 //   --out <file>        where the results go (default test-results/perf-<suite>-<label>.json)
 //
@@ -32,9 +43,17 @@
 // and lets nothing else through. Nothing here is part of the packaged
 // extension. Numbers are from one machine and one browser version; they are
 // compared with a baseline measured the same way, never read as absolute.
+//
+// Memory is counted in units of 1,048,576 bytes throughout. The earlier
+// suites label that MB; `reuse` labels it Mib. In `soak` the browser without
+// the extension does not select text or scroll to it as the bookmark steps
+// of the other case do, and several browsers run at once: its two cases are
+// not a matched pair. `reuse` is the matched comparison.
 
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -75,6 +94,7 @@ const median = (values) => {
 };
 const round = (value, digits = 1) => (value === null || value === undefined ? null : Math.round(value * 10 ** digits) / 10 ** digits);
 const megabytes = (bytes) => round(bytes / 1048576, 1);
+const mib = (bytes) => (bytes === null || bytes === undefined ? null : round(bytes / 1048576, 2));
 
 function chromeExecutable() {
   const candidates = [
@@ -106,7 +126,7 @@ const STATES = {
   stress: { theme: "night", font: "sans", size: "140", spacing: "2.0" },
 };
 
-async function launch(withExtension) {
+async function launch(withExtension, { standIn = false } = {}) {
   const browser = await puppeteer.launch({
     browser: "chrome",
     executablePath: chromeExecutable(),
@@ -121,6 +141,10 @@ async function launch(withExtension) {
     id = await browser.installExtension(extension);
     popup = await browser.newPage();
     await popup.goto(`chrome-extension://${id}/popup/popup.html`);
+  } else if (standIn) {
+    // An empty page where the other case has the popup, so that the page
+    // measured is one of as many pages in both.
+    await (await browser.newPage()).goto("about:blank");
   }
   const system = await browser.target().createCDPSession();
   return { browser, id, popup, system };
@@ -193,18 +217,98 @@ async function tabOf(context) {
 
 const ask = (context, tab, request) => context.popup.evaluate((id, word) => chrome.tabs.sendMessage(id, { readelaMark: word }), tab, request);
 
+/** In the page, for a bookmark: a paragraph of the last reply but one is scrolled to and selected. */
+const CHOOSE = () => {
+  const paragraphs = document.querySelectorAll("#perf-content .turn:nth-last-child(2) p");
+  const paragraph = paragraphs[paragraphs.length - 3];
+  paragraph.scrollIntoView({ block: "center" });
+  getSelection().selectAllChildren(paragraph);
+};
+
 /** Bookmark the conversation on the page, at the first paragraph of its last reply but one. */
 async function bookmark(context, target, tab) {
   await target.page.bringToFront();
-  await target.page.evaluate(() => {
-    const paragraphs = document.querySelectorAll("#perf-content .turn:nth-last-child(2) p");
-    const paragraph = paragraphs[paragraphs.length - 3];
-    paragraph.scrollIntoView({ block: "center" });
-    getSelection().selectAllChildren(paragraph);
-  });
+  await target.page.evaluate(CHOOSE);
   const answer = await ask(context, tab, "set");
   await target.page.evaluate(() => getSelection().removeAllRanges());
   return answer?.status;
+}
+
+/**
+ * What `bookmark` does in the page, in a browser without the extension:
+ * nothing is saved. The extension's save takes a few milliseconds (`reuse`
+ * records both), too short a time to wait out here.
+ */
+async function shamBookmark(target) {
+  await target.page.bringToFront();
+  await target.page.evaluate(CHOOSE);
+  await target.page.evaluate(() => getSelection().removeAllRanges());
+}
+
+/**
+ * What a return does in the page, in a browser without the extension: the
+ * same paragraph is scrolled, smoothly unless the system asks for less
+ * motion, to a little below what covers the top of the conversation, and the
+ * page is left until it rests. Nothing is marked.
+ */
+const shamReturn = (target) =>
+  target.page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const scroller = document.querySelector("#perf-scroller");
+        const paragraphs = document.querySelectorAll("#perf-content .turn:nth-last-child(2) p");
+        const paragraph = paragraphs[paragraphs.length - 3];
+        const frame = scroller.getBoundingClientRect();
+        const cover = document.querySelector(".bar, .header")?.getBoundingClientRect().height ?? 0;
+        const want = frame.top + cover + Math.min((frame.height - cover) * 0.2, 120);
+        const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        scroller.scrollBy({ top: paragraph.getBoundingClientRect().top - want, behavior: calm ? "auto" : "smooth" });
+        const began = performance.now();
+        let top = null;
+        const timer = setInterval(() => {
+          const now = paragraph.getBoundingClientRect().top;
+          if ((top !== null && Math.abs(now - top) < 1) || performance.now() - began > 2500) {
+            clearInterval(timer);
+            resolve();
+          }
+          top = now;
+        }, 90);
+      }),
+  );
+
+/**
+ * One cycle of the long runs: another conversation, a reply, the sidebar,
+ * scrolling and, with the extension, a bookmark saved, updated, returned to
+ * on every other cycle and removed. With `sham`, a browser without the
+ * extension does in the page what those steps do there. `timings` takes how
+ * long each of those steps took, and `answers` counts what the extension
+ * answered.
+ */
+async function oneCycle(context, target, tab, number, { sham = false, timings = null, answers = null } = {}) {
+  const timed = async (name, step) => {
+    const began = performance.now();
+    const answer = await step();
+    timings?.[name]?.push(performance.now() - began);
+    if (answers && tab !== null) {
+      const word = `${name}: ${typeof answer === "string" ? answer : (answer?.status ?? "no answer")}`;
+      answers[word] = (answers[word] ?? 0) + 1;
+    }
+    return answer;
+  };
+  await target.page.evaluate((conversation) => window.perfNavigate(conversation), number % 9);
+  await target.page.evaluate(() => window.perfStream(2500, 30));
+  await target.page.evaluate(() => window.perfChurn(1500, 250));
+  await target.page.evaluate(() => window.perfScroll(1500));
+  if (tab !== null) {
+    await timed("save", () => bookmark(context, target, tab));
+    await timed("save", () => bookmark(context, target, tab));
+    if (number % 2 === 0) await timed("return", () => ask(context, tab, "go"));
+    await timed("remove", () => ask(context, tab, "clear"));
+  } else if (sham) {
+    await timed("save", () => shamBookmark(target));
+    await timed("save", () => shamBookmark(target));
+    if (number % 2 === 0) await timed("return", () => shamReturn(target));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -316,38 +420,251 @@ async function memoryOf(target, pid) {
  * not JavaScript's.
  */
 async function allocatorsOf(context, target, pid) {
-  await target.session.send("HeapProfiler.collectGarbage").catch(() => {});
-  await target.session.send("HeapProfiler.collectGarbage").catch(() => {});
-  await sleep(800);
-  const chunks = [];
-  const collect = ({ value }) => chunks.push(...value);
-  context.system.on("Tracing.dataCollected", collect);
-  const done = new Promise((resolve) => context.system.once("Tracing.tracingComplete", resolve));
-  await context.system.send("Tracing.start", {
-    traceConfig: { includedCategories: ["disabled-by-default-memory-infra"], memoryDumpConfig: { triggers: [] } },
-    transferMode: "ReportEvents",
-  });
-  await sleep(200);
-  await context.system.send("Tracing.requestMemoryDump", { levelOfDetail: "detailed" });
-  await sleep(1200);
-  await context.system.send("Tracing.end");
-  await done;
-  context.system.off("Tracing.dataCollected", collect);
-  const sizes = {};
-  for (const event of chunks) {
-    if (event.ph !== "v" || event.pid !== pid) continue;
-    for (const [name, entry] of Object.entries(event.args?.dumps?.allocators ?? {})) {
-      if (entry.attrs?.size) sizes[name] = parseInt(entry.attrs.size.value, 16) / 1048576;
-    }
-  }
-  const total = (test) => Object.entries(sizes).reduce((sum, [name, size]) => (test(name) ? sum + size : sum), 0);
+  const dump = await dumpOf(context, target, pid, { collect: true });
+  // A dump that is not valid gives no numbers; before, it gave zeros.
   return {
-    collectedLiveMb: round(sizes["blink_gc/main/allocated_objects"] ?? 0, 2),
-    collectedPagesMb: round(sizes["blink_gc/main/heap"] ?? 0, 2),
-    mallocLiveMb: round(sizes["malloc/allocated_objects"] ?? 0, 2),
-    mallocPagesMb: round(sizes["malloc/partitions/allocator"] ?? 0, 2),
-    fontFilesMb: round(sizes["web_cache/Font_resources"] ?? 0, 2),
-    mediaQueryObjectsMb: round(total((name) => /^blink_objects\/blink_gc\/main\/.*MediaQuery/.test(name)), 2),
+    collectedLiveMb: dump.collectedHeldMib,
+    collectedPagesMb: dump.collectedHeapMib,
+    mallocLiveMb: dump.mallocHeldMib,
+    mallocPagesMb: dump.mallocPartitionMib,
+    fontFilesMb: dump.fontFilesMib,
+    mediaQueryObjectsMb: dump.mediaQueryObjectsMib,
+  };
+}
+
+/**
+ * A memory dump of the page's process, as the browser accounts for it.
+ * Nothing is collected first unless `collect` is set, so a dump taken in the
+ * course of a run shows the heaps as the run left them. For the browser's
+ * collected heap (layout, style, DOM; not JavaScript's) the dump tells apart
+ * what the heap has taken from the system ("heap", "committed"), what is
+ * allocated in it ("held", which before a collection includes what is no
+ * longer reachable), what lies free on its lists for reuse and what it
+ * keeps pooled. A dump that does not hold the process or lacks that heap is
+ * not valid: its numbers are absent, never zero. `raw` is the process's
+ * whole dump.
+ */
+async function dumpOf(context, target, pid, { collect = false } = {}) {
+  if (collect) await collectNow(target);
+  let raw = {};
+  let answer = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const chunks = [];
+    const gather = ({ value }) => chunks.push(...value);
+    context.system.on("Tracing.dataCollected", gather);
+    const done = new Promise((resolve) => context.system.once("Tracing.tracingComplete", resolve));
+    await context.system.send("Tracing.start", {
+      traceConfig: { includedCategories: ["disabled-by-default-memory-infra"], memoryDumpConfig: { triggers: [] } },
+      transferMode: "ReportEvents",
+    });
+    await sleep(200);
+    answer = await context.system.send("Tracing.requestMemoryDump", { levelOfDetail: "detailed" }).catch((error) => ({ success: false, error: String(error) }));
+    await sleep(300);
+    await context.system.send("Tracing.end");
+    await done;
+    context.system.off("Tracing.dataCollected", gather);
+    // A process's dump comes in several events, each with allocators of its own.
+    raw = {};
+    for (const event of chunks) {
+      if (event.ph !== "v" || event.pid !== pid) continue;
+      const { allocators, allocators_graph: graph, ...others } = event.args?.dumps ?? {};
+      Object.assign(raw, others);
+      raw.allocators = { ...raw.allocators, ...allocators };
+      raw.allocators_graph = [...(raw.allocators_graph ?? []), ...(graph ?? [])];
+    }
+    if (answer.success === true && raw.allocators?.["blink_gc/main/heap"]?.attrs?.size && raw.allocators?.malloc?.attrs?.size) break;
+  }
+  const allocators = raw.allocators ?? {};
+  const bytes = (name, attribute = "size") => {
+    const entry = allocators[name]?.attrs?.[attribute];
+    return entry ? parseInt(entry.value, 16) : null;
+  };
+  const valid = answer.success === true && bytes("blink_gc/main/heap") !== null && bytes("malloc") !== null;
+  if (!valid) return { valid, collected: collect, reason: answer.error ?? (answer.success === true ? "the process is not in the dump" : "the browser refused the dump"), raw };
+  const total = (test, attribute = "size") =>
+    Object.keys(allocators).reduce((sum, name) => (test(name) ? sum + (bytes(name, attribute) ?? 0) : sum), 0);
+  return {
+    valid,
+    collected: collect,
+    privateFootprintMib: mib(raw.process_totals?.private_footprint_bytes ? parseInt(raw.process_totals.private_footprint_bytes, 16) : null),
+    collectedHeapMib: mib(bytes("blink_gc/main/heap")),
+    collectedCommittedMib: mib(bytes("blink_gc/main/heap", "committed_size")),
+    collectedHeldMib: mib(bytes("blink_gc/main/heap", "allocated_objects_size")),
+    collectedFreeListsMib: mib(total((name) => /^blink_gc\/main\/heap\/[^/]+\/freelist\/[^/]+$/.test(name), "free_usable_size")),
+    collectedPooledMib: mib(bytes("blink_gc/main/heap", "pooled_size")),
+    mallocMib: mib(bytes("malloc")),
+    mallocHeldMib: mib(bytes("malloc/allocated_objects")),
+    mallocPartitionMib: mib(bytes("malloc/partitions/allocator")),
+    mallocPartitionCommittedMib: mib(bytes("malloc/partitions/allocator", "virtual_committed_size")),
+    mallocPartitionHeldMib: mib(bytes("malloc/partitions/allocator", "allocated_objects_size")),
+    mallocPartitionDecommittableMib: mib(bytes("malloc/partitions/allocator", "decommittable_size")),
+    bufferPartitionCommittedMib: mib(bytes("partition_alloc/partitions/buffer", "virtual_committed_size")),
+    bufferPartitionHeldMib: mib(bytes("partition_alloc/partitions/buffer", "allocated_objects_size")),
+    javascriptHeapMib: mib(bytes("v8/main/heap")),
+    fontFilesMib: mib(bytes("web_cache/Font_resources") ?? 0),
+    fontCachesMib: mib(total((name) => /^font_caches\/[^/]+$/.test(name))),
+    compositorMib: mib(bytes("cc") ?? 0),
+    drawingMib: mib(bytes("skia") ?? 0),
+    mediaQueryObjectsMib: mib(total((name) => /^blink_objects\/blink_gc\/main\/.*MediaQuery/.test(name))),
+    raw,
+  };
+}
+
+/**
+ * Make the page's process collect what is no longer reachable, twice, and
+ * let it finish. Returns whether the browser did as asked.
+ */
+async function collectNow(target) {
+  let done = true;
+  for (let pass = 0; pass < 2; pass += 1) {
+    await target.session.send("HeapProfiler.collectGarbage").catch(() => {
+      done = false;
+    });
+  }
+  await sleep(800);
+  return done;
+}
+
+/** What the page's process counts by itself. Nothing is collected to read it. */
+async function countersOf(target) {
+  const { metrics } = await target.session.send("Performance.getMetrics");
+  const value = (name) => metrics.find((metric) => metric.name === name)?.value ?? null;
+  const heap = await target.session.send("Runtime.getHeapUsage").catch(() => ({}));
+  return {
+    javascriptUsedMib: mib(value("JSHeapUsedSize")),
+    javascriptTotalMib: mib(value("JSHeapTotalSize")),
+    collectedUsedMib: mib(heap.embedderHeapUsedSize),
+    nodes: value("Nodes"),
+    listeners: value("JSEventListeners"),
+    layoutObjects: value("LayoutObjects"),
+    layouts: value("LayoutCount"),
+    styles: value("RecalcStyleCount"),
+    // Seconds on the page's main thread since the page was opened.
+    layoutSeconds: round(value("LayoutDuration"), 3),
+    styleSeconds: round(value("RecalcStyleDuration"), 3),
+    scriptSeconds: round(value("ScriptDuration"), 3),
+    taskSeconds: round(value("TaskDuration"), 3),
+  };
+}
+
+/**
+ * The memory of processes, read from the operating system at a steady
+ * interval by one helper that is started once and asks nothing of the
+ * browser. Each reading also says how busy the whole machine was since the
+ * one before, all processors together. While it runs the helper asks the
+ * system to stay awake with its display on, as a player of a film does, so
+ * that a machine left alone does not go to sleep in the middle of a case;
+ * the request ends with the helper and changes no setting.
+ */
+function watchProcesses(pids, seconds) {
+  const script = [
+    "Add-Type -Namespace Measure -Name Awake -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint flags);'",
+    "[void][Measure.Awake]::SetThreadExecutionState([uint32]2147483651)", // continuous, system and display required
+    `$ids = @(${pids.join(",")})`,
+    '$busy = New-Object System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total")',
+    "[void]$busy.NextValue()",
+    `while ($true) { Start-Sleep -Milliseconds ${Math.round(seconds * 1000)}`,
+    '$found = foreach ($p in Get-Process -Id $ids -ErrorAction SilentlyContinue) { "$($p.Id):$($p.PrivateMemorySize64):$($p.WorkingSet64)" }',
+    '[Console]::Out.WriteLine("$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) $([math]::Round($busy.NextValue(), 2)) $($found -join " ")") }',
+  ].join("; ");
+  const child = spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: ["ignore", "pipe", "ignore"] });
+  const samples = [];
+  let rest = "";
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (text) => {
+    const lines = (rest + text).split(/\r?\n/);
+    rest = lines.pop();
+    for (const line of lines) {
+      const [at, busy, ...entries] = line.trim().split(/\s+/);
+      if (!at) continue;
+      const processes = {};
+      for (const entry of entries) {
+        const [id, priv, working] = entry.split(":").map(Number);
+        processes[id] = { privateMib: mib(priv), workingMib: mib(working) };
+      }
+      samples.push({ at: Number(at), machineBusyPercent: Number(busy), processes });
+    }
+  });
+  return { pids, samples, stop: () => child.kill() };
+}
+
+/** Every process on the machine: its name, the processor time it has used and its working set. */
+function census() {
+  const script = 'Get-Process | ForEach-Object { "$($_.Id)|$($_.ProcessName)|$([long]$_.TotalProcessorTime.TotalMilliseconds)|$($_.WorkingSet64)" }';
+  const text = execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  return {
+    at: Date.now(),
+    processes: text.trim().split(/\r?\n/).map((line) => {
+      const [id, name, cpu, working] = line.trim().split("|");
+      return { id: Number(id), name, cpuSeconds: Number(cpu) / 1000, workingMib: mib(Number(working)) };
+    }),
+  };
+}
+
+/**
+ * What else ran between two censuses: processor seconds by program, for
+ * every process there at the end (the browser measured has closed by then).
+ * A process the system does not let be read counts as none.
+ */
+function elsewhere(before, after) {
+  const earlier = new Map(before.processes.map((entry) => [`${entry.id} ${entry.name}`, entry.cpuSeconds]));
+  const byName = new Map();
+  for (const entry of after.processes) {
+    const used = entry.cpuSeconds - (earlier.get(`${entry.id} ${entry.name}`) ?? 0);
+    const sum = byName.get(entry.name) ?? { program: entry.name, processes: 0, cpuSeconds: 0, workingMib: 0 };
+    sum.processes += 1;
+    sum.cpuSeconds += used;
+    sum.workingMib += entry.workingMib;
+    byName.set(entry.name, sum);
+  }
+  const seconds = (after.at - before.at) / 1000;
+  const programs = [...byName.values()].map((sum) => ({ ...sum, cpuSeconds: round(sum.cpuSeconds, 1), workingMib: round(sum.workingMib, 0) }));
+  return {
+    seconds: round(seconds, 0),
+    processes: after.processes.length,
+    cpuSeconds: round(programs.reduce((sum, entry) => sum + entry.cpuSeconds, 0), 1),
+    busiest: programs.sort((a, b) => b.cpuSeconds - a.cpuSeconds).slice(0, 12),
+    programsRunning: [...byName.keys()].sort(),
+  };
+}
+
+/** What a result came from: the browser, the build measured, this script and its page. */
+function identity(chrome) {
+  const digest = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
+  const filesIn = (directory) =>
+    readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory() ? filesIn(path.join(directory, entry.name)) : [path.join(directory, entry.name)],
+    );
+  const files = filesIn(extension).map((file) => path.relative(extension, file).replaceAll("\\", "/")).sort();
+  // One digest for the whole build: every file's path and digest, in order.
+  const tree = createHash("sha256");
+  for (const file of files) tree.update(`${digest(path.join(extension, file))}  ${file}\n`);
+  const git = (...words) => {
+    try {
+      return execFileSync("git", words, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    } catch {
+      return null;
+    }
+  };
+  return {
+    chrome,
+    chromeExecutable: chromeExecutable(),
+    extension: {
+      directory: extension,
+      version: JSON.parse(readFileSync(path.join(extension, "manifest.json"), "utf8")).version,
+      files: files.length,
+      treeSha256: tree.digest("hex"),
+    },
+    script: { file: "test/perf/run.mjs", sha256: digest(fileURLToPath(import.meta.url)) },
+    page: { file: "test/perf/fixtures/page.html", sha256: digest(path.join(root, "test", "perf", "fixtures", "page.html")) },
+    source: { commit: git("rev-parse", "HEAD"), uncommitted: git("status", "--porcelain") },
+    host: {
+      system: `${os.type()} ${os.release()}`,
+      processor: os.cpus()[0]?.model ?? null,
+      logicalProcessors: os.cpus().length,
+      memoryGib: round(os.totalmem() / 2 ** 30, 1),
+      node: process.version,
+    },
   };
 }
 
@@ -790,16 +1107,7 @@ async function soak() {
             cycle += 1;
             // One cycle: another conversation, a reply, the sidebar, scrolling,
             // and, with the extension, bookmarks and settings.
-            await target.page.evaluate((conversation) => window.perfNavigate(conversation), cycle % 9);
-            await target.page.evaluate(() => window.perfStream(2500, 30));
-            await target.page.evaluate(() => window.perfChurn(1500, 250));
-            await target.page.evaluate(() => window.perfScroll(1500));
-            if (tab !== null) {
-              await bookmark(context, target, tab);
-              await bookmark(context, target, tab);
-              if (cycle % 2 === 0) await ask(context, tab, "go");
-              await ask(context, tab, "clear");
-            }
+            await oneCycle(context, target, tab, cycle);
             if (tab !== null && settingsEvery > 0 && cycle % settingsEvery === 0) {
               const theme = ["paper", "night", "page"][cycle % 3];
               const font = cycle % 2 ? "sans" : "page";
@@ -816,8 +1124,9 @@ async function soak() {
             }
           }
           // Growth after the first third, by a straight line through the samples.
-          const settled = samples.filter((sample) => sample.minute >= minutes / 3);
           const slope = (key) => {
+            // A sample whose dump was not valid has no number for this.
+            const settled = samples.filter((sample) => sample.minute >= minutes / 3 && sample[key] !== null && sample[key] !== undefined);
             const n = settled.length;
             const mx = settled.reduce((sum, sample) => sum + sample.minute, 0) / n;
             const my = settled.reduce((sum, sample) => sum + sample[key], 0) / n;
@@ -848,6 +1157,239 @@ async function soak() {
     ),
   );
   finish({ minutes, settingsEvery });
+}
+
+// ---------------------------------------------------------------------------
+// reuse: is what a block of work takes used again by the same block?
+//
+// One case at a time, each in a browser and a profile of its own: a browser
+// without the extension that does in the page what the measuring script does
+// there for a bookmark and a return, and the extension in the reading states
+// named. A case is warmed with the same cycles until its fonts are loaded,
+// does a fixed number of cycles at a fixed pace, is left alone, and does the
+// same cycles again. From the first cycle to the end of the last rest
+// nothing is collected by force: the processes are read from the operating
+// system by a helper, and the memory dumps at the ends of the blocks show the
+// heaps as the work left them. Only after that is a collection forced and
+// the browser told that memory is short, to see what is still held and what
+// is given back. With --diagnostic a collection is forced before every dump
+// instead: such a run says what is held after each block, and is not a
+// natural run.
+
+async function reuse() {
+  if (process.platform !== "win32") throw new Error("the processes are read the Windows way");
+  const cycles = Number(option("--cycles", 150));
+  const period = Number(option("--period", 6400));
+  const idleSeconds = Number(option("--idle", 300));
+  const restSeconds = Number(option("--rest", idleSeconds));
+  const settleSeconds = Number(option("--settle", 60));
+  const warm = Number(option("--warm", 10));
+  const every = Number(option("--every", 5));
+  const diagnostic = args.includes("--diagnostic");
+  const arms = option("--arms", "control,night,night+sans").split(",");
+  const stateOf = (arm) => (arm === "control" ? "baseline" : arm);
+  for (const arm of arms) if (!(stateOf(arm) in STATES)) throw new Error(`no such case: ${arm}`);
+  const dumps = out.replace(/\.json$/, "-dumps");
+  mkdirSync(dumps, { recursive: true });
+  const options = { arms, sites, cycles, periodMs: period, idleSeconds, restSeconds, settleSeconds, warmCycles: warm, sampleSeconds: every, diagnostic, turns: 12, rows: 60, storedBookmarks: 20 };
+  let source = null;
+  let order = 0;
+  for (const site of sites) {
+    for (const arm of arms) {
+      order += 1;
+      const state = stateOf(arm);
+      const before = census();
+      const context = await launch(STATES[state] !== null, { standIn: true });
+      const watchers = [];
+      const points = [];
+      let row = null;
+      try {
+        source ??= identity(await context.browser.version());
+        await applyState(context, state, 20);
+        const target = await openSite(context, site, { turns: 12, rows: 60 });
+        const tab = context.popup === null ? null : await tabOf(context);
+        await target.page.bringToFront();
+        await sleep(3000);
+        const pid = await rendererOf(target);
+        const began = new Date().toISOString();
+
+        // A block: the cycles one after another, each given the same time.
+        const answers = {};
+        const paced = async (count, timings) => {
+          const took = [];
+          for (let number = 1; number <= count; number += 1) {
+            const start = Date.now();
+            await oneCycle(context, target, tab, number, { sham: true, timings, answers: timings && answers });
+            took.push(Date.now() - start);
+            await sleep(Math.max(200, period - took.at(-1)));
+          }
+          return took;
+        };
+
+        // Warm: the cycles of the blocks, after which every font the page
+        // uses is loaded and what is built once has been built. Then the
+        // page is left to settle, so that the first block begins from a page
+        // at rest as the second does.
+        await paced(warm, null);
+        const fonts = await target.page.evaluate(async () => {
+          await document.fonts.ready;
+          return {
+            loaded: [...document.fonts].filter((face) => face.status === "loaded").map((face) => `${face.family.replace(/"/g, "")} ${face.style}`).sort(),
+            loading: [...document.fonts].filter((face) => face.status === "loading").length,
+            lessMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+          };
+        });
+        if (fonts.loading > 0) throw new Error("fonts are still loading after the warm cycles");
+
+        const processesNow = async () =>
+          (await context.system.send("SystemInfo.getProcessInfo")).processInfo.map(({ id, type, cpuTime }) => ({ id, type: id === pid ? "page" : type, cpuSeconds: round(cpuTime, 3) }));
+        const watch = (list) => watchers.push(watchProcesses(list.map((entry) => entry.id), every));
+        watch(await processesNow());
+        await sleep(settleSeconds * 1000);
+
+        // A point: what the page counts, the processor time of every process
+        // of the browser, and a memory dump; after a forced collection only
+        // where that is said.
+        const point = async (name, collect = diagnostic) => {
+          const at = Date.now();
+          if (collect && !(await collectNow(target))) throw new Error(`${name}: the browser refused to collect`);
+          const counters = await countersOf(target);
+          const processes = await processesNow();
+          if (processes.some((entry) => !watchers.at(-1).pids.includes(entry.id))) {
+            watchers.at(-1).stop();
+            watch(processes);
+          }
+          const { raw, ...dump } = await dumpOf(context, target, pid);
+          const file = `${String(order).padStart(2, "0")}-${site}-${arm}-${points.length}-${name.replace(/[^a-z0-9]+/g, "-")}.json`;
+          writeFileSync(path.join(dumps, file), JSON.stringify(raw));
+          points.push({ name, at, collected: collect, counters, processes, dump: { ...dump, collected: collect, file } });
+          console.log(`${site} ${arm} ${name}: ${JSON.stringify({ ...counters, ...dump, collected: collect })}`);
+        };
+
+        const timings = { save: [], return: [], remove: [] };
+        await point("block 1 begins");
+        const first = await paced(cycles, timings);
+        await point("block 1 ends");
+        await sleep(idleSeconds * 1000);
+        await point("left alone");
+        const second = await paced(cycles, timings);
+        await point("block 2 ends");
+        await sleep(restSeconds * 1000);
+        await point("left alone again");
+        // Only now is anything collected by force, and the browser told that
+        // memory is short.
+        await point("collected", true);
+        await context.system.send("Memory.simulatePressureNotification", { level: "critical" }).catch(() => {});
+        await sleep(2500 + every * 1000);
+        await point("memory short");
+        await sleep(every * 1000 + 1500);
+
+        const samples = watchers.flatMap((entry) => entry.samples).sort((a, b) => a.at - b.at);
+        const whole = (sample, key) => round(Object.values(sample.processes).reduce((sum, entry) => sum + entry[key], 0), 2);
+        const reads = {
+          pagePrivateMib: (sample) => sample.processes[pid]?.privateMib ?? null,
+          pageWorkingMib: (sample) => sample.processes[pid]?.workingMib ?? null,
+          browserPrivateMib: (sample) => whole(sample, "privateMib"),
+          browserWorkingMib: (sample) => whole(sample, "workingMib"),
+        };
+        const known = (values) => values.filter((value) => value !== null && value !== undefined);
+        // A level: the middle of the readings of the half minute before.
+        const level = (at, read) => median(known(samples.filter((sample) => sample.at > at - 30000 && sample.at <= at + 500).map(read)));
+        // A trend: a straight line through the readings of a phase after its
+        // first two minutes, in which a page at rest comes to work, an hour long.
+        const trend = (inside, from, read) => {
+          const pairs = inside.filter((sample) => sample.at >= from.at + 120000 && read(sample) !== null).map((sample) => [sample.at / 3600000, read(sample)]);
+          if (pairs.length < 6) return null;
+          const mx = pairs.reduce((sum, [x]) => sum + x, 0) / pairs.length;
+          const my = pairs.reduce((sum, [, y]) => sum + y, 0) / pairs.length;
+          return round(pairs.reduce((sum, [x, y]) => sum + (x - mx) * (y - my), 0) / pairs.reduce((sum, [x]) => sum + (x - mx) ** 2, 0), 1);
+        };
+        const phase = (name, from, to) => {
+          const inside = samples.filter((sample) => sample.at >= from.at && sample.at <= to.at);
+          const span = (read) => {
+            const values = known(inside.map(read));
+            return {
+              begins: level(from.at, read),
+              ends: level(to.at, read),
+              lowest: values.length ? Math.min(...values) : null,
+              highest: values.length ? Math.max(...values) : null,
+              perHour: trend(inside, from, read),
+            };
+          };
+          const cpu = (test) => round(to.processes.filter(test).reduce((sum, entry) => sum + entry.cpuSeconds - (from.processes.find((other) => other.id === entry.id)?.cpuSeconds ?? 0), 0), 2);
+          const counted = (key) => round(to.counters[key] - from.counters[key], 3);
+          const seconds = (to.at - from.at) / 1000;
+          const kinds = [...new Set(to.processes.map((entry) => entry.type))];
+          return {
+            name,
+            seconds: round(seconds, 1),
+            ...Object.fromEntries(Object.entries(reads).map(([key, read]) => [key, span(read)])),
+            pageCpuSeconds: cpu((entry) => entry.id === pid),
+            browserCpuSeconds: cpu(() => true),
+            cpuSecondsByKind: Object.fromEntries(kinds.map((kind) => [kind, cpu((entry) => entry.type === kind)])),
+            machineBusyPercent: round(inside.reduce((sum, sample) => sum + sample.machineBusyPercent, 0) / Math.max(1, inside.length), 2),
+            layouts: counted("layouts"),
+            styles: counted("styles"),
+            layoutSeconds: counted("layoutSeconds"),
+            styleSeconds: counted("styleSeconds"),
+            scriptSeconds: counted("scriptSeconds"),
+            taskSeconds: counted("taskSeconds"),
+          };
+        };
+        const pace = (took) => ({ middleMs: median(took), longestMs: Math.max(...took), overPeriod: took.filter((ms) => ms > period - 200).length });
+        const files = {};
+        for (const url of target.requests) {
+          if (/^chrome-extension:.*\.woff2$/.test(url)) files[url.split("/").pop()] = (files[url.split("/").pop()] ?? 0) + 1;
+        }
+        row = {
+          site,
+          state: arm,
+          test: `reuse, ${cycles} cycles twice${diagnostic ? ", collected before every dump" : ""}`,
+          order,
+          began,
+          ended: new Date().toISOString(),
+          natural: !diagnostic,
+          siteTheme: target.scheme,
+          lessMotion: fonts.lessMotion,
+          fontFaces: fonts.loaded,
+          fontFiles: files,
+          requestsElsewhere: target.requests.filter((url) => !/^chrome-extension:|^https:\/\/(chatgpt\.com|claude\.ai)\//.test(url)).length,
+          pageProcess: pid,
+          pace: {
+            periodMs: period,
+            first: pace(first),
+            second: pace(second),
+            stepsMiddleMs: Object.fromEntries(Object.entries(timings).map(([name, values]) => [name, round(median(values), 1)])),
+            answers,
+          },
+          phases: [
+            phase("block 1", points[0], points[1]),
+            phase("left alone", points[1], points[2]),
+            phase("block 2", points[2], points[3]),
+            phase("left alone again", points[3], points[4]),
+          ],
+          points,
+          sampleColumns: ["seconds since block 1 began", ...Object.keys(reads), "machineBusyPercent"],
+          samples: samples.map((sample) => [round((sample.at - points[0].at) / 1000, 0), ...Object.values(reads).map((read) => read(sample)), sample.machineBusyPercent]),
+        };
+      } catch (error) {
+        // What was read before the failure is kept; it is not a result.
+        row = { site, state: arm, test: "reuse", order, failed: String(error?.stack ?? error), points };
+      } finally {
+        for (const entry of watchers) entry.stop();
+        await context.browser.close().catch(() => {});
+      }
+      // What else the machine did meanwhile, once the browser has closed.
+      row.elsewhere = elsewhere(before, census());
+      rows.push(row);
+      console.log(
+        row.failed
+          ? `${site} ${arm} FAILED ${row.failed}`
+          : `${site} ${arm} ${row.phases.map((entry) => `${entry.name}: page ${entry.pagePrivateMib.begins} -> ${entry.pagePrivateMib.ends} Mib, ${entry.pageCpuSeconds} s`).join("; ")}`,
+      );
+      finish({ source, options });
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1046,7 +1588,7 @@ async function firefox() {
   finish({ seconds, repeat, minutes });
 }
 
-const SUITES = { idle, work, scale, fonts, memory, allocators, soak, micro, firefox };
+const SUITES = { idle, work, scale, fonts, memory, allocators, soak, reuse, micro, firefox };
 if (!(suite in SUITES)) {
   console.error(`usage: node test/perf/run.mjs <${Object.keys(SUITES).join("|")}> [options]`);
   process.exit(2);
