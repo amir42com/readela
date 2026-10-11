@@ -9,7 +9,8 @@
  * text           primary reading text
  * muted          secondary reading text: list markers, captions, small and struck text
  * link           links in the text (also underlined, never colour alone)
- * rule           table lines and separators
+ * rule           table lines and separators: 3:1 or better against the surface
+ *                and against a header cell
  * quote          the bar of a quotation
  * code           background of inline code, keyboard and sample text;
  *                codeText is its text and codeLine the line around it. One
@@ -26,7 +27,7 @@ export const THEMES = Object.freeze({
     text: "#24201B",
     muted: "#4F473C",
     link: "#1A456F",
-    rule: "#B9AE98",
+    rule: "#8C816B",
     quote: "#7D6F59",
     code: "#D9E6DA",
     codeText: "#08453C",
@@ -42,7 +43,7 @@ export const THEMES = Object.freeze({
     text: "#ECE5D8",
     muted: "#C4BBAC",
     link: "#E8BC7C",
-    rule: "#5E574D",
+    rule: "#7E7568",
     quote: "#9A8E7C",
     code: "#1D3B37",
     codeText: "#8FE8D2",

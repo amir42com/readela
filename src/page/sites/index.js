@@ -49,7 +49,9 @@
 //                 else, and a place can be saved nowhere else
 //   capsule       selector of units inside a response that keep the site's
 //                 presentation as a whole (a code block with its header and
-//                 controls). A `pre` element always does
+//                 controls; a card, a chart, a form). A `pre` element always
+//                 does. Nothing inside one is read as text, given a
+//                 direction or coloured
 //   token         optional selector of inline code the site renders without
 //                 a code, kbd or samp element. It is presented as inline
 //                 code and not counted as words of the sentence

@@ -53,11 +53,11 @@ Firefox builds come from one shared codebase.
 5. **Text size and line spacing:** Original or one of three bounded choices
    each.
 6. **Text direction:** Original, Auto, RTL or LTR.
-7. **Bookmark.** Bookmark (Update once one exists), Return and Remove, one
+7. **Bookmark.** Save (Update once one exists), Return and Remove, one
    bookmark per conversation; how many conversations have one; a bookmark
-   beside those conversations in the site's own list; and a command for the
-   same action that has a keyboard shortcut only if the reader gives it one
-   in the browser.
+   beside those conversations in the site's own list; and a command for each
+   of the three actions, which has a keyboard shortcut only if the reader
+   gives it one in the browser.
 8. **Local persistence.** Choices and bookmarks are remembered on the
    device; choices are shared by both supported sites.
 9. **Low, bounded cost.** Readela is meant to stay switched on. Off, and
@@ -75,7 +75,9 @@ direction and alignment of blocks whose text calls for it.
 
 ### Behaviour details
 
-- **Auto direction.** A block reads right-to-left when at least 40% of its
+- **Auto direction.** A figure with its unit attached (2M, 103K) is a
+  number, not a word, and follows what is around it. A block reads
+  right-to-left when at least 40% of its
   words are written in a right-to-left script; otherwise left-to-right. The
   first character is not decisive. Code, mathematics and web addresses are not
   counted. A block with no words (numbers or symbols only) follows its
@@ -99,7 +101,14 @@ direction and alignment of blocks whose text calls for it.
   distinct treatment from a small set of theme colours. A code block is one
   unit of the site's: its background, syntax colours, header and controls are
   kept, and nothing of another colour shows around its corners; a dark code
-  block on Paper is intended. A formula keeps its renderer's presentation.
+  block on Paper is intended. The same holds for every part of a response
+  that is not text: a card, a grid of figures, a chart or a diagram, a poll
+  with its options and its button stay the site's as a whole, on the site's
+  own background, and are never coloured in part, so nothing in them is left
+  hard to read; nothing inside one is given a direction, so Auto never moves
+  a figure away from its label. A part Readela does not know is treated the
+  same way. A formula keeps its renderer's presentation. The lines of a
+  table and the bar of a quotation are 3:1 or better against the surface.
   Primary reading text on Paper and Night has a contrast ratio of at least
   10:1 against every surface it sits on, secondary text at least 7:1. The
   themes are described as warm, comfortable reading colours and make no
@@ -116,7 +125,7 @@ direction and alignment of blocks whose text calls for it.
   is 1.5, 1.75 or 2.0.
 - **Bookmark.** One per conversation, in the text of a response. The code and
   the technical documents call it the saved place.
-  - *Saving.* Bookmark saves the readable paragraph that holds a selection
+  - *Saving.* Save saves the readable paragraph that holds a selection
     in view. Without a selection it saves the first readable paragraph of a
     response that begins clearly in the reading area, below whatever the site
     keeps over the top of the conversation, so the reader sees the whole of
@@ -128,11 +137,14 @@ direction and alignment of blocks whose text calls for it.
     conversation."; the rest is in the button's tooltip. A paragraph that
     cannot be told from an identical one beside it is not saved, and the
     popup says so.
-  - *The command.* Readela declares one command to the browser, to bookmark
-    or update, with no key. The reader may give it a key in the browser's own
-    shortcut settings, which the popup opens; the browser checks the key and
-    holds it. The command does exactly what the popup's button does, and the
-    bookmarked paragraph shows the brief emphasis once the place is stored.
+  - *The commands.* Readela declares three commands to the browser, to save
+    or update, to return and to remove, with no key. The reader may give each
+    a key in the browser's own shortcut settings, which the popup opens; the
+    browser checks the key and holds it. A command does exactly what the
+    popup's button of that name does; after a save the bookmarked paragraph
+    shows the brief emphasis once the place is stored. There is no control
+    for the bookmark in the page itself: Readela adds no element to a site's
+    page (see the open point at the end).
     Readela ships no default key and listens for none in the page: a key it
     chose could already be the reader's, a site's or an assistive tool's.
   - *The total.* Beside the Bookmark heading the popup shows the number of
@@ -281,8 +293,8 @@ builds, on both supported sites:
     that is not found is kept.
 12. The popup's total and its buttons, and the bookmarks in the lists of both
     sites, agree with what is stored; the thousandth bookmark is saved and a
-    further one is refused without removing any; the command bookmarks as the
-    popup does and has no key until the reader gives it one.
+    further one is refused without removing any; each command does what the
+    popup's button does and has no key until the reader gives it one.
 13. Off, and with nothing to keep current, Readela runs nothing in a page; a
     settled page runs nothing either where the browser reports changes of
     address, and one small comparison a second elsewhere, none while out of
@@ -312,15 +324,28 @@ builds, on both supported sites:
   code and wide tables that belong to the reading surface; and Readela Sans
   as Inter with Vazirmatn. A context-menu entry and any floating control are
   left out.
-- The owner's instruction of 2026-10-11 after the third review, to be
-  recorded as a Decision in the managerial system: the feature is called
-  Bookmark, with Bookmark or Update, Return and Remove and the total only;
-  line spacing is 1.5, 1.75 and 2.0; the fixed key is removed in favour of
-  one browser-managed command without a default key, for which a minimal
-  background component is allowed; the Claude sidebar bookmark is fixed and
-  the bookmark is a little larger; inline code is stronger and the same on
-  both sites; and low, bounded resource use is a requirement of release
-  quality.
+- The owner's instruction of 2026-10-11 after the third review: the feature
+  is called Bookmark and shows the total only; line spacing is 1.5, 1.75 and
+  2.0; the fixed key is removed in favour of browser-managed commands
+  without a default key, for which a minimal background component is
+  allowed; the Claude sidebar bookmark is fixed and the bookmark is a little
+  larger; inline code is stronger and the same on both sites; and low,
+  bounded resource use is a requirement of release quality.
+- DEC-143, after the fourth review: whatever in a response is not text stays
+  the site's as a whole and is never left hard to read under Paper; Auto
+  does not move the figures of a card; the first action is Save, then
+  Update; Return and Remove have commands of their own; and memory that
+  stays bounded over a long run is a release gate.
+
+Open after the fourth correction, for the owner: a control for the bookmark
+inside the page. DEC-143 asked for one small control in the site's own
+interface if it could be done without fragility. It was not built: Readela
+writes attributes on a page and creates no element there, and a control in a
+site's header would be an element inside an interface the site redraws
+itself, on two sites, which could not be shown to be safe from here. The
+popup and the three commands are the ways to the bookmark until the owner
+decides between a control of that kind, an entry in the browser's own
+right-click menu (one further permission), or neither.
 
 ## Still separate from this brief
 

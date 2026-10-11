@@ -169,6 +169,8 @@ function themeRules() {
     `${within}:is(table, thead, tbody, tfoot, tr, th, td):not(${kept}) { border-color: var(--readela-rule) !important; }`,
     `${within}:is(th):not(${kept})${unmarked} { background-color: var(--readela-head) !important; }`,
     `${within}:is(blockquote):not(${kept}) { border-color: var(--readela-quote) !important; }`,
+    // A site can draw the bar of a quotation as the border of a generated box.
+    `${within}:is(blockquote):not(${kept})::before, ${within}:is(blockquote):not(${kept})::after { border-color: var(--readela-quote) !important; }`,
     `${within}:is(small, del, s, caption, figcaption):not(${kept}) { color: var(--readela-muted) !important; }`,
     `${within}:is(li):not(${kept})::marker { color: var(--readela-muted) !important; }`,
     `${prose} mark:not(${kept}) { background-color: var(--readela-selection) !important; color: var(--readela-selection-text) !important; }`,

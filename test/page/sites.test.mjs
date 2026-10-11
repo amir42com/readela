@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { BUNDLED_FONTS, FONT_LICENCES } from "../../src/core/index.js";
+import { COMMANDS } from "../../src/browser/shortcut.js";
 import { SITES, matchPatterns, siteFor } from "../../src/page/sites/index.js";
 
 const readJson = (file) => JSON.parse(readFileSync(new URL(`../../src/manifest/${file}`, import.meta.url), "utf8"));
@@ -96,16 +97,30 @@ test("the manifest requests exactly the supported hosts and nothing broader", ()
   }
 });
 
-test("one command, with no key of its own, and a background component of one file that only passes it on", () => {
-  // The reader gives the command a key in the browser's own settings, or none.
-  assert.deepEqual(manifest.commands, { bookmark: { description: "Bookmark the reading position, or update the bookmark" } });
+test("three commands, with no key of their own, and a background component of one file that only passes them on", () => {
+  // The reader gives a command a key in the browser's own settings, or none.
+  assert.deepEqual(manifest.commands, {
+    bookmark: { description: "Save the bookmark at the reading position, or update it" },
+    "bookmark-return": { description: "Return to the bookmark" },
+    "bookmark-remove": { description: "Remove the bookmark" },
+  });
   assert.doesNotMatch(JSON.stringify(manifest.commands), /suggested_key|_execute/);
+  // Each command asks the page for what the popup's button of that name asks.
+  assert.deepEqual(
+    COMMANDS.map(({ name, request, label }) => [name, request, label]),
+    [
+      ["bookmark", "quick", "Save"],
+      ["bookmark-return", "go", "Return"],
+      ["bookmark-remove", "clear", "Remove"],
+    ],
+  );
+  assert.deepEqual(Object.keys(manifest.commands), COMMANDS.map((command) => command.name));
   // A service worker in Chrome, a non-persistent script in Firefox: the same one file.
   assert.equal("background" in manifest, false);
   assert.deepEqual(readJson("chrome.json").background, { service_worker: "background.js" });
   assert.deepEqual(readJson("firefox.json").background, { scripts: ["background.js"] });
 
-  // The component listens for the command and nothing else, keeps no time,
+  // The component listens for the commands and nothing else, keeps no time,
   // asks for nothing and stores nothing.
   const background = source("background/main.js");
   assert.deepEqual(background.match(/\.addListener\(/g), [".addListener("]);
@@ -115,7 +130,7 @@ test("one command, with no key of its own, and a background component of one fil
     /setTimeout|setInterval|alarms|fetch\(|XMLHttpRequest|WebSocket|storage\.|importScripts|onMessage|onInstalled|onStartup|keepAlive/,
   );
   // It reaches the page through the one exchange the popup uses.
-  assert.match(background, /askTab\(target, "quick"\)/);
+  assert.match(background, /askTab\(target, request\)/);
   assert.match(source("browser/messages.js"), /MARK_REQUESTS = Object\.freeze\(\["status", "set", "go", "clear", "quick"\]\)/);
 });
 
@@ -135,11 +150,25 @@ test("the page listens for no key to save with, and the popup records none", () 
   assert.match(source("browser/shortcut.js"), /chrome:\/\/extensions\/shortcuts/);
 });
 
+test("the page code creates no element and writes no markup", () => {
+  // Readela's footprint in a page is attributes and custom properties. A
+  // control of its own inside a site's interface would be an element.
+  for (const file of ["page/reader.js", "page/style.js", "content/main.js", "page/sites/chatgpt.js", "page/sites/claude.js"]) {
+    assert.doesNotMatch(
+      source(file),
+      /createElement|createTextNode|attachShadow|innerHTML|outerHTML|insertAdjacent|\.append\(|\.prepend\(|\.appendChild\(|\.insertBefore\(|document\.write/,
+      file,
+    );
+  }
+});
+
 test("the popup calls the feature Bookmark, shows the total only, and keeps its helper to one line", () => {
   const html = source("ui/popup.html");
   const script = source("ui/popup.js");
   assert.match(html, /<h2 id="place-title">Bookmark<\/h2>/);
-  assert.match(html, /id="place-save"[^>]*>Bookmark<\/button>/);
+  // The first action is Save, and Update once this conversation has one.
+  assert.match(html, /id="place-save" aria-label="Save bookmark"[^>]*>Save<\/button>/);
+  assert.match(script, /saved \? "Update" : "Save"/);
   assert.match(html, /id="place-return" aria-label="Return to bookmark">Return<\/button>/);
   assert.match(html, /id="place-clear" aria-label="Remove bookmark">Remove<\/button>/);
   assert.match(html, /<p class="hint" id="place-guide">Marks your reading position in this conversation\.<\/p>/);

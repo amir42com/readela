@@ -4,7 +4,7 @@
 
 import { api } from "../browser/api.js";
 import { askPage } from "../browser/messages.js";
-import { assignedShortcut, openShortcutSettings } from "../browser/shortcut.js";
+import { assignedShortcuts, openShortcutSettings } from "../browser/shortcut.js";
 import { loadPreferences, savePreferences, watchMarks } from "../browser/storage.js";
 import { MARK_LIMIT, resetPreferences } from "../core/index.js";
 
@@ -43,7 +43,7 @@ const PLACE_NOTES = {
 // What an action did. Each is said only when the page reports it as true.
 const PLACE_RESULTS = {
   set: {
-    saved: "Bookmarked.",
+    saved: "Bookmark saved.",
     nothing: "No response paragraph is in view to bookmark.",
     ambiguous: "This paragraph cannot be told apart from an identical one beside it. Choose another.",
     failed: "The bookmark could not be saved. Nothing was changed.",
@@ -113,7 +113,8 @@ function renderPlace(message) {
   const state = preferences.enabled ? place : place === "unavailable" ? "unavailable" : "off";
   const usable = state !== "unavailable" && state !== "off" && state !== "nowhere";
   const saved = state === "saved";
-  placeButtons.set.textContent = saved ? "Update" : "Bookmark";
+  placeButtons.set.textContent = saved ? "Update" : "Save";
+  placeButtons.set.setAttribute("aria-label", saved ? "Update bookmark" : "Save bookmark");
   placeButtons.set.disabled = !usable;
   placeButtons.go.disabled = !(usable && saved);
   placeButtons.clear.disabled = !(usable && saved);
@@ -122,14 +123,18 @@ function renderPlace(message) {
   placeTotal.textContent = total === null ? "" : `${total} total`;
 }
 
-// The key the browser holds for the bookmark command. The browser assigns
-// and checks it; the popup only says what it is and opens the way there.
+// The keys the browser holds for the three bookmark commands. The browser
+// assigns and checks them; the popup only says what they are and opens the
+// way there.
 async function renderShortcut() {
-  const keys = await assignedShortcut();
-  shortcut.hidden = keys === null;
-  if (keys === null) return;
-  shortcutState.textContent = `Shortcut: ${keys === "" ? "Not set" : keys}`;
-  shortcutSet.textContent = keys === "" ? "Set shortcut" : "Change";
+  const commands = await assignedShortcuts();
+  shortcut.hidden = commands === null;
+  if (commands === null) return;
+  const set = commands.filter((command) => command.keys !== "");
+  shortcutState.textContent = `Shortcuts: ${set.length === 0 ? "Not set" : set.map((command) => `${command.label} ${command.keys}`).join(", ")}`;
+  shortcutSet.textContent = set.length === 0 ? "Set shortcuts" : "Change";
+  shortcutSet.title =
+    "Opens your browser's own shortcut settings, where Save, Return and Remove can each be given a key.";
 }
 
 async function update(change, message = "") {
@@ -188,7 +193,7 @@ for (const [request, button] of Object.entries(placeButtons)) {
 
 shortcutSet.addEventListener("click", async () => {
   if (!(await openShortcutSettings())) {
-    renderPlace("Set it in your browser's settings for extension shortcuts.");
+    renderPlace("Set them in your browser's settings for extension shortcuts.");
   }
 });
 

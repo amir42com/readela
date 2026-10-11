@@ -8,6 +8,29 @@
 
 import { NEVER_TOUCHED } from "./common.js";
 
+// The site renders some replies as a tree of its own components, each marked
+// with its kind. These kinds are text: paragraphs, headings, captions, inline
+// code, lists, tables, quotations and the small icons set in a line. Every
+// other kind (a box, a row, a grid, an image, a form, a control, and any the
+// site adds later) is a part the site lays out and colours itself. Components
+// set inline, inside a sentence, belong to the sentence.
+const READING_PARTS = [
+  "text",
+  "title",
+  "caption",
+  "code",
+  "list",
+  "list-item",
+  "table",
+  "table-row",
+  "table-cell",
+  "blockquote",
+  "icon",
+];
+const SITE_PART = `[data-d-component]:not([data-d-text-flow], [data-d-inline], [data-d-inline] *, ${READING_PARTS.map(
+  (part) => `[data-d-component="${part}"]`,
+).join(", ")})`;
+
 export const chatgpt = Object.freeze({
   id: "chatgpt",
   name: "ChatGPT",
@@ -32,16 +55,19 @@ export const chatgpt = Object.freeze({
   scroller: "[data-app-action-timeline-scroll]",
 
   // The reader's own message: one bubble holding one text container, with no
-  // paragraphs.
+  // paragraphs. In a reply made of the site's components, text can also sit
+  // in a span laid out as a block (a caption), directly in a column.
   user: '[data-user-message-bubble="true"]',
-  extraBlocks: '[data-user-message-bubble="true"] [dir="auto"]',
+  extraBlocks:
+    '[data-user-message-bubble="true"] [dir="auto"], [data-d-direction] > [data-d-text-flow]:not([data-d-inline] *)',
 
   // The text of a reply.
   prose: '[data-markdown-text-style="assistant-message"]',
 
-  // A code block: a unit with its own background, header and controls, and no
-  // pre element.
-  capsule: '[data-markdown-copy="code-block"]',
+  // Units that keep the site's presentation as a whole: a code block, with
+  // its own background, header and controls; and every component of the
+  // site's that is not text.
+  capsule: `[data-markdown-copy="code-block"], ${SITE_PART}`,
 
   // Inline code: a span, not a code element.
   token: '[data-markdown-copy="inline-code"]',

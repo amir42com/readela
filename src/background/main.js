@@ -1,17 +1,18 @@
-// Background component: hears the one command the browser manages for
-// Readela and passes it to the page in the tab it was given for.
+// Background component: hears the commands the browser manages for Readela
+// (save or update the bookmark, return to it, remove it) and passes each to
+// the page in the tab it was given for.
 //
 // That is all it does. It keeps no state, sets no timer, makes no request and
 // asks for no permission; the browser starts it when the command is given and
-// lets it go afterwards. The page does the work, by the same function the
-// popup's button calls.
+// lets it go afterwards. The page does the work, by the same functions the
+// popup's buttons call.
 
 import { api } from "../browser/api.js";
 import { askTab } from "../browser/messages.js";
-import { BOOKMARK_COMMAND } from "../browser/shortcut.js";
+import { COMMANDS } from "../browser/shortcut.js";
 
 /**
- * Pass the command to the tab it was given in: the tab the browser names, or
+ * Pass a command to the tab it was given in: the tab the browser names, or
  * the active tab of the window last in front. A tab that is not a supported
  * page has no one to answer, and nothing happens.
  *
@@ -19,7 +20,8 @@ import { BOOKMARK_COMMAND } from "../browser/shortcut.js";
  * @param {{ id?: number } | undefined} tab
  */
 export async function onCommand(command, tab) {
-  if (command !== BOOKMARK_COMMAND) return { status: "unavailable" };
+  const request = COMMANDS.find((entry) => entry.name === command)?.request;
+  if (request === undefined) return { status: "unavailable" };
   let target = tab?.id ?? null;
   if (target === null) {
     try {
@@ -29,7 +31,7 @@ export async function onCommand(command, tab) {
       target = null;
     }
   }
-  return askTab(target, "quick");
+  return askTab(target, request);
 }
 
 api.commands.onCommand.addListener(onCommand);

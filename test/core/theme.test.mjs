@@ -78,6 +78,9 @@ for (const [name, theme] of Object.entries(THEMES)) {
       ["muted", "surface", 7],
       ["muted", "head", 7],
       ["muted", "markTint", 7],
+      // The lines of a table are how its rows and columns are told apart.
+      ["rule", "surface", 3],
+      ["rule", "head", 3],
       // A quotation's bar is how a quotation is recognised.
       ["quote", "surface", 3],
       ["quote", "markTint", 3],

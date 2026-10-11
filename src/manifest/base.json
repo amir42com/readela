@@ -24,7 +24,13 @@
   "permissions": ["storage"],
   "commands": {
     "bookmark": {
-      "description": "Bookmark the reading position, or update the bookmark"
+      "description": "Save the bookmark at the reading position, or update it"
+    },
+    "bookmark-return": {
+      "description": "Return to the bookmark"
+    },
+    "bookmark-remove": {
+      "description": "Remove the bookmark"
     }
   },
   "web_accessible_resources": [

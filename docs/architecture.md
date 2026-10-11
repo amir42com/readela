@@ -13,7 +13,7 @@ src/page/      page integration          DOM reading and marking, site adapter
 src/browser/   browser integration       extension namespace, storage, messages
 src/ui/        popup                     controls over the shared preferences
 src/content/   content script entry      wires storage and messages -> page
-src/background/ background component     passes the browser's one command to a page
+src/background/ background component     passes the browser's commands to a page
 src/fonts/     packaged fonts            Inter, Vazirmatn and their licences
 src/manifest/  base + per-browser keys
 ```
@@ -106,8 +106,9 @@ decides everything:
    (`prose`), and nothing else. It takes the theme's background and text
    colour, with a spread shadow of the same colour as its margin, so nothing
    moves. A root in or around a message of the reader's own, or around
-   somewhere to type, is not a surface. Where the adapter recognises no root,
-   nothing is coloured.
+   somewhere to type, is not a surface; a form shut inside a unit that stays
+   the site's (a poll in a card) is that unit's business. Where the adapter
+   recognises no root, nothing is coloured.
 2. **Reading text** is the reading blocks directly on a surface and what is
    inside them. It takes the theme's text colour and gives up backgrounds made
    for the site's own theme. What a part of the text means stays visible
@@ -118,22 +119,38 @@ decides everything:
    the system's text colour where colours are forced); table lines and header
    cells; the bar of a
    quotation; secondary text (list markers, small and struck text, captions);
-   highlighted text and selected text.
+   highlighted text and selected text. Table lines are 3:1 or better against
+   the surface and against a header cell. The bar of a quotation is coloured
+   where it is the quotation's border and where a site draws it as the border
+   of a generated box.
    Borders are recoloured only on tables and quotations, so the lines a
    formula is drawn with keep the text's colour; a formula keeps its own font.
-3. **A wrapper that only holds reading blocks** (around a table, say) is part
-   of the surface, at whatever width the site gives it. Where it is wider than
+3. **A wrapper that only holds reading blocks** (around a table, say), and no
+   text of its own, is part of the surface, at whatever width the site gives
+   it. A wrapper that carries text outside reading blocks is not one: it is a
+   unit (4). Where it is wider than
    the text, the outermost wrapper carries the surface with it: the surface's
    ground, the surface's margin to its two sides and the surface's corners, so
    no strip or square corner shows beyond the text. Wrappers inside it paint
    nothing. Nothing is clipped and its scrolling is untouched.
 4. **Everything else in a response is a unit that stays the site's, whole**: a
-   code block with its header, controls and syntax colours, a `pre`, a widget,
-   an image. No rule for reading text reaches into it. The reader notes on the
-   unit what it needs for that, after reading the unit's own colours once:
-   - `surface` — unless the unit brings an opaque background of its own, or
-     shows no text of its own (an image, a row of controls), the site's own
-     measured background is put behind it, so its text stays readable;
+   code block with its header, controls and syntax colours, a `pre`, an
+   image, a card, a grid of figures, a chart or a diagram, a form with its
+   options and its button, and anything Readela does not know. A unit is
+   never coloured in part: no rule for reading text reaches into it, nothing
+   inside it is read as text, and nothing inside it is given a direction, a
+   font or a size, so the site's own layout decides there. An adapter names
+   the units a site has (`capsule`); on ChatGPT, where a reply can be a tree
+   of the site's own components, the adapter names the kinds that are text
+   and every other kind, known or not, is a unit. The reader notes on the
+   unit what it needs, after reading the unit's own colours once:
+   - `surface` — the site's own measured background is put behind it, so
+     what it shows is seen on the ground it was made for: where it shows
+     text, the label of a control included; where it holds a drawing larger
+     than an icon, also one that is an image with a clear ground; and where
+     it has a see-through tint of its own (a divider). A unit with an opaque
+     background of its own needs none, and neither does one that shows
+     nothing but icons (a row of controls);
    - `round` — in the unit's own corner radii where its shape is rounded, so
      no corner of another colour shows around it;
    - `text` — where its text takes its colour from around it, it keeps the
@@ -226,7 +243,10 @@ can lie over the text and let the pointer through: a positioned element
 of an edge of the region, spans at least 30% of its width and at most 40% of
 its height. No site's header height is written down anywhere. Something
 painted behind the text can be taken for a cover; the only cost is a place a
-little further down.
+little further down. Only the application around the conversation is
+measured for this: what a response or a message of the reader's own holds
+scrolls with the conversation and covers nothing, and a conversation the
+site keeps hidden is not on screen. A return works the area out once.
 
 **Capacity.** A thousand conversations can have a place. At the limit a place
 for a further conversation is refused; a conversation that has one can still
@@ -317,14 +337,16 @@ No title, label or address is kept. Rows are looked at when a place is saved
 or removed, when the stored places change, and when a row link is added to
 the document or its address changes; not on a clock.
 
-**Saving by the browser's command.** The manifest declares one command,
-`bookmark`, with no key. The reader may give it one in the browser's own
-shortcut settings; the browser stores the key, refuses combinations it does
-not allow and delivers the command. The background component passes it to
-the page in the active tab as one message, and the page does what the
-popup's first button does, through the same function, and shows the brief
-emphasis on the bookmarked paragraph once the place is stored. The page
-listens for no key of its own.
+**The browser's commands.** The manifest declares three commands with no
+key: `bookmark` (save or update), `bookmark-return` and `bookmark-remove`.
+The reader may give each one a key in the browser's own shortcut settings;
+the browser stores the key, refuses combinations it does not allow and
+delivers the command. The background component passes it to the page in the
+active tab as one message, and the page does what the popup's button of
+that name does, through the same function. After a save the bookmarked
+paragraph shows the brief emphasis once the place is stored, and after a
+return the paragraph returned to does. The page listens for no key of its
+own, and Readela adds no control of its own to a site's page.
 
 ### What runs, and when
 
@@ -337,7 +359,14 @@ change needs:
 - **Otherwise**, three things keep it current, and a settled page runs
   nothing at all where the browser reports changes of address:
   - *Changes to the document.* One `MutationObserver` on the document
-    gathers them and they are handled together 60 ms later. A change in an
+    gathers them and they are handled together 60 ms later. A response or a
+    message that arrives whole (a conversation shown, an earlier part
+    loaded, a row scrolled into the document) is marked as it arrives
+    instead, in the same turn of the browser, so the browser styles and lays
+    it out once, with the marks, and not a second time for them. Marking
+    only reads the document and writes marks; whatever has to be measured
+    (alignment, the mirroring of a list, what a unit needs) waits for the
+    60 ms and is read together, after every mark is written. A change in an
     editable field (what the reader types) is dropped as it arrives. Only
     what changed is looked at again: the blocks in and around it; the rows of
     the site's lists only when a row link was added or the address of one
@@ -360,7 +389,7 @@ change needs:
   by itself.
 - The packaged fonts are fetched by the browser from the extension only when
   Readela Sans is on and text of that script, and in that style, is shown.
-- The background component runs only for the command and holds nothing.
+- The background component runs only for a command and holds nothing.
 
 `docs/evidence/` records the measurements these statements rest on, and
 `test/perf/run.mjs` repeats them.
@@ -386,8 +415,9 @@ change needs:
   and `tabs.sendMessage` to a tab that runs this extension's content script
   need no permission. The content script answers only requests from this
   extension, and each answer is given when it is true.
-- `shortcut.js` names the command, reads the key the browser holds for it
-  (`commands.getAll`) and opens the browser's own shortcut settings:
+- `shortcut.js` names the three commands and what each asks of the page,
+  reads the keys the browser holds for them (`commands.getAll`) and opens
+  the browser's own shortcut settings:
   `commands.openShortcutSettings` in Firefox, the page
   `chrome://extensions/shortcuts` in a new tab in Chrome. Neither needs a
   permission. Readela stores no key and offers no field to type one.
@@ -396,10 +426,11 @@ change needs:
 
 One file, `main.js`, built to `background.js`: a service worker in Chrome, a
 script that is not kept running in Firefox. It registers one listener, for
-the command, and passes the command to the tab the browser names (or the
-active tab of the window last in front) as the message `quick`. It keeps no
-state, sets no timer, makes no request and stores nothing; the browser
-starts it for the command and lets it go. A tab that is not a supported page
+the commands, and passes a command to the tab the browser names (or the
+active tab of the window last in front) as the message the popup's button
+of that name sends (`quick` for a save, which also shows the emphasis; `go`;
+`clear`). It keeps no state, sets no timer, makes no request and stores
+nothing; the browser starts it for a command and lets it go. A tab that is not a supported page
 has no one to answer, and nothing happens.
 
 ## UI (`src/ui/`)
@@ -411,12 +442,13 @@ the publisher and version. A selected choice is a raised segment with an
 outline and heavier text; the keyboard focus is a separate ring in the accent
 colour. The popup reads and writes the shared preferences and sends the
 saved-place requests. The section is headed Bookmark. Its first button reads
-Bookmark where this conversation has none and Update where it has one, and
+Save where this conversation has none and Update where it has one, and
 Return and Remove are available only then, so the state is said by the
 buttons and not in words. Beside the heading is the number of conversations
 that have a bookmark, on both sites together, read from what is stored. One
-line says what a bookmark is, and one says which key the browser holds for
-the command, with a control that opens the browser's shortcut settings. Its link to the publisher's site is
+line says what a bookmark is, and one says which keys the browser holds for
+Save, Return and Remove, with a control that opens the browser's shortcut
+settings. Its link to the publisher's site is
 an ordinary link that opens a new tab; nothing is requested until it is
 followed.
 

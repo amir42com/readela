@@ -27,15 +27,15 @@ Firefox builds declare `data_collection_permissions: { "required": ["none"] }`.
 
 | Manifest entry | Why it is needed | Effect and limit |
 | --- | --- | --- |
-| `commands`: `bookmark`, with a description and no `suggested_key` | One command the reader may give a key in the browser's own shortcut settings: bookmark the reading position, or update the bookmark. | It is not a permission and causes no install prompt. It has no key unless the reader assigns one; the browser stores the key, refuses what it does not allow and delivers the command. Readela ships no default key, records no key and listens for none in the page. A test fails if a key is suggested or a second command appears. |
-| `background`: one file, `background.js` (a service worker in Chrome, a script that is not kept running in Firefox) | A command is delivered to an extension's background, not to a page; the file passes it on to the page in the active tab. | It registers one listener, for the command. It keeps no state, sets no timer, makes no request, stores nothing and uses no permission; the browser starts it for the command and lets it go. It reaches a tab only through the message described below, which a page answers only if it runs this extension's content script. A test fails if it gains another listener, a timer, a network call or a use of storage. |
+| `commands`: `bookmark`, `bookmark-return` and `bookmark-remove`, each with a description and no `suggested_key` | Three commands the reader may give a key in the browser's own shortcut settings: save or update the bookmark, return to it, remove it. | They are not a permission and cause no install prompt. None has a key unless the reader assigns one; the browser stores the keys, refuses what it does not allow and delivers the commands. Readela ships no default key, records no key and listens for none in the page. A test fails if a key is suggested or another command appears. |
+| `background`: one file, `background.js` (a service worker in Chrome, a script that is not kept running in Firefox) | A command is delivered to an extension's background, not to a page; the file passes it on to the page in the active tab. | It registers one listener, for the commands, and passes each on as the request the popup's button of that name makes. It keeps no state, sets no timer, makes no request, stores nothing and uses no permission; the browser starts it for the command and lets it go. It reaches a tab only through the message described below, which a page answers only if it runs this extension's content script. A test fails if it gains another listener, a timer, a network call or a use of storage. |
 | `web_accessible_resources`: `fonts/Vazirmatn-NL-wght.woff2`, `fonts/InterVariable.woff2` and `fonts/InterVariable-Italic.woff2`, for `https://chatgpt.com/*` and `https://claude.ai/*` | A page can use a font from the extension only if the file is web-accessible. These are the packaged fonts of Readela Sans. | It is not a permission and causes no install prompt. Those two sites, and no other, can request these three files; like the presentation attributes, that lets them notice that Readela is installed. The files are public fonts and reveal nothing about the reader. A test fails if any other resource or host is listed. |
 
 ## Messages between the extension's own pages and a page
 
 The popup asks the content script in the active tab about the saved place
-(report, save, return, clear), and the background component asks it to save
-when the browser delivers the command. They use `tabs.query` for the active
+(report, save, return, clear), and the background component asks it to save,
+return or clear when the browser delivers the command for that. They use `tabs.query` for the active
 tab and `tabs.sendMessage`, which need no permission; without the `tabs`
 permission neither can read a tab's address or title, and neither needs to. A
 message carries one word. The answer carries a status word and the name of the
@@ -180,8 +180,9 @@ the popup from the extension's own storage, not from a page.
 - **Source review:** a search of `src/` for the APIs in controls 1–3; the
   result is recorded in the dated evidence under `docs/evidence/`.
 - **Contract tests:** `test/page/sites.test.mjs` checks the manifest against
-  the site adapters, the permissions, the one command without a key, the one
-  background file and what it may contain, that the page code names no key,
+  the site adapters, the permissions, the three commands without a key, the one
+  background file and what it may contain, that the page code names no key
+  and creates no element,
   the web-accessible resources (the packaged fonts and nothing else), the
   exclusion of editable fields and the application shell on every site, and
   that the popup names the one outside address as a plain link; `test/page/style.test.mjs` checks that the
@@ -200,8 +201,9 @@ the popup from the extension's own storage, not from a page.
   from the extension are the fonts; that the popup requested nothing outside
   the extension; that storage holds only the two objects above and that a
   saved place contains no readable text, address or site identifier; that a
-  hidden conversation is not read; that the command saves through the same
-  path as the popup and that no key pressed in the page saves anything; that
+  hidden conversation is not read; that each command goes through the same
+  path as the popup's button and that no key pressed in the page saves
+  anything; that nothing in a form inside a response is written to; that
   only the rows of saved conversations are marked, on both sites, and that
   Off removes the marks; that a settled page, in view or out of it, on or
   off, runs no code of the extension's at all (read from a trace, in

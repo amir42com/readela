@@ -30,9 +30,10 @@ settings and, from version 0.3.0, your bookmarks, on your own device.
   of each conversation link in the site's own list and compares its
   fingerprint with your bookmarks. It does not read their titles.
 - **No keys.** Readela does not read what you type or which keys you press.
-  From version 0.3.0 you may give its bookmark command a keyboard shortcut in
-  your browser's own shortcut settings; the browser keeps that shortcut and
-  tells Readela only that the command was given.
+  From version 0.3.0 you may give its bookmark commands (save, return,
+  remove) keyboard shortcuts in your browser's own shortcut settings; the
+  browser keeps those shortcuts and tells Readela only that a command was
+  given.
 - **Processed in memory only.** The text is used at that moment, inside the
   page, and nothing readable is kept. Readela does not store, log, copy or
   transmit conversation content, page addresses or your browsing history.
@@ -49,7 +50,7 @@ the extension.
 - **Your settings:** whether Readela is on, the direction mode, and your font,
   text size and line spacing choices; from version 0.3.0 also the reading
   appearance. The same settings apply on both supported sites.
-- **Your bookmarks (from version 0.3.0):** only when you choose Bookmark (in
+- **Your bookmarks (from version 0.3.0):** only when you choose Save (in
   the popup, or with the shortcut you gave the command), Readela saves where
   you stopped in that conversation, at most 1000 bookmarks and one per
   conversation. At that number Readela tells you and bookmarks no further
@@ -95,9 +96,10 @@ No message content, site name, address or history is stored in readable form.
 Nothing else is requested. From version 0.3.0 the packaged font files are made
 available to those two sites so their pages can display them; this is not a
 permission and gives the sites no information about you. Also from version
-0.3.0 Readela declares one command, to bookmark, which has no keyboard
-shortcut unless you give it one in your browser; a small background part of
-the extension passes that command to the page and does nothing else. The current manifest
+0.3.0 Readela declares three commands (save the bookmark, return to it,
+remove it), none of which has a keyboard shortcut unless you give it one in
+your browser; a small background part of the extension passes a command to
+the page and does nothing else. The current manifest
 and source code are public, so these statements can be checked.
 
 ## Store disclosures

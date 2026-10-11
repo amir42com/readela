@@ -108,7 +108,9 @@ test("what a part of the text means keeps a token of its own, and a unit that st
     ["box-shadow: inset 0 0 0 1px", "--readela-code-line"],
     [":is(table, thead, tbody, tfoot, tr, th, td)", "--readela-rule"],
     [":is(th)", "--readela-head"],
-    [":is(blockquote)", "--readela-quote"],
+    [":is(blockquote):not([data-readela-island], [data-readela-island] *, pre, pre *, svg *) {", "--readela-quote"],
+    // The bar of a quotation, where a site draws it as the border of a generated box.
+    [":is(blockquote):not([data-readela-island], [data-readela-island] *, pre, pre *, svg *)::before,", "--readela-quote"],
     [":is(small, del, s, caption, figcaption)", "--readela-muted"],
     ["::marker", "--readela-muted"],
     [" mark:not(", "--readela-selection"],
@@ -122,7 +124,7 @@ test("what a part of the text means keeps a token of its own, and a unit that st
   const borders = css.split("\n").filter((line) => line.includes("border-color") && line.includes("data-readela-top"));
   assert.deepEqual(
     borders.map((line) => line.match(/:is\(([^)]*)\):not\(/)?.[1]),
-    ["code, kbd, samp, [data-readela-token]", "table, thead, tbody, tfoot, tr, th, td", "blockquote"],
+    ["code, kbd, samp, [data-readela-token]", "table, thead, tbody, tfoot, tr, th, td", "blockquote", "blockquote"],
   );
   // No colour of a site's is written anywhere: every colour is a token.
   assert.doesNotMatch(css.replace(/@font-face \{[^}]*\}/g, ""), /rgb\(|hsl\(|oklch\(|color\(/);

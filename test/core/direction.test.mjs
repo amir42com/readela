@@ -33,6 +33,19 @@ test("left-to-right text stays left-to-right, also when it quotes right-to-left 
   assert.equal(directionOfText("In Hebrew, שלום means peace, hello and goodbye."), "ltr");
 });
 
+test("a figure with its unit attached is a number, not a word", () => {
+  for (const text of ["2M", "103K", "4.5GB", "$2M+", "10x", "۲M", "1,200kg", " 3D "]) {
+    assert.equal(directionOfText(text), "neutral", JSON.stringify(text));
+  }
+  // It decides nothing in a sentence either way, and words still do.
+  assert.equal(directionOfText("2M کاربر فعال"), "rtl");
+  assert.equal(directionOfText("2M active users"), "ltr");
+  assert.deepEqual(measureScripts("رشد 103K در ماه"), { rtl: 3, ltr: 0 });
+  // A word that merely ends or begins with digits is still a word.
+  assert.deepEqual(measureScripts("COVID19 and v2 and 10 kg"), { rtl: 0, ltr: 5 });
+  assert.equal(directionOfText("100Mbps"), "ltr");
+});
+
 test("numbers, punctuation and symbols alone are neutral", () => {
   for (const text of ["", "   ", "12,500.75", "(1) — 2/3 … !?", "۱۲۳۴", "١٢٣", "→ ✓ 😀"]) {
     assert.equal(directionOfText(text), "neutral", JSON.stringify(text));

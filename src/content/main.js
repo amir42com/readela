@@ -1,6 +1,6 @@
 // Content script entry: connects stored preferences and saved places to the
 // page reader, and answers the saved-place requests of the popup and of the
-// browser's bookmark command.
+// browser's bookmark commands.
 
 import { isExtensionAlive } from "../browser/api.js";
 import { answerMarkRequests } from "../browser/messages.js";

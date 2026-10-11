@@ -1,26 +1,36 @@
-// The one command the browser manages for Readela: bookmark the reading
-// position, or update the bookmark. It has no key until the reader assigns
-// one in the browser's own shortcut settings. The browser stores the key,
-// refuses combinations it does not allow and delivers the command; Readela
-// records no key and listens for none.
+// The commands the browser manages for Readela: save or update the bookmark,
+// return to it, remove it. None has a key until the reader assigns one in the
+// browser's own shortcut settings. The browser stores the keys, refuses
+// combinations it does not allow and delivers the commands; Readela records
+// no key and listens for none.
 
 import { api } from "./api.js";
 
-/** The command's name in the manifest. */
-export const BOOKMARK_COMMAND = "bookmark";
+/**
+ * Each command's name in the manifest, with the request it makes of the page
+ * and the word the popup shows for it.
+ */
+export const COMMANDS = Object.freeze([
+  Object.freeze({ name: "bookmark", request: "quick", label: "Save" }),
+  Object.freeze({ name: "bookmark-return", request: "go", label: "Return" }),
+  Object.freeze({ name: "bookmark-remove", request: "clear", label: "Remove" }),
+]);
 
 /**
- * The key the reader assigned to the command: a string such as "Alt+Shift+B",
- * an empty string when none is assigned, or null where the browser offers no
- * commands here.
+ * The keys the reader assigned: for each command, a string such as
+ * "Alt+Shift+B", or an empty string when none is assigned. Null where the
+ * browser offers no commands here.
  *
- * @returns {Promise<string | null>}
+ * @returns {Promise<{ name: string, label: string, keys: string }[] | null>}
  */
-export async function assignedShortcut() {
+export async function assignedShortcuts() {
   try {
-    const commands = await api.commands.getAll();
-    const command = commands.find((entry) => entry.name === BOOKMARK_COMMAND);
-    return command ? (command.shortcut ?? "") : null;
+    const held = await api.commands.getAll();
+    const found = COMMANDS.map(({ name, label }) => {
+      const command = held.find((entry) => entry.name === name);
+      return command ? { name, label, keys: command.shortcut ?? "" } : null;
+    });
+    return found.includes(null) ? null : found;
   } catch {
     return null;
   }

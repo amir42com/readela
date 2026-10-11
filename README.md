@@ -40,8 +40,8 @@ built and loaded for development, as described below.
   at least 40% of their words are in a right-to-left script, whatever the
   first word is. Lists and tables are decided as a unit, so markers,
   indentation and column order agree with the text.
-- **Bookmark:** Bookmark, Return and Remove, one bookmark per conversation,
-  kept on this device. Bookmark takes the first paragraph of a response that
+- **Bookmark:** Save, Return and Remove, one bookmark per conversation,
+  kept on this device. Save takes the first paragraph of a response that
   begins in view, below the site's header, or the paragraph you selected text
   in. Return goes back to it, also when the site has not loaded that part of
   the conversation yet, and never to a look-alike paragraph somewhere else:
@@ -49,9 +49,10 @@ built and loaded for development, as described below.
   and the bookmark stays. The popup shows how many conversations have a
   bookmark, and each of them gets a small bookmark in the site's own list.
   Up to 1000 conversations can have one; none is ever removed to make room.
-- **A shortcut, if you want one.** Bookmarking is also a command of the
-  browser's. It has no key until you give it one in your browser's shortcut
-  settings, which the popup opens. Readela ships no default key.
+- **Shortcuts, if you want them.** Save, Return and Remove are also
+  commands of the browser's. None has a key until you give it one in your
+  browser's shortcut settings, which the popup opens. Readela ships no
+  default key.
 - **Light enough to leave on.** Off, Readela does nothing in the page. On, a
   settled page runs nothing either (in Firefox before version 147, one
   comparison a second while it is in view); see the measurements in the
@@ -71,7 +72,8 @@ on Windows 11:
 | --- | --- | --- |
 | Synthetic conversation page: direction for Persian, Arabic, Hebrew, English, mixed | passed in both browsers | passed in both browsers (Persian, English, mixed) |
 | Synthetic conversation page: Paper and Night (who owns what, code blocks, links, lists, quotations, tables), Readela Sans | passed in both browsers, page light and dark | passed in both browsers (light and dark in Chrome, light in Firefox) |
-| Synthetic conversation page: bookmark (identical paragraphs, routes, reload, browser restart, failed save, total, bookmark in the list of both sites, limit of 1000, the browser's command) | passed in both browsers (failed save: Chrome), including a long conversation laid out from its end that loads its earlier part a few turns at a time | passed in both browsers, including a long conversation of which only the part near the viewport is in the document, under a header that lies over the text |
+| Synthetic conversation page: bookmark (identical paragraphs, routes, reload, browser restart, failed save, total, bookmark in the list of both sites, limit of 1000, the browser's three commands) | passed in both browsers (failed save: Chrome), including a long conversation laid out from its end that loads its earlier part a few turns at a time | passed in both browsers, including a long conversation of which only the part near the viewport is in the document, under a header that lies over the text |
+| Synthetic reply made of the site's own components (cards, a grid of figures, charts that are images, a poll, a quotation, a table): what is text and what stays the site's, under Paper and Night; figures in place under Original, Auto, RTL and LTR | passed in both browsers (light and dark in Chrome, light in Firefox) | not applicable: the site marks what is not text itself |
 | Real start page, signed out, nothing sent | content script ran, nothing disturbed (a bot check in headless Chrome) | content script ran, nothing disturbed (sign-in page in Firefox, a bot check in headless Chrome) |
 | What a page costs: idle, streaming, typing, navigating, a long run (Chrome, traced; Firefox, by process) | measured on a synthetic conversation sized after the site | the same |
 | Real signed-in conversation | page structure read four times, without the text, to shape the adapters and the checks; the 0.3.0 extension was not run there by the automated checks | the same |
@@ -152,8 +154,8 @@ On each site:
    close and reopen the browser and do it again. Try it in a long
    conversation, from above and from below the place, and on a sentence that
    occurs more than once. Look for the bookmark beside the conversation in
-   the site's list, on both sites. Give the command a key in the browser's
-   shortcut settings and bookmark with it.
+   the site's list, on both sites. Give Save, Return and Remove a key each
+   in the browser's shortcut settings and use them without the popup.
 6. Switch Readela off: the page returns to the site's own presentation.
 7. Open another conversation: the new one is handled without a reload.
 
@@ -170,10 +172,10 @@ information kept on your device, not encryption.
 | Access to `chatgpt.com` and `claude.ai` | Read the conversation text to decide direction, find the bookmark and mark blocks for presentation. |
 | `storage` | Remember preferences and bookmarks locally. |
 
-Readela also declares one command to the browser (bookmark), which has no
-keyboard shortcut unless you assign one, and a background component of one
-small file that passes that command to the page and does nothing else. Neither
-is a permission.
+Readela also declares three commands to the browser (save the bookmark,
+return to it, remove it), none of which has a keyboard shortcut unless you
+assign one, and a background component of one small file that passes a
+command to the page and does nothing else. Neither is a permission.
 
 Three font files, Inter (upright and italic) and Vazirmatn, are packaged with
 the extension and made available to those two sites so their pages can display
@@ -198,9 +200,12 @@ controls and how they are verified:
 - Paper and Night colour the text of responses, where Readela recognises it.
   Your own messages, the composer and the site's controls keep the site's
   colours, and so does a response in a layout Readela does not recognise. A
-  code block, and anything else in a response that is not text, stays as the
-  site made it, so under a theme opposite to the site's it stands out as a
-  block of the site's colour. Colours the site gave to individual words are
+  code block, and anything else in a response that is not text (a card, a
+  grid of figures, a chart or diagram, a poll, a row of options), stays as
+  the site made it, whole, on the site's own background: under a theme
+  opposite to the site's it stands out as a block of the site's colour.
+  Readela does not recolour such a part and gives nothing inside it a
+  direction, a font or a size. Colours the site gave to individual words are
   replaced by the theme's colours for text, links and secondary text.
 - A place can be saved in a response, not in your own message. It is found
   again only in the response it was saved in. If that response was
@@ -216,9 +221,12 @@ controls and how they are verified:
 - Bookmark without a selection takes the first paragraph that begins in
   view. When one long paragraph fills the screen it takes that one. To choose
   exactly, select some text in the paragraph.
-- The command has no key until you assign one, and Chrome and Firefox each
-  keep their own. Given by key, it shows no message when a bookmark cannot be
-  saved; the popup does.
+- The commands have no key until you assign one, and Chrome and Firefox
+  each keep their own. Given by key, a command shows no message when it
+  cannot do what was asked (nothing to save, no bookmark to return to); the
+  popup does.
+- There is no button for the bookmark in the page itself. Readela adds no
+  element to a site's page; the popup and the commands are the two ways.
 - The bookmark in the site's list appears on rows the adapter recognises.
   Other lists of conversations (search results, project pages) are not
   marked. On Claude, most rows do not say which conversation they open, so a
@@ -235,8 +243,9 @@ controls and how they are verified:
 - A web address that is not a link is not isolated from surrounding
   right-to-left text.
 - Text size scales whole blocks, including code inside them.
-- A newly streamed block is marked within about a tenth of a second; it can
-  show the site's own direction for that moment.
+- A response that arrives whole is marked as it arrives. A block that is
+  streamed in is marked within about a tenth of a second; it can show the
+  site's own direction for that moment.
 - The popup is in English.
 
 ## Development

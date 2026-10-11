@@ -3,7 +3,7 @@
 //
 // Settings never travel this way; the page reacts to stored preferences. A
 // saved place belongs to the conversation in one tab, so the popup, and the
-// background component for the browser's command, ask that tab's content
+// background component for the browser's commands, ask that tab's content
 // script directly. Sending a message to a tab that runs this extension's
 // content script needs no permission.
 

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Readela fixture: a reply made of the site's components</title>
+    <link rel="icon" href="data:," />
+    <!--
+      A synthetic conversation in the form ChatGPT gives some replies: not
+      plain Markdown elements, but a tree of the site's own components under
+      an element that carries the site's theme. Built after what was read on
+      the site on 2026-10-11 (element names, attribute names, computed
+      colours); every word here is made up.
+
+      Text components are ordinary elements or spans and carry
+      data-d-text-flow. Everything else (a box, a row, a grid, an image, a
+      form, a control) is laid out and coloured by the site.
+    -->
+    <style>
+      :root { color-scheme: light dark; --page: #ffffff; --text: #0d0d0d; --second: #5d5d5d; --line: rgba(0, 0, 0, 0.15); --faint: rgba(0, 0, 0, 0.05); --chip: #ececec; --well: #f4f4f4; --ring: #0d0d0d; --go: #0d0d0d; --go-text: #ffffff; --good: #00692a; }
+      @media (prefers-color-scheme: dark) {
+        :root { --page: #212121; --text: #ededed; --second: #cdcdcd; --line: rgba(255, 255, 255, 0.15); --faint: rgba(255, 255, 255, 0.05); --chip: #414141; --well: #000000; --ring: #ededed; --go: #ffffff; --go-text: #0d0d0d; --good: #40c977; }
+      }
+      html, body { margin: 0; height: 100%; }
+      body { font: 16px/1.5 system-ui, sans-serif; color: var(--text); background: var(--page); }
+      main { height: 100%; display: flex; flex-direction: column; }
+      header { flex: none; height: 48px; border-bottom: 1px solid var(--faint); }
+      #k-scroller { flex: 1; overflow-y: auto; }
+      .thread { max-width: 760px; margin: 0 auto; padding: 24px; }
+      [data-user-message-bubble] { margin: 0 0 24px auto; max-width: 70%; padding: 10px 16px; border-radius: 18px; background: var(--chip); }
+
+      /* The component tree. */
+      [data-theme] { color: var(--text); }
+      [data-d-direction="col"] { display: flex; flex-direction: column; gap: 12px; }
+      [data-d-direction="row"] { display: flex; flex-direction: row; gap: 8px; }
+      [data-d-direction][data-d-inline] { display: inline-flex; }
+      [data-d-text-flow] { margin: 0; }
+      [data-d-component="title"] { font-weight: 600; }
+      [data-d-size="2xl"] { font-size: 28px; }
+      [data-d-size="sm"] { font-size: 14px; }
+      [data-d-size="xs"], [data-d-size="3xs"] { font-size: 12px; color: var(--second); }
+      [data-d-tabular-nums] { font-variant-numeric: tabular-nums; }
+      [data-d-component="caption"] { display: block; color: var(--second); }
+      [data-d-component="list"] { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-inline-start: 24px; }
+      [data-d-component="code"] { padding: 1px 4px; border-radius: 4px; background: var(--faint); font-family: ui-monospace, monospace; font-size: 0.9em; }
+      [data-d-component="table"] table { width: 100%; border-collapse: collapse; }
+      [data-d-component="table-row"] { border-bottom: 1px solid var(--faint); }
+      [data-d-component="table-cell"] { padding: 8px 0 8px 8px; text-align: start; }
+      [data-d-component="blockquote"] { position: relative; margin: 0; padding-inline-start: 16px; color: var(--second); }
+      [data-d-component="blockquote"]::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 4px; border-inline-start: 2px solid var(--line); border-radius: 2px; box-sizing: border-box; }
+      [data-d-component="divider"] { height: 1px; background: var(--line); }
+      [data-d-component="box"][data-d-has-border] { padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+      [data-d-component="box"][data-d-variant="well"] { padding: 16px; border-radius: 8px; background: var(--well); }
+      [data-d-component="grid"] { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      [data-d-component="badge"] { display: flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 9999px; background: var(--chip); }
+      [data-d-component="badge"][data-d-tone="good"] { color: var(--good); background: color-mix(in srgb, var(--good) 15%, transparent); }
+      [data-d-component="favicon"] img { display: block; width: 12px; height: 12px; border-radius: 100%; }
+      [data-d-component="svg"] { display: block; width: 100%; height: auto; }
+      [data-d-component="radio-group"] { display: flex; flex-direction: column; gap: 6px; }
+      [data-d-component="radio"] label { display: flex; align-items: center; gap: 8px; }
+      [data-d-component="radio"] input { position: absolute; opacity: 0; pointer-events: none; }
+      button[role="radio"], button[role="checkbox"] { flex: none; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 9999px; background: transparent; box-shadow: inset 0 0 0 1.5px var(--ring); color: inherit; }
+      button[role="checkbox"] { width: auto; height: auto; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; font: inherit; }
+      button[role="radio"][aria-checked="true"] { background: radial-gradient(var(--ring) 40%, transparent 45%); }
+      [data-d-component="button"] { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 9999px; background: var(--go); color: var(--go-text); font: inherit; }
+      [data-d-component="icon"] { display: inline-block; width: 16px; height: 16px; vertical-align: -2px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header aria-label="Conversation header"></header>
+      <div id="k-scroller" data-app-action-timeline-scroll="">
+        <div class="thread" id="k-thread">
+          <section data-turn-key="readela-components-turn-1">
+            <div data-user-message-bubble="true" id="k-user"><div dir="auto">یک گزارش کوتاه با آمار و نمودار بده.</div></div>
+
+            <div data-markdown-text-style="assistant-message" dir="auto" id="k-reply">
+              <div data-dil-source-message-id="k-m1" data-chatgpt-copy-reference="0" data-markdown-copy="contents">
+                <div>
+                  <div style="display: none" id="k-hidden">گزارش فصل: دو میلیون کاربر.</div>
+                  <div data-theme="dark" id="k-themed">
+                    <div dir="auto" data-d-inline-reveal="" data-d-direction="col" data-dil-message-id="k-m1" id="k-column">
+                      <h1 data-d-text-flow="" data-d-component="title" data-d-size="xl" id="k-title">گزارش فصل سوم</h1>
+                      <p data-d-text-flow="" data-d-component="text" id="k-p-fa">در این فصل تعداد کاربران فعال به شکل <span data-d-text-flow="" data-d-component="text" data-d-default-strong="" data-d-inline="" id="k-strong">چشمگیری</span> رشد کرد و دستور <code data-d-component="code" id="k-code">npm run build</code> سریع‌تر شد.</p>
+                      <p data-d-text-flow="" data-d-component="text" id="k-p-figure">2M</p>
+                      <p data-d-text-flow="" data-d-component="text" id="k-p-en">This paragraph is written in English and reads from left to right.</p>
+                      <p data-d-text-flow="" data-d-component="text" id="k-p-source">منبع این آمار <span data-d-text-flow="" data-d-component="text" data-d-inline="" id="k-chip-slot"></span> است.</p>
+
+                      <ul data-d-component="list" data-d-marker="bullet" data-d-marker-layout="native" id="k-list">
+                        <li data-d-component="list-item" data-d-marker-layout="native"><div><div data-d-list-item-content=""><p data-d-text-flow="" data-d-component="text" id="k-li-1">رشد درآمد نسبت به فصل قبل</p></div></div></li>
+                        <li data-d-component="list-item" data-d-marker-layout="native"><div><div data-d-list-item-content=""><p data-d-text-flow="" data-d-component="text">کاهش زمان پاسخ</p></div></div></li>
+                      </ul>
+
+                      <div data-d-column-sizing="auto" data-d-component="table" id="k-table-box">
+                        <table data-d-column-sizing="auto" data-d-dividers="" id="k-table">
+                          <tbody>
+                            <tr data-d-component="table-row" id="k-tr-1"><th data-d-component="table-cell" id="k-th">شاخص</th><th data-d-component="table-cell">مقدار</th></tr>
+                            <tr data-d-component="table-row"><td data-d-component="table-cell" id="k-td">کاربران فعال</td><td data-d-component="table-cell">2M</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <blockquote data-d-component="blockquote" id="k-quote">
+                        <p data-d-text-flow="" data-d-component="text" id="k-quote-p">این نقل قول با یک خط عمودی در کنارش نشان داده می‌شود.</p>
+                      </blockquote>
+
+                      <span data-d-text-flow="" data-d-component="caption" data-d-size="lg" id="k-caption">توضیح: ارقام گرد شده‌اند.</span>
+
+                      <div data-d-component="divider" id="k-divider"></div>
+
+                      <!-- A statistical card: a bordered box, a grid of two columns, a figure and its label in each. -->
+                      <div data-d-component="box" data-d-direction="col" data-d-has-border="" id="k-stats">
+                        <div data-d-component="grid" id="k-grid">
+                          <div data-d-auto-spacing="" data-d-component="grid-item" data-d-direction="col">
+                            <h1 data-d-text-flow="" data-d-component="title" data-d-size="2xl" data-d-tabular-nums="true" id="k-stat-1">2M</h1>
+                            <p data-d-text-flow="" data-d-component="text" data-d-size="sm" id="k-stat-1-label">کاربران فعال</p>
+                          </div>
+                          <div data-d-auto-spacing="" data-d-component="grid-item" data-d-direction="col">
+                            <h1 data-d-text-flow="" data-d-component="title" data-d-size="2xl" data-d-tabular-nums="true" id="k-stat-2">103K</h1>
+                            <p data-d-text-flow="" data-d-component="text" data-d-size="sm" id="k-stat-2-label">ثبت‌نام تازه</p>
+                          </div>
+                          <div data-d-auto-spacing="" data-d-component="grid-item" data-d-direction="col">
+                            <h1 data-d-text-flow="" data-d-component="title" data-d-size="2xl" data-d-tabular-nums="true" id="k-stat-3">1200</h1>
+                            <p data-d-text-flow="" data-d-component="text" data-d-size="sm">سفارش</p>
+                          </div>
+                          <div data-d-auto-spacing="" data-d-component="grid-item" data-d-direction="col">
+                            <h1 data-d-text-flow="" data-d-component="title" data-d-size="2xl" data-d-tabular-nums="true" id="k-stat-4">Active</h1>
+                            <p data-d-text-flow="" data-d-component="text" data-d-size="sm">وضعیت</p>
+                          </div>
+                        </div>
+                        <div data-d-align="center" data-d-component="row" data-d-direction="row" data-d-justify="between" id="k-stats-row">
+                          <p data-d-text-flow="" data-d-component="text" id="k-stats-note">Quarter over quarter</p>
+                          <div data-d-component="badge" data-d-tone="good" id="k-stats-badge">+12%</div>
+                        </div>
+                      </div>
+
+                      <!-- A chart in a well: a title and a drawing that is an image with a clear ground. -->
+                      <div data-d-component="box" data-d-direction="col" data-d-variant="well" id="k-chart">
+                        <p data-d-text-flow="" data-d-component="text" data-d-text-align="center" id="k-chart-title">روند ماهانه</p>
+                        <img data-d-component="svg" id="k-chart-image" alt="" width="640" height="160" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 160'%3E%3Cpath d='M20 140 L200 90 L380 110 L620 30' fill='none' stroke='%23ededed' stroke-width='3'/%3E%3Ctext x='20' y='24' fill='%23ededed' font-size='16'%3EQ3%3C/text%3E%3C/svg%3E" />
+                      </div>
+
+                      <!-- A diagram set directly in the reply: an image with a clear ground. -->
+                      <img data-d-component="svg" id="k-flow" alt="" width="640" height="120" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 120'%3E%3Crect x='20' y='30' width='200' height='60' rx='8' fill='none' stroke='%23ededed' stroke-width='2'/%3E%3Ctext x='60' y='66' fill='%23ededed' font-size='16'%3EStart%3C/text%3E%3C/svg%3E" />
+
+                      <!-- A poll: a form with radio options and a button to send it. -->
+                      <div data-d-component="box" data-d-direction="col" data-d-has-border="" id="k-poll">
+                        <form data-d-component="form" data-d-direction="col" id="k-form">
+                          <div data-d-component="box" data-d-direction="col">
+                            <p data-d-text-flow="" data-d-component="text" data-d-size="sm" data-d-weight="medium" id="k-poll-question"><span data-d-text-flow="" data-d-component="text" data-d-inline="">کدام گزینه را ترجیح می‌دهید؟</span></p>
+                            <div role="radiogroup" data-d-component="radio-group">
+                              <div data-d-component="radio"><label id="k-option-1"><div><button role="radio" type="button" aria-checked="false" data-state="unchecked"></button><input type="radio" name="k-choice" value="a" /></div>گزینهٔ نخست</label></div>
+                              <div data-d-component="radio"><label id="k-option-2"><div><button role="radio" type="button" aria-checked="true" data-state="checked" id="k-option-2-ring"></button><input type="radio" name="k-choice" value="b" checked /></div>گزینهٔ دوم</label></div>
+                            </div>
+                          </div>
+                          <button type="submit" data-d-component="button" data-d-block="" id="k-send"><span>ارسال</span></button>
+                        </form>
+                      </div>
+
+                      <!-- Options without a form: a list of boxes to tick. -->
+                      <div data-d-component="box" data-d-direction="col" id="k-checks">
+                        <button role="checkbox" type="button" aria-checked="false" data-state="unchecked" data-d-component="checkbox" id="k-check-1"><span>یادآوری هفتگی</span></button>
+                        <button role="checkbox" type="button" aria-checked="true" data-state="checked" data-d-component="checkbox"><span>خلاصهٔ ماهانه</span></button>
+                      </div>
+
+                      <p data-d-text-flow="" data-d-component="text" id="k-p-last">پایان گزارش <svg data-d-component="icon" data-d-inline="" id="k-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" /></svg></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <form aria-label="Message composer" style="flex: none; padding: 12px 24px">
+        <div id="k-composer" contenteditable="true" role="textbox" aria-label="Message">پیام</div>
+      </form>
+    </main>
+    <script>
+      // A source set in a sentence: a chip made of the site's boxes, inside
+      // a paragraph. The site builds it by script; a parser would end the
+      // paragraph before the first box.
+      {
+        const make = (name, attributes = {}, ...children) => {
+          const node = document.createElement(name);
+          for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+          node.append(...children);
+          return node;
+        };
+        const icon = make("img", { alt: "", src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" });
+        document.querySelector("#k-chip-slot").append(
+          make(
+            "span",
+            { role: "button", "data-d-component": "popover-trigger", "data-d-inline": "", "data-d-inline-text": "", id: "k-trigger" },
+            make(
+              "span",
+              { "data-d-auto-spacing": "", "data-d-component": "box", "data-d-direction": "col", "data-d-inline": "" },
+              make(
+                "div",
+                { "data-d-component": "badge", "data-d-hoverable": "", id: "k-chip" },
+                make("div", { "data-d-auto-spacing": "", "data-d-component": "row", "data-d-direction": "row" }, make("div", { role: "presentation", "data-d-component": "favicon", "data-d-direction": "col" }, icon)),
+                make(
+                  "div",
+                  { "data-d-align": "center", "data-d-component": "row", "data-d-direction": "row" },
+                  make("span", { "data-d-text-flow": "", "data-d-component": "text", "data-d-size": "3xs", "data-d-inline": "", id: "k-chip-text" }, "example.org"),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      // The site says which of its themes the tree is in; the drawings are
+      // made for that theme, as the site's are.
+      const apply = () => {
+        const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+        document.querySelector("#k-themed").setAttribute("data-theme", dark ? "dark" : "light");
+        for (const image of document.querySelectorAll('img[data-d-component="svg"]')) {
+          const source = image.getAttribute("src");
+          const wanted = dark ? "%23ededed" : "%230d0d0d";
+          const next = source.replaceAll(dark ? "%230d0d0d" : "%23ededed", wanted);
+          if (next !== source) image.setAttribute("src", next);
+        }
+      };
+      apply();
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
+      // Sending the poll goes nowhere.
+      document.querySelector("#k-form").addEventListener("submit", (event) => event.preventDefault());
+    </script>
+  </body>
+</html>
