@@ -28,6 +28,12 @@
         readelaLoadBatch    how many earlier turns are loaded at a time
         readelaNeverLoad    true: earlier turns are never loaded
         readelaMountDelay   milliseconds before turns near the viewport appear
+        readelaSettleShift  pixels: a moment after the scrolling has stopped the
+                            site lays the conversation out again and the view
+                            ends up this far from where it was. Once, or after
+                            every stop while readelaSettleAlways is true
+        readelaSettleDelay  how long that moment is, in milliseconds
+        readelaShifts       how many times it has happened
     -->
     <style>
       html, body { height: 100%; }
@@ -159,6 +165,27 @@
             waiting = null;
             render();
           }, window.readelaMountDelay ?? 40);
+        });
+
+        // A site that goes on laying a long conversation out after a jump:
+        // a moment after the scrolling has stopped, the view is elsewhere.
+        let settling = null;
+        let moving = false;
+        window.readelaShifts = 0;
+        scroller.addEventListener("scroll", () => {
+          if (moving || !window.readelaSettleShift) return;
+          clearTimeout(settling);
+          settling = setTimeout(() => {
+            const shift = window.readelaSettleShift;
+            if (!shift) return;
+            if (!window.readelaSettleAlways) window.readelaSettleShift = 0;
+            window.readelaShifts += 1;
+            moving = true;
+            scroller.scrollTop -= shift;
+            setTimeout(() => {
+              moving = false;
+            }, 100);
+          }, window.readelaSettleDelay ?? 250);
         });
 
         window.readelaTurns = () => [...list.children].map((node) => Number(node.getAttribute("data-lt-turn")));

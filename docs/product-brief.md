@@ -78,8 +78,14 @@ direction and alignment of blocks whose text calls for it.
 - **Auto direction.** A figure with its unit attached (2M, 103K) is a
   number, not a word, and follows what is around it. A block reads
   right-to-left when at least 40% of its
-  words are written in a right-to-left script; otherwise left-to-right. The
-  first character is not decisive. Code, mathematics and web addresses are not
+  words are written in a right-to-left script. Below that, a sentence still
+  reads right-to-left when its shape is that of a right-to-left sentence
+  full of terms in Latin letters: it begins with a right-to-left word (and
+  at least a fifth of its words are, or it ends with one, or they stand in
+  more than one place), or it ends with one and they stand in more than one
+  place; the text around it settles what is left open. A list in doubt is
+  decided by its items. Otherwise left-to-right. The first character alone is
+  not decisive. Code, mathematics and web addresses are not
   counted. A block with no words (numbers or symbols only) follows its
   surroundings. Lists and tables are decided as a unit, so markers,
   indentation, column order and text agree; a nested list is decided
@@ -230,7 +236,7 @@ information kept on the device, not anonymisation or encryption. It requests
 access to `chatgpt.com` and `claude.ai` and to extension storage, and
 nothing else. Three font files are packaged with the extension and made
 available to those two sites. One command is declared to the browser, with
-no key, and a background component that only passes it to the page. Details and the reason for each entry are
+no key, and a background component that passes it to the page and is the one writer of the stored bookmarks (DEC-144). Details and the reason for each entry are
 in [privacy-and-permissions.md](privacy-and-permissions.md).
 
 ## Distribution

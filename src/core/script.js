@@ -26,7 +26,9 @@ const ADDRESS = /(?:https?:\/\/|www\.)\S+|\S+@\S+\.\S+/giu;
 const FIGURE = /(?<![\p{L}\p{M}])\p{Nd}[\p{Nd}.,٫٬]*\p{L}{1,2}(?![\p{L}\p{M}])/gu;
 
 /**
- * Count the words of a text by writing direction.
+ * Count the words of a text by writing direction, and note its shape: the
+ * direction of its first and of its last word, and in how many separate
+ * places right-to-left words stand.
  *
  * A word counts as right-to-left when it contains at least one right-to-left
  * letter, and as left-to-right when it contains letters of other scripts only.
@@ -34,21 +36,25 @@ const FIGURE = /(?<![\p{L}\p{M}])\p{Nd}[\p{Nd}.,٫٬]*\p{L}{1,2}(?![\p{L}\p{M}])
  * are not counted.
  *
  * @param {string} text
- * @returns {{ rtl: number, ltr: number }}
+ * @returns {{ rtl: number, ltr: number, first: "rtl" | "ltr" | null, last: "rtl" | "ltr" | null, places: number }}
  */
 export function measureScripts(text) {
-  const counts = { rtl: 0, ltr: 0 };
+  const counts = { rtl: 0, ltr: 0, first: null, last: null, places: 0 };
   if (typeof text !== "string" || text.length === 0) return counts;
 
   for (const word of text.replace(ADDRESS, " ").replace(FIGURE, " ").match(WORD) ?? []) {
-    if (RTL_LETTER.test(word)) counts.rtl += 1;
-    else if (LETTER.test(word)) counts.ltr += 1;
+    const kind = RTL_LETTER.test(word) ? "rtl" : LETTER.test(word) ? "ltr" : null;
+    if (kind === null) continue;
+    counts[kind] += 1;
+    if (kind === "rtl" && counts.last !== "rtl") counts.places += 1;
+    counts.first ??= kind;
+    counts.last = kind;
   }
   return counts;
 }
 
 /**
- * Add two measurements.
+ * Add two measurements: the words of both. The sum has no shape.
  *
  * @param {{ rtl: number, ltr: number }} a
  * @param {{ rtl: number, ltr: number }} b

@@ -2,7 +2,7 @@
 // extension storage: the preferences and the saved places. Nothing leaves the
 // device.
 
-import { MARKS_KEY, PREFERENCES_KEY, normalizeMarks, normalizePreferences } from "../core/index.js";
+import { MARKS_KEY, PREFERENCES_KEY, changeFor, normalizeMarks, normalizePreferences } from "../core/index.js";
 import { api } from "./api.js";
 
 export async function loadPreferences() {
@@ -17,14 +17,14 @@ export async function savePreferences(preferences) {
 /**
  * Change the stored places and return what is stored afterwards.
  *
- * The stored object is read immediately before it is written, so a tab never
- * writes back a copy it took earlier: a place saved in another tab since then
- * is carried along, not overwritten. It is read once more after the write,
+ * The stored object is read immediately before it is written, so a copy
+ * taken earlier is never written back. It is read once more after the write,
  * and that reading is the answer, so a caller reports only what is really
  * stored. A failed read or write rejects and changes nothing here.
  *
- * Two tabs that both write within the same few milliseconds can still
- * interleave; the browser offers no transaction for this storage.
+ * The browser offers no transaction for this storage: two of these that run
+ * at the same moment can interleave. They are therefore never run from a
+ * page or from the popup, only by the one writer below.
  *
  * @param {(marks: ReturnType<typeof normalizeMarks>) => unknown} change
  * @param {{ get: Function, set: Function }} [area] the storage area
@@ -35,6 +35,32 @@ export async function changeMarks(change, area = api.storage.local) {
   const next = normalizeMarks(change(await read()));
   await area.set({ [MARKS_KEY]: next });
   return read();
+}
+
+/**
+ * The one writer of the stored places. It takes requests (see `changeFor` in
+ * the core) and makes their changes one after another, each against what is
+ * stored when its turn comes, so two that are asked for at the same moment,
+ * from two tabs, cannot overwrite one another. Each is answered with what is
+ * stored after it, or rejected when it is not a request or the browser could
+ * not store it; a failure does not hold up the changes behind it.
+ *
+ * Nothing is kept between changes but their order. A writer that is gone (the
+ * browser stops the background component when it is idle) leaves nothing
+ * undone: the next one starts from what is stored.
+ *
+ * @param {{ get: Function, set: Function }} [area] the storage area
+ * @returns {(request: unknown) => Promise<ReturnType<typeof normalizeMarks>>}
+ */
+export function createMarkWriter(area = api.storage.local) {
+  let last = Promise.resolve();
+  return (request) => {
+    const change = changeFor(request);
+    if (change === null) return Promise.reject(new Error("not a change to the stored places"));
+    const done = last.then(() => changeMarks(change, area));
+    last = done.catch(() => {});
+    return done;
+  };
 }
 
 // Call `listener` with the stored value of `key` now and after every change.

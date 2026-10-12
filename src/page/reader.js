@@ -18,7 +18,6 @@ import {
   conversationId,
   conversationKey,
   createPlace,
-  findMark,
   fingerprint,
   indexMarks,
   isAddressText,
@@ -27,11 +26,9 @@ import {
   messageKey,
   normalizeMarks,
   normalizePreferences,
-  removeMark,
   resolveDirection,
   rowFingerprint,
   samePlace,
-  saveMark,
 } from "../core/index.js";
 import {
   ELEMENT_MARKS,
@@ -112,6 +109,9 @@ const QUIET_MS = 100;
 const GROW_MS = 2500;
 const ROW_JUMPS = 10;
 const ARRIVE_MS = 2500;
+// A place is looked at this many times on arrival: seen in place, seen again
+// once the page has settled, with room to be put back twice in between.
+const ARRIVE_TRIES = 6;
 
 // A stretch of a walk where nothing is in the document: this share of a screen.
 const STRIDE = 0.8;
@@ -136,6 +136,11 @@ const ROW_MEMORY = 2000;
 // The reader taking over stops a search: these arrive only from real input.
 const TAKEOVER = ["wheel", "touchstart", "pointerdown", "keydown"];
 
+// The value of the unit mark on a part of a response that the reader itself
+// found to be the site's; a unit the site adapter names carries the mark
+// without a value.
+const FOUND = "found";
+
 const ELEMENT = 1;
 const TEXT = 3;
 
@@ -145,9 +150,9 @@ const TEXT = 3;
  * @param {object} options.site a site adapter; see `sites/index.js` for the contract
  * @param {() => boolean} [options.isAlive] returns false once the extension
  *   that owns this reader is gone; the reader then removes its footprint.
- * @param {(change: (marks: object) => object) => Promise<object>} [options.store]
- *   changes the stored places and resolves with what is stored afterwards;
- *   see `changeMarks` in the browser layer
+ * @param {(request: object) => Promise<object>} [options.store] asks for a
+ *   change of the stored places (see `changeFor` in the core) and resolves
+ *   with what is stored afterwards; the reader never writes them itself
  */
 export function createReader({
   document,
@@ -240,6 +245,14 @@ export function createReader({
     for (const name of ELEMENT_MARKS) setMark(element, name, null);
   }
 
+  // Take from an element the marks it carried as a block of reading text,
+  // and leave what it may be marked as otherwise (a unit that stays the
+  // site's, say).
+  function clearBlock(element) {
+    if (element.hasAttribute(MARK.mirror)) removeProperties(element, MIRROR_PROPERTIES);
+    for (const name of [MARK.dir, MARK.top, MARK.align, MARK.mirror]) setMark(element, name, null);
+  }
+
   // Text of an element for measurement. Subtrees matching `skip` are left out.
   function textOf(element, skip) {
     // Most blocks hold nothing that is left out and nothing that separates
@@ -286,20 +299,39 @@ export function createReader({
       if (owner && !owner.matches("blockquote")) return owner.getAttribute(MARK.dir);
     }
 
-    return resolveDirection({
-      counts: measureScripts(textOf(element, skip)),
-      mode: preferences.direction,
-      context: contextFor(element),
-    });
+    let counts = measureScripts(textOf(element, skip));
+    let parts = null;
+    if (element.matches(LISTS)) {
+      // A list with fewer right-to-left words than left-to-right is decided
+      // by its items, each a sentence of its own.
+      if (preferences.direction === "auto" && counts.rtl > 0 && counts.ltr > counts.rtl) {
+        parts = [...element.children].filter((item) => item.matches("li")).map((item) => measureScripts(textOf(item, skip)));
+      }
+    } else if (element.matches(CONTAINERS)) {
+      // A table or a quotation is not one sentence: its words decide, not
+      // which of them happens to stand first or last.
+      counts = { rtl: counts.rtl, ltr: counts.ltr };
+    }
+    return resolveDirection({ counts, mode: preferences.direction, context: contextFor(element), parts });
   }
 
-  function isEligible(element, scope) {
+  // Whether an element is reading text by where it stands: in the
+  // conversation shown, outside everything that is never touched, outside a
+  // unit the adapter names, and neither code nor mathematics.
+  function isReadingText(element, scope) {
     if (!scope.contains(element) || element.closest(site.exclude)) return false;
     if (site.within && !element.closest(site.within)) return false;
     if (element.matches("pre")) return !element.parentElement?.closest(PROTECTED);
     // Text inside a unit the site presents as a whole is not reading text.
     if (site.capsule && element.closest(site.capsule)) return false;
     return !element.closest(PROTECTED);
+  }
+
+  // ... and outside every part of a response found to be the site's (see
+  // `partsOf`): such a part takes no direction, font or size, and holds no
+  // place to save.
+  function isEligible(element, scope) {
+    return isReadingText(element, scope) && element.closest(`[${MARK.unit}="${FOUND}"]`) === null;
   }
 
   // The page pinned the text to the physical side opposite the reading start.
@@ -409,14 +441,15 @@ export function createReader({
 
   // Whether `element`, a root of response text by the adapter's word, is one
   // Readela may own: inside the conversation shown, outside everything that is
-  // never touched, and neither in nor around a message of the reader's own or
-  // somewhere to type. A form shut inside a unit that stays the site's (a poll
-  // in a card) is that unit's business and not the surface's.
+  // never touched (somewhere to type included), and neither in nor around a
+  // message of the reader's own. Somewhere to type inside a response (a draft
+  // the site lets the reader edit in place, a poll) does not make the whole
+  // response the site's: it is a part of it that stays the site's, see
+  // `partsOf`.
   function ownsProse(element, scope) {
     if (element === scope || !scope.contains(element) || element.closest(site.exclude)) return false;
     if (element.parentElement?.closest(site.prose)) return false; // part of the root around it
-    if (site.user && (element.closest(site.user) || element.querySelector(site.user))) return false;
-    return !holdsOutsideUnits(element, TYPING);
+    return !(site.user && (element.closest(site.user) || element.querySelector(site.user)));
   }
 
   // The corner radii of an element as one `border-radius` value, or null when
@@ -451,13 +484,19 @@ export function createReader({
     return null;
   }
 
-  // Whether a unit shows something made to be seen on the site's own ground:
-  // text of any kind, the labels of its controls included, or a drawing.
-  function madeForSite(element) {
+  // Whether an element shows text of any kind, the labels of controls included.
+  function showsText(element) {
     const walker = document.createTreeWalker(element, view.NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       if (walker.currentNode.data.trim() !== "") return true;
     }
+    return false;
+  }
+
+  // Whether a unit shows something made to be seen on the site's own ground:
+  // text, or a drawing.
+  function madeForSite(element) {
+    if (showsText(element)) return true;
     const drawn = element.matches(DRAWN) ? [element] : element.querySelectorAll(DRAWN);
     for (let index = 0; index < drawn.length && index < DRAWINGS_MEASURED; index += 1) {
       const box = drawn[index].getBoundingClientRect();
@@ -484,11 +523,14 @@ export function createReader({
   // other unit seen in the same pass: reading a unit's own box and colours
   // makes the browser lay the page out, and it should do so once for all of
   // them, not once for each between two writes.
+  //
+  // Until it is examined, a unit that shows text stands on the site's own
+  // ground in the site's own text colour, both measured long before: text made
+  // for the site's ground is then readable from the first frame the browser
+  // paints, whatever the reading theme. Nothing is measured for that.
   function markIsland(element) {
     if (element.hasAttribute(MARK.island)) return; // examined when it was first seen
-    // Marked as the site's first, so no rule for reading text is in the way
-    // when its own colours are read.
-    element.setAttribute(MARK.island, "");
+    element.setAttribute(MARK.island, showsText(element) ? "surface text" : "");
     freshIslands.push(element);
   }
 
@@ -501,11 +543,13 @@ export function createReader({
 
   function examineIslands() {
     if (freshIslands.length === 0) return;
-    const fresh = freshIslands;
+    const fresh = [...new Set(freshIslands)].filter((element) => element.isConnected && element.hasAttribute(MARK.island));
     freshIslands = [];
+    // What a unit was given for its first frame is taken off again, so that
+    // no rule of Readela's is in the way when its own colours are read.
+    for (const element of fresh) setMark(element, MARK.island, "");
     // Everything is read before anything more is written.
     const noted = fresh
-      .filter((element) => element.isConnected && element.getAttribute(MARK.island) === "")
       .map((element) => {
         const needs = [];
         let radius = null;
@@ -527,61 +571,130 @@ export function createReader({
     }
   }
 
-  function markSurface(sheet) {
-    const wanted = new Set([sheet]);
-    const keep = (element) => {
-      wanted.add(element);
-      setMark(element, MARK.sheet, null);
-      markIsland(element);
-    };
+  // What a root of response text is made of, by its structure alone. This is
+  // the one decision of what in a response is Readela's and what stays the
+  // site's; colour, direction, typography and the places a bookmark can be
+  // saved at all follow it.
+  //
+  //   - a reading block standing in the root is reading text; a unit inside
+  //     it (a code block in a list item) stays the site's;
+  //   - a wrapper that holds reading blocks and no text but theirs is part of
+  //     the surface (`inner`), and is looked into in the same way;
+  //   - everything else is a unit that stays the site's, whole (`units`): one
+  //     the adapter names, and any other, whatever it is. A wrapper that
+  //     holds reading blocks together with something that is an application
+  //     of its own (a field to type in, a frame, a canvas) is such a unit, so
+  //     a card with its labels and its form is never taken apart; unless it
+  //     holds all the reading text there is where it stands, which makes it
+  //     the response's own structure and not a part among others. What stays
+  //     the site's is then the part of it that holds no reading text.
+  //
+  // Only the document is read: nothing is measured, nothing is written, and
+  // no mark of Readela's is asked for, so the answer is the same whatever is
+  // switched on.
+  function partsOf(sheet, scope) {
+    const inner = [];
+    const units = [];
     const walk = (container) => {
       for (const child of container.children) {
-        if (child.matches(kept)) {
-          keep(child);
-        } else if (child.hasAttribute(MARK.top)) {
-          // Reading text. A unit inside it (a code block in a list item) is kept.
+        const kind = partKind(child, container, scope);
+        if (kind === "unit") {
+          units.push(child);
+        } else if (kind === "text") {
           for (const unit of child.querySelectorAll(kept)) {
             const outer = unit.parentElement.closest(kept);
-            if (!(outer && child.contains(outer))) keep(unit);
+            if (!(outer && child.contains(outer))) units.push(unit);
           }
-        } else if (child.matches(FLOWING)) {
-          continue;
-        } else if (
-          child.querySelector(`[${MARK.top}]:not(pre)`) !== null &&
-          !hasOwnText(child) &&
-          !holdsOutsideUnits(child, RICH)
-        ) {
-          // A wrapper that holds reading blocks, and no text but theirs, is
-          // part of the surface.
-          wanted.add(child);
-          clearIsland(child);
-          setMark(child, MARK.sheet, "inner");
+        } else if (kind === "inner") {
+          inner.push(child);
           walk(child);
-        } else {
-          keep(child);
         }
       }
     };
-    clearIsland(sheet);
-    setMark(sheet, MARK.sheet, "");
     walk(sheet);
-    for (const element of sheet.querySelectorAll(`[${MARK.sheet}], [${MARK.island}]`)) {
-      if (wanted.has(element)) continue;
-      clearIsland(element);
-      setMark(element, MARK.sheet, null);
+    return { inner, units };
+  }
+
+  // What one child of a root of response text, or of a wrapper that is part
+  // of one, is: reading text, a wrapper of it ("inner"), something that only
+  // flows with it, or a unit that stays the site's. See `partsOf`.
+  function partKind(child, container, scope) {
+    if (child.matches(kept)) return "unit";
+    if (child.matches(candidates) && isReadingText(child, scope)) return "text";
+    if (child.matches(FLOWING)) return "flow";
+    const reads = (element) => !element.matches("pre") && isReadingText(element, scope);
+    const blocksIn = (element) => [...element.querySelectorAll(candidates)].filter(reads).length;
+    let holdsBlocks = false;
+    for (const found of child.querySelectorAll(candidates)) {
+      if (!reads(found)) continue;
+      holdsBlocks = true;
+      break;
     }
+    if (!holdsBlocks || hasOwnText(child)) return "unit";
+    return !holdsOutsideUnits(child, RICH) || blocksIn(child) === blocksIn(container) ? "inner" : "unit";
+  }
+
+  // Mark a root of response text after `partsOf`. With a reading theme on it
+  // becomes the reading surface and its units are kept as the site made them;
+  // without one only the units the reader found itself are noted, so nothing
+  // in them is taken for reading text. Returns the elements that were such
+  // units until now and are reading text again.
+  function markSurface(sheet, scope) {
+    const themed = theming();
+    const { inner, units } = partsOf(sheet, scope);
+    const surface = new Set([sheet, ...inner]);
+    const sites = new Set(units);
+    const released = [];
+    for (const element of surface) {
+      clearIsland(element);
+      setMark(element, MARK.sheet, themed ? (element === sheet ? "" : "inner") : null);
+    }
+    for (const element of units) {
+      setMark(element, MARK.sheet, null);
+      // A unit the adapter does not name is noted as the site's where it
+      // holds anything that could be taken for reading text; one that holds
+      // nothing of the kind needs no note and gets none.
+      const noted = element.getAttribute(MARK.unit) === FOUND;
+      const holds = !element.matches(kept) && element.querySelector(candidates) !== null;
+      if (holds && !noted) {
+        // Found to be the site's now: what was marked in it as reading text
+        // is that no longer.
+        for (const inside of element.querySelectorAll(anyMark)) clearMarks(inside);
+        setMark(element, MARK.unit, FOUND);
+      } else if (!holds && noted) {
+        setMark(element, MARK.unit, null);
+      }
+      if (themed) markIsland(element);
+      else clearIsland(element);
+    }
+    for (const element of sheet.querySelectorAll(`[${MARK.sheet}], [${MARK.island}], [${MARK.unit}="${FOUND}"]`)) {
+      if (sites.has(element)) continue;
+      if (!surface.has(element)) {
+        clearIsland(element);
+        setMark(element, MARK.sheet, null);
+      }
+      if (element.getAttribute(MARK.unit) === FOUND) {
+        setMark(element, MARK.unit, null);
+        released.push(element);
+      }
+    }
+    return released;
   }
 
   function unmarkSurface(sheet) {
-    for (const element of [sheet, ...sheet.querySelectorAll(`[${MARK.sheet}], [${MARK.island}]`)]) {
+    const marked = `[${MARK.sheet}], [${MARK.island}], [${MARK.unit}="${FOUND}"]`;
+    for (const element of [sheet, ...sheet.querySelectorAll(marked)]) {
       clearIsland(element);
       setMark(element, MARK.sheet, null);
+      if (element.getAttribute(MARK.unit) === FOUND) setMark(element, MARK.unit, null);
     }
   }
 
-  // Bring the reading surfaces in and around `tree` up to date.
+  // Bring the roots of response text in and around `tree` up to date.
+  // Returns the elements whose content is reading text again.
   function markSurfaces(tree, scope) {
-    if (!site.prose) return;
+    const released = [];
+    if (!site.prose) return released;
     // A root inside another root is part of it.
     const outermost = (element) => {
       let found = element;
@@ -595,9 +708,10 @@ export function createReader({
     const marked = [...tree.querySelectorAll(`[${MARK.sheet}=""]`)];
     for (const sheet of marked) if (!roots.has(sheet)) unmarkSurface(sheet);
     for (const sheet of roots) {
-      if (ownsProse(sheet, scope)) markSurface(sheet);
-      else if (sheet.hasAttribute(MARK.sheet)) unmarkSurface(sheet);
+      if (ownsProse(sheet, scope)) released.push(...markSurface(sheet, scope));
+      else unmarkSurface(sheet);
     }
+    return released;
   }
 
   // The site can change its own theme without touching the conversation: by
@@ -610,14 +724,17 @@ export function createReader({
       siteWatcher = null;
       return;
     }
-    const attributes = new view.MutationObserver(() => measureSite());
+    // Either way the conversation region is measured: an event of the
+    // browser's is not the region, and is not handed on as one.
+    const measure = () => measureSite();
+    const attributes = new view.MutationObserver(measure);
     attributes.observe(root, { attributes: true });
     const scheme = view.matchMedia("(prefers-color-scheme: dark)");
-    scheme.addEventListener("change", measureSite);
+    scheme.addEventListener("change", measure);
     siteWatcher = {
       stop() {
         attributes.disconnect();
-        scheme.removeEventListener("change", measureSite);
+        scheme.removeEventListener("change", measure);
       },
     };
   }
@@ -630,14 +747,21 @@ export function createReader({
   // page. `scope` is the conversation region, found once for a pass over
   // several trees.
   function processTree(tree, scope = scopeElement()) {
+    // First what is the site's in the responses here, with or without a
+    // reading theme: a block inside such a part is not reading text. What
+    // was such a part until now and is not any more is marked with the rest.
+    const released = markSurfaces(tree, scope);
     const elements = tree.matches(candidates) ? [tree] : [];
     elements.push(...tree.querySelectorAll(candidates));
+    for (const element of released) {
+      if (!tree.contains(element)) elements.push(...element.querySelectorAll(candidates));
+    }
 
     // Writes first, in document order, so each block can read its ancestors' marks.
     const marked = [];
     for (const element of elements) {
       if (!isEligible(element, scope)) {
-        clearMarks(element);
+        clearBlock(element);
         continue;
       }
       const direction = directionFor(element);
@@ -670,7 +794,6 @@ export function createReader({
       }
     }
 
-    if (theming()) markSurfaces(tree, scope);
     // Nothing is measured here: see examineBlocks.
     for (const element of marked) freshBlocks.push(element);
   }
@@ -884,13 +1007,18 @@ export function createReader({
           roots: [],
           list: null,
           // The blocks a reader reads: paragraph-like elements that hold text
-          // and no smaller paragraph-like element, outside every kept unit.
+          // and no smaller paragraph-like element, outside every part that
+          // stays the site's. Which parts those are is asked of the document
+          // here, not of the marks, which are there only while a reading
+          // aspect is on.
           get blocks() {
             if (this.list !== null) return this.list;
             this.list = [];
             for (const part of this.roots) {
+              const sites = partsOf(part, scope).units.filter((unit) => !unit.matches(kept));
               for (const element of part.querySelectorAll(markable)) {
-                if (element.querySelector(markable) !== null || !isEligible(element, scope)) continue;
+                if (element.querySelector(markable) !== null || !isReadingText(element, scope)) continue;
+                if (sites.some((unit) => unit.contains(element))) continue;
                 const f = fingerprint(element.textContent);
                 if (f !== null && isReadable(element)) this.list.push({ element, f, t: blockKind(element.localName) });
               }
@@ -1247,15 +1375,28 @@ export function createReader({
 
     put(element, calm ? "auto" : "smooth");
     await rest(element);
-    // The page may have rendered the block again on the way, or moved it.
-    for (let tries = 0; tries < 3; tries += 1) {
+    // The page may have rendered the block again on the way, or moved it. And
+    // seen in place once is not there to stay: a site that keeps only a part
+    // of a long conversation in the document goes on laying it out after a
+    // jump, and what was in view a moment ago is then somewhere else, with
+    // another passage in its place. So the place is reported as reached only
+    // when it is found in place a second time, after the page has settled;
+    // one that moved is put back, and one that will not stay is not reported.
+    let seen = false;
+    for (let tries = 0; tries < ARRIVE_TRIES; tries += 1) {
       if (preferences === null) return null;
       const again = locate();
       if (!again.element) return null;
       if (beginsIn(area, again.element.getBoundingClientRect())) {
-        flash(again.element);
-        return again;
+        if (seen) {
+          flash(again.element);
+          return again;
+        }
+        seen = true;
+        await settle();
+        continue;
       }
+      seen = false;
       put(again.element, "auto");
       await rest(again.element);
     }
@@ -1300,7 +1441,7 @@ export function createReader({
     search?.stop();
     let stored;
     try {
-      stored = await store((current) => saveMark(current, key, record));
+      stored = await store({ change: "save", key, place: record });
     } catch {
       return { status: "failed" };
     }
@@ -1342,7 +1483,7 @@ export function createReader({
     search?.stop();
     let stored;
     try {
-      stored = await store((current) => removeMark(current, key));
+      stored = await store({ change: "remove", key });
     } catch {
       return { status: "failed" };
     }
@@ -1452,10 +1593,7 @@ export function createReader({
     }
     if (Date.now() - rowSeen.at < ROUTE_CHECK_MS / 2) return;
     rowSeen = null;
-    store((current) => {
-      const now = findMark(current, key);
-      return now === null ? current : saveMark(current, key, { ...now, r: row });
-    }).then(
+    store({ change: "row", key, row }).then(
       (stored) => {
         if (preferences !== null) setMarks(stored);
       },
@@ -1583,13 +1721,23 @@ export function createReader({
     if (reading()) {
       const scope = scopeSeen; // found by follow, a moment ago
       const roots = new Set();
-      for (const node of pending) {
+      for (let node of pending) {
         if (!node.isConnected) continue;
         if (!scope.contains(node)) {
           if (node.contains(scope)) roots.add(scope);
           continue;
         }
-        if (node.closest(site.exclude)) continue;
+        const shut = node.closest(site.exclude);
+        if (shut !== null) {
+          // What is never touched is not read. Where it stands inside a
+          // response, though (a field to type in that the site puts there a
+          // moment after the response), what the response is made of has
+          // changed, and the response is looked at again from just outside it.
+          let outer = shut;
+          for (let up = outer.parentElement?.closest(site.exclude); up; up = up.parentElement?.closest(site.exclude)) outer = up;
+          node = outer.parentElement;
+          if (!node || !site.prose || !scope.contains(node) || node.closest(site.prose) === null) continue;
+        }
         // A kept unit whose content changed is examined again as the site made it.
         const unit = node.closest(`[${MARK.island}]`);
         if (unit) clearIsland(unit);
@@ -1631,14 +1779,30 @@ export function createReader({
     }
   }
 
+  // A part that arrives by itself in a response already on the page (a card
+  // streamed in after the text before it) and stays the site's is given the
+  // site's own ground at once, as a unit of a response that arrives whole is,
+  // so that it is readable from the first frame under a reading theme. Only
+  // the document is read; the flush decides everything else.
+  function markArrivedPart(node) {
+    const surface = node.parentElement?.closest(`[${MARK.sheet}]`);
+    if (!surface || !scopeSeen?.isConnected || node.closest(`[${MARK.island}], [${MARK.top}]`)) return;
+    let part = node;
+    while (part.parentElement !== surface) part = part.parentElement;
+    if (partKind(part, surface, scopeSeen) === "unit") markIsland(part);
+  }
+
   function onMutations(records) {
     changedAt = Date.now();
     const coming = []; // added nodes that are or hold a whole response or message
     for (const record of records) {
       const { target } = record;
       if (record.type === "attributes") {
-        // The address of a link in the site's lists changed in place.
-        if (site.rows && target.matches(site.rows)) rowsChanged = true;
+        // The address of a link in the site's lists changed in place; or an
+        // element became somewhere to type, or stopped being one, where it
+        // stands: what is in it is then looked at again.
+        if (record.attributeName === "contenteditable") pending.add(target);
+        else if (site.rows && target.matches(site.rows)) rowsChanged = true;
         continue;
       }
       // What is typed is none of the reader's business: nothing in an
@@ -1655,8 +1819,12 @@ export function createReader({
           textChanged = true;
           continue;
         }
-        if (whole !== null && (node.matches(whole) || node.querySelector(whole) !== null)) coming.push(node);
-        else pending.add(node);
+        if (whole !== null && (node.matches(whole) || node.querySelector(whole) !== null)) {
+          coming.push(node);
+        } else {
+          pending.add(node);
+          if (theming() && node.isConnected) markArrivedPart(node);
+        }
         if (site.rows && !rowsChanged && (node.matches(site.rows) || node.querySelector(site.rows) !== null)) {
           rowsChanged = true;
         }
@@ -1704,9 +1872,9 @@ export function createReader({
     const needed = preferences !== null && (reading() || saved.size > 0);
     if (needed && observer === null) {
       observer = new view.MutationObserver(onMutations);
-      // The address of a link is the one attribute observed, for the rows of
-      // the site's lists.
-      observer.observe(root, { childList: true, subtree: true, characterData: true, attributeFilter: ["href"] });
+      // Two attributes are observed: the address of a link, for the rows of
+      // the site's lists, and whether an element is somewhere to type.
+      observer.observe(root, { childList: true, subtree: true, characterData: true, attributeFilter: ["href", "contenteditable"] });
       document.addEventListener("visibilitychange", onVisibility);
       if (routeEvents) view.navigation.addEventListener("currententrychange", onRoute);
       pathSeen = document.location.pathname;

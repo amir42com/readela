@@ -13,7 +13,7 @@ src/page/      page integration          DOM reading and marking, site adapter
 src/browser/   browser integration       extension namespace, storage, messages
 src/ui/        popup                     controls over the shared preferences
 src/content/   content script entry      wires storage and messages -> page
-src/background/ background component     passes the browser's commands to a page
+src/background/ background component     passes the browser's commands to a page; writes the bookmarks
 src/fonts/     packaged fonts            Inter, Vazirmatn and their licences
 src/manifest/  base + per-browser keys
 ```
@@ -105,10 +105,11 @@ decides everything:
 1. **The reading surface** is a root of response text that the adapter names
    (`prose`), and nothing else. It takes the theme's background and text
    colour, with a spread shadow of the same colour as its margin, so nothing
-   moves. A root in or around a message of the reader's own, or around
-   somewhere to type, is not a surface; a form shut inside a unit that stays
-   the site's (a poll in a card) is that unit's business. Where the adapter
-   recognises no root, nothing is coloured.
+   moves. A root in or around a message of the reader's own is not a
+   surface. Somewhere to type inside a response (a draft the site lets the
+   reader edit in place, a poll) does not make the response the site's: it is
+   a unit of it (4). Where the adapter recognises no root, nothing is
+   coloured.
 2. **Reading text** is the reading blocks directly on a surface and what is
    inside them. It takes the theme's text colour and gives up backgrounds made
    for the site's own theme. What a part of the text means stays visible
@@ -128,7 +129,12 @@ decides everything:
 3. **A wrapper that only holds reading blocks** (around a table, say), and no
    text of its own, is part of the surface, at whatever width the site gives
    it. A wrapper that carries text outside reading blocks is not one: it is a
-   unit (4). Where it is wider than
+   unit (4). Neither is one that holds reading blocks together with an
+   application of its own (a field to type in, a frame, a canvas), so a card
+   with its labels and its form is never taken apart; unless it holds all the
+   reading text there is where it stands, which makes it the response's own
+   structure, and then the part of it that holds no reading text is the unit.
+   Where it is wider than
    the text, the outermost wrapper carries the surface with it: the surface's
    ground, the surface's margin to its two sides and the surface's corners, so
    no strip or square corner shows beyond the text. Wrappers inside it paint
@@ -142,8 +148,14 @@ decides everything:
    font or a size, so the site's own layout decides there. An adapter names
    the units a site has (`capsule`); on ChatGPT, where a reply can be a tree
    of the site's own components, the adapter names the kinds that are text
-   and every other kind, known or not, is a unit. The reader notes on the
-   unit what it needs, after reading the unit's own colours once:
+   and every other kind, known or not, is a unit. What a response is made
+   of is one decision (`partsOf` in the reader), read from the document's
+   structure alone and asked for by everything that needs it: the colours of
+   a theme, direction, font and size, and where a bookmark can be saved. It
+   is therefore the same with a reading theme and with Original appearance; a
+   unit the reader found itself carries `data-readela-unit="found"` where it
+   holds anything that could be taken for reading text. The reader notes on
+   the unit what it needs, after reading the unit's own colours once:
    - `surface` — the site's own measured background is put behind it, so
      what it shows is seen on the ground it was made for: where it shows
      text, the label of a control included; where it holds a drawing larger
@@ -161,10 +173,18 @@ decides everything:
    and no rule at all. A unit whose content changes is examined again. No rule
    sets `overflow`, so nothing a unit shows outside its box is cut.
 
+   Reading a unit's own colours makes the browser lay the page out, so it
+   waits for the next pass (60 ms). Until then a unit that shows text stands
+   on the site's measured background in the site's measured text colour,
+   which needs no measurement: text made for the site's ground is readable
+   from the first frame the browser paints, whether the unit arrives with its
+   response or by itself in a response already shown.
+
 The site's own background is the first fully opaque background from the
 conversation region outwards (`colourAlpha` decides; opaque black is opaque),
 or the browser's page colour where nothing is painted. It is measured again
-when the site changes its theme.
+when the site changes its theme, and when the system changes between light
+and dark.
 
 **Footprint in the page.** Only `data-readela-*` attributes, plus
 `--readela-*` custom properties in three places: on a list or quotation whose
@@ -370,7 +390,9 @@ change needs:
     editable field (what the reader types) is dropped as it arrives. Only
     what changed is looked at again: the blocks in and around it; the rows of
     the site's lists only when a row link was added or the address of one
-    changed (the one attribute observed is `href`).
+    changed. Two attributes are observed: `href`, for those rows, and
+    `contenteditable`, so that an element that becomes somewhere to type
+    where it stands is let go at once.
   - *A change of address.* A site changes conversation without loading a
     page. Where the browser reports that itself (the Navigation API's
     `currententrychange`: Chrome, and Firefox from version 147), nothing
@@ -389,7 +411,8 @@ change needs:
   by itself.
 - The packaged fonts are fetched by the browser from the extension only when
   Readela Sans is on and text of that script, and in that style, is shown.
-- The background component runs only for a command and holds nothing.
+- The background component runs only for a command or a change of the
+  stored bookmarks, and holds nothing between two.
 
 `docs/evidence/` records the measurements these statements rest on, and
 `test/perf/run.mjs` repeats them.
@@ -400,14 +423,23 @@ change needs:
   detects an invalidated extension context.
 - `storage.js` loads, saves and watches the two stored objects, the
   preferences and the saved places, in local extension storage.
-  `changeMarks` is the only way the places are written: it reads the stored
-  object, applies one change, writes, reads again and answers with what is
-  stored. A tab therefore never writes back a copy it took earlier, and
-  nothing is shown or reported as saved or cleared before the browser has
-  stored it. A failed read or write rejects. (Two tabs writing within the same
-  few milliseconds can still interleave; this storage has no transaction.)
-- `messages.js` is the one exchange between the extension's own pages and a
-  page. Settings never travel this way: the popup saves, and the content
+  `changeMarks` reads the stored object, applies one change, writes, reads
+  again and answers with what is stored, so a copy taken earlier is never
+  written back and nothing is reported as saved or cleared before the browser
+  has stored it. A failed read or write rejects. This storage has no
+  transaction, and two such changes at the same moment would interleave; so
+  they are made in one place only. `createMarkWriter` is the one writer: it
+  takes requests (save, remove, note a row), turns each into a change with
+  `changeFor` from the core, and makes them one after another, each against
+  what is stored when its turn comes. It keeps nothing but their order. It
+  runs in the background component, and a page asks it; no page and no popup
+  writes the places.
+- `messages.js` holds the two exchanges inside the extension. A page asks
+  the background component for a change of the stored places
+  (`askWriter`, `answerMarkChanges`) and is answered with what is stored
+  afterwards, or with a failure; the browser keeps the component running
+  until the answer is given. The other is between the extension's own pages
+  and a page. Settings never travel this way: the popup saves, and the content
   script reacts to the stored change. A saved place belongs to the
   conversation in one tab, so the popup asks the content script of the
   active tab to report, save, return or clear, and the background component
@@ -425,13 +457,31 @@ change needs:
 ## Background component (`src/background/`)
 
 One file, `main.js`, built to `background.js`: a service worker in Chrome, a
-script that is not kept running in Firefox. It registers one listener, for
-the commands, and passes a command to the tab the browser names (or the
-active tab of the window last in front) as the message the popup's button
+script that is not kept running in Firefox. It does two things, both for the
+bookmark.
+
+It hears the commands, and passes a command to the tab the browser names (or
+the active tab of the window last in front) as the message the popup's button
 of that name sends (`quick` for a save, which also shows the emphasis; `go`;
-`clear`). It keeps no state, sets no timer, makes no request and stores
-nothing; the browser starts it for a command and lets it go. A tab that is not a supported page
-has no one to answer, and nothing happens.
+`clear`). A tab that is not a supported page has no one to answer, and
+nothing happens.
+
+And it is the one writer of the stored bookmarks (DEC-144). A page that
+saves, updates or removes a bookmark, or learns which row of the site's list
+a conversation is in, asks this component, which makes the change and
+answers once the browser has stored it. Changes asked for at the same moment
+by two tabs are made one after another, so neither is lost. What it accepts
+is a request of one of three kinds with a valid key and a valid place, from
+this extension only; anything else is refused.
+
+It keeps nothing between two changes but their order, sets no timer, makes
+no request and uses no permission beyond the storage the extension already
+has. The browser starts it for a command or a request and lets it go; one
+that is stopped leaves nothing undone, and the next starts from what is
+stored. A change that could not be stored is answered as a failure, and the
+page says so. What it does not give: a change that the browser itself loses
+half-way (a crash between the write and the answer) is reported as failed
+though it may have been stored; the page then shows what is stored.
 
 ## UI (`src/ui/`)
 

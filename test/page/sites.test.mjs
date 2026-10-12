@@ -97,7 +97,7 @@ test("the manifest requests exactly the supported hosts and nothing broader", ()
   }
 });
 
-test("three commands, with no key of their own, and a background component of one file that only passes them on", () => {
+test("three commands, with no key of their own, and a background component of one file that passes them on and is the one writer of bookmarks", () => {
   // The reader gives a command a key in the browser's own settings, or none.
   assert.deepEqual(manifest.commands, {
     bookmark: { description: "Save the bookmark at the reading position, or update it" },
@@ -120,18 +120,37 @@ test("three commands, with no key of their own, and a background component of on
   assert.deepEqual(readJson("chrome.json").background, { service_worker: "background.js" });
   assert.deepEqual(readJson("firefox.json").background, { scripts: ["background.js"] });
 
-  // The component listens for the commands and nothing else, keeps no time,
-  // asks for nothing and stores nothing.
+  // The component listens for the commands, and for requests to change the
+  // stored bookmarks, which it hands to the one writer. It keeps no time,
+  // asks for nothing, and holds nothing of its own between two changes.
   const background = source("background/main.js");
   assert.deepEqual(background.match(/\.addListener\(/g), [".addListener("]);
   assert.match(background, /api\.commands\.onCommand\.addListener\(onCommand\)/);
-  assert.doesNotMatch(
-    background,
-    /setTimeout|setInterval|alarms|fetch\(|XMLHttpRequest|WebSocket|storage\.|importScripts|onMessage|onInstalled|onStartup|keepAlive/,
-  );
+  assert.match(background, /^answerMarkChanges\(createMarkWriter\(\)\);$/m);
+  const idle = /setTimeout|setInterval|alarms|fetch\(|XMLHttpRequest|WebSocket|importScripts|onInstalled|onStartup|onConnect|keepAlive/;
+  assert.doesNotMatch(background, idle);
+  assert.doesNotMatch(background, /api\.storage|new Map|new Set|^(?:let|var) /m);
   // It reaches the page through the one exchange the popup uses.
   assert.match(background, /askTab\(target, request\)/);
-  assert.match(source("browser/messages.js"), /MARK_REQUESTS = Object\.freeze\(\["status", "set", "go", "clear", "quick"\]\)/);
+  const messages = source("browser/messages.js");
+  assert.match(messages, /MARK_REQUESTS = Object\.freeze\(\["status", "set", "go", "clear", "quick"\]\)/);
+
+  // What it runs for a change: nothing that waits or reaches out either, a
+  // request from this extension only, and nothing kept by the writer but the
+  // order of the changes.
+  const storage = source("browser/storage.js");
+  for (const part of [messages, storage]) assert.doesNotMatch(part, idle);
+  assert.equal(messages.match(/sender\.id !== api\.runtime\.id/g).length, 2);
+  const begins = storage.indexOf("export function createMarkWriter");
+  const writer = storage.slice(begins, storage.indexOf("\n}\n", begins));
+  assert.deepEqual(writer.match(/^ {2}(?:let|const) \w+/gm), ["  let last"]);
+  // A page asks the writer and never writes the bookmarks itself; the popup
+  // does not write them at all.
+  assert.match(source("content/main.js"), /store: askStore/);
+  assert.ok(source("content/main.js").includes("askWriter(request).then("), "and waits for the writer's answer only so long");
+  for (const file of ["content/main.js", "page/reader.js", "ui/popup.js"]) {
+    assert.doesNotMatch(source(file), /changeMarks|createMarkWriter|storage\.local\.set\(\{ \[MARKS_KEY\]/, file);
+  }
 });
 
 test("the page listens for no key to save with, and the popup records none", () => {

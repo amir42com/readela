@@ -38,8 +38,10 @@ built and loaded for development, as described below.
 - **Text direction:** Original, Auto, RTL or LTR. Auto is the default:
   paragraphs, headings, lists, quotations and tables read right-to-left when
   at least 40% of their words are in a right-to-left script, whatever the
-  first word is. Lists and tables are decided as a unit, so markers,
-  indentation and column order agree with the text.
+  first word is. A sentence with fewer still reads right-to-left when it is
+  a right-to-left sentence full of terms in Latin letters: when its own words
+  stand first, or last and in between. Lists and tables are decided as a
+  unit, so markers, indentation and column order agree with the text.
 - **Bookmark:** Save, Return and Remove, one bookmark per conversation,
   kept on this device. Save takes the first paragraph of a response that
   begins in view, below the site's header, or the paragraph you selected text
@@ -175,7 +177,9 @@ information kept on your device, not encryption.
 Readela also declares three commands to the browser (save the bookmark,
 return to it, remove it), none of which has a keyboard shortcut unless you
 assign one, and a background component of one small file that passes a
-command to the page and does nothing else. Neither is a permission.
+command to the page and writes your bookmarks to the browser's storage, one
+change at a time, so that two tabs cannot overwrite one another. Neither is
+a permission.
 
 Three font files, Inter (upright and italic) and Vazirmatn, are packaged with
 the extension and made available to those two sites so their pages can display

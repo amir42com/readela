@@ -301,6 +301,37 @@ export function removeMark(marks, key) {
   return normalizeMarks({ version: MARKS_VERSION, items: others });
 }
 
+/**
+ * The change a request makes to the stored places, as a function of what is
+ * stored at the moment it is made, never of what the one who asks held
+ * earlier. Returns null for anything that is not a request this code makes.
+ *
+ * - `{ change: "save", key, place }`: the place of the conversation `key`,
+ *   in place of the one it had (see `saveMark`).
+ * - `{ change: "remove", key }`: no place for that conversation.
+ * - `{ change: "row", key, row }`: the row the conversation is listed in (see
+ *   `rowFingerprint`), on the place it has; nothing where it has none.
+ *
+ * @param {unknown} request
+ * @returns {((marks: unknown) => ReturnType<typeof normalizeMarks>) | null}
+ */
+export function changeFor(request) {
+  if (request === null || typeof request !== "object" || !isFingerprint(request.key)) return null;
+  const { key } = request;
+  if (request.change === "save") {
+    const place = validPlace({ ...request.place, k: key });
+    return place === null ? null : (marks) => saveMark(marks, key, place);
+  }
+  if (request.change === "remove") return (marks) => removeMark(marks, key);
+  if (request.change === "row" && isFingerprint(request.row)) {
+    return (marks) => {
+      const now = findMark(marks, key);
+      return now === null ? normalizeMarks(marks) : saveMark(marks, key, { ...now, r: request.row });
+    };
+  }
+  return null;
+}
+
 /** Whether two places are the same record. */
 export function samePlace(first, second) {
   if (first === null || second === null) return first === second;

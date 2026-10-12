@@ -5,6 +5,7 @@ export { measureScripts, addCounts } from "./script.js";
 export {
   DIRECTION,
   RTL_SHARE_THRESHOLD,
+  RTL_LEAD_SHARE,
   decideDirection,
   resolveDirection,
   directionOfText,
@@ -47,5 +48,6 @@ export {
   canSave,
   saveMark,
   removeMark,
+  changeFor,
   samePlace,
 } from "./marker.js";

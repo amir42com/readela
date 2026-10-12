@@ -3,15 +3,39 @@
 // browser's bookmark commands.
 
 import { isExtensionAlive } from "../browser/api.js";
-import { answerMarkRequests } from "../browser/messages.js";
-import { changeMarks, watchMarks, watchPreferences } from "../browser/storage.js";
+import { answerMarkRequests, askWriter } from "../browser/messages.js";
+import { watchMarks, watchPreferences } from "../browser/storage.js";
 import { createReader } from "../page/reader.js";
 import { siteFor } from "../page/sites/index.js";
 
 const site = siteFor(location.hostname);
 
+// How long the page waits for the writer's answer. A change takes a few
+// milliseconds, and a writer the browser has to start first a little longer.
+const STORE_ANSWER_MS = 5000;
+
+// The page never writes the stored places itself: it asks the one writer. A
+// change that is not answered in time is not reported as made: the reader is
+// told it failed. Whatever is stored shows itself, as every change of what is
+// stored does.
+function askStore(request) {
+  return new Promise((resolve, reject) => {
+    const late = setTimeout(() => reject(new Error("the writer did not answer")), STORE_ANSWER_MS);
+    askWriter(request).then(
+      (stored) => {
+        clearTimeout(late);
+        resolve(stored);
+      },
+      (error) => {
+        clearTimeout(late);
+        reject(error);
+      },
+    );
+  });
+}
+
 if (site !== null) {
-  const reader = createReader({ document, site, isAlive: isExtensionAlive, store: changeMarks });
+  const reader = createReader({ document, site, isAlive: isExtensionAlive, store: askStore });
 
   // Marks left by an earlier instance (the extension was reloaded under an
   // open page) are removed before this one starts.

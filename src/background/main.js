@@ -1,15 +1,24 @@
-// Background component: hears the commands the browser manages for Readela
-// (save or update the bookmark, return to it, remove it) and passes each to
-// the page in the tab it was given for.
+// Background component. It does two things, both for the bookmark:
 //
-// That is all it does. It keeps no state, sets no timer, makes no request and
-// asks for no permission; the browser starts it when the command is given and
-// lets it go afterwards. The page does the work, by the same functions the
-// popup's buttons call.
+// - it hears the commands the browser manages for Readela (save or update the
+//   bookmark, return to it, remove it) and passes each to the page in the tab
+//   it was given for; the page does the work, by the same functions the
+//   popup's buttons call;
+// - it is the one writer of the stored bookmarks. A page asks for a change
+//   and this component makes it, one change after another, each against what
+//   is stored at that moment, and answers once the browser has stored it. Two
+//   tabs that save at the same moment therefore cannot lose one another's
+//   bookmark.
+//
+// It keeps nothing between two changes but their order, sets no timer, makes
+// no request and asks for no permission beyond the storage the extension
+// already has. The browser starts it when a command or a request arrives and
+// lets it go afterwards; one that starts again starts from what is stored.
 
 import { api } from "../browser/api.js";
-import { askTab } from "../browser/messages.js";
+import { answerMarkChanges, askTab } from "../browser/messages.js";
 import { COMMANDS } from "../browser/shortcut.js";
+import { createMarkWriter } from "../browser/storage.js";
 
 /**
  * Pass a command to the tab it was given in: the tab the browser names, or
@@ -35,6 +44,7 @@ export async function onCommand(command, tab) {
 }
 
 api.commands.onCommand.addListener(onCommand);
+answerMarkChanges(createMarkWriter());
 // Reachable by name inside this component only, so that the handler can be
 // called where a key the browser manages cannot be pressed: in the tests.
 globalThis.readelaOnCommand = onCommand;

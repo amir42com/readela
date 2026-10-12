@@ -37,6 +37,8 @@ const chatgptLongSource = readFileSync(path.join(root, "test", "e2e", "fixtures"
 const CHATGPT_LONG_URL = "https://chatgpt.com/c/readela-long-fixture";
 const componentsSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "chatgpt-components.html"), "utf8");
 const COMPONENTS_URL = "https://chatgpt.com/c/readela-components";
+const draftsSource = readFileSync(path.join(root, "test", "e2e", "fixtures", "chatgpt-drafts.html"), "utf8");
+const DRAFTS_URL = "https://chatgpt.com/c/readela-drafts";
 // The single-page sites change the address without loading a document; a
 // reload at such an address is answered with the conversation it belongs to.
 const FIXTURES = {
@@ -46,6 +48,7 @@ const FIXTURES = {
   [LONG_FIXTURE_URL]: longSource,
   [CHATGPT_LONG_URL]: chatgptLongSource,
   [COMPONENTS_URL]: componentsSource,
+  [DRAFTS_URL]: draftsSource,
 };
 
 // A file inside the installed extension: never a network request.
@@ -2035,6 +2038,107 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNoPlace(page);
   });
 
+  // -------------------------------------------------------------------------
+  // ChatGPT: replies that hold a draft the reader can edit in place, and
+  // parts of a reply that Readela has never seen
+
+  const drafts = await openFixture(browser, requests, DRAFTS_URL);
+  const draftErrors = [];
+  drafts.on("pageerror", (error) => draftErrors.push(String(error?.message ?? error)));
+  const onDrafts = async (action) => {
+    await front(popup);
+    await action(popup);
+    await front(drafts);
+  };
+  const chooseOnDrafts = (group, value) => onDrafts((p) => press(p, `input[name="${group}"][value="${value}"]`));
+  // The tab in front, as the extension names it, and a request sent to tabs
+  // from the extension's own page: all of them at the same moment.
+  const tabInFront = async (target) => {
+    await front(target);
+    return popup.evaluate(async () => {
+      const extension = globalThis.browser ?? globalThis.chrome;
+      return (await extension.tabs.query({ active: true, currentWindow: true }))[0]?.id ?? null;
+    });
+  };
+  const askTabs = (tabs, request) =>
+    popup.evaluate(
+      (ids, word) => {
+        const extension = globalThis.browser ?? globalThis.chrome;
+        // A tab that does not answer is said to be so, and holds up nothing.
+        const late = (id) => new Promise((resolve) => setTimeout(() => resolve(`no answer from tab ${id}`), 15000));
+        const ask = async (id) => (await extension.tabs.sendMessage(id, { readelaMark: word }))?.status ?? null;
+        return Promise.all(ids.map((id) => Promise.race([ask(id), late(id)])));
+      },
+      tabs,
+      request,
+    );
+  const draftFacts = () =>
+    drafts.evaluate(() => {
+      const element = (id) => document.getElementById(id);
+      const marks = (node) => node.getAttributeNames().filter((name) => name.startsWith("data-readela"));
+      const style = (id) => getComputedStyle(element(id));
+      const look = (id) => `${style(id).color} / ${style(id).fontFamily} / ${style(id).fontSize} / ${style(id).zoom} / ${style(id).direction}`;
+      return {
+        sheets: ["w-reply", "m-reply"].map((id) => element(id).hasAttribute("data-readela-sheet")).join(),
+        tops: ["w-before", "w-after", "m-before", "m-after"].map((id) => element(id).hasAttribute("data-readela-top")).join(),
+        colours: ["w-before", "w-after", "m-before", "m-after"].map((id) => style(id).color),
+        islands: ["w-slot", "m-slot", "m-card"].map((id) => element(id).getAttribute("data-readela-island") ?? "none"),
+        units: ["w-slot", "m-slot", "m-card"].map((id) => element(id).getAttribute("data-readela-unit") ?? "none").join(),
+        grounds: ["w-slot", "m-slot", "m-card"].map((id) => style(id).backgroundColor),
+        // Nothing in a field the reader types in is ever marked, and nothing in a part that stays the site's.
+        inFields: ["w-editable", "m-editable"].flatMap((id) => [element(id), ...element(id).querySelectorAll("*")]).flatMap(marks).length,
+        inCard: [...element("m-card").querySelectorAll("*")].flatMap(marks).length,
+        looks: Object.fromEntries(["w-h", "w-p", "w-li", "m-p", "m-card", "m-card-h", "m-card-p"].map((id) => [id, look(id)])),
+        page: `${getComputedStyle(document.body).backgroundColor} / ${getComputedStyle(document.body).color}`,
+        text: document.querySelector("#d-thread").textContent,
+      };
+    });
+
+  // The step below stops the background component, and has to come before
+  // the first step that looks into that component with the automation
+  // protocol: a component being looked into is not started again by a
+  // message, which is the protocol's doing and not the browser's.
+  await step("two tabs that save, update and remove a bookmark at the same moment lose nothing: every change is made by the one writer, also after the browser has stopped it", async () => {
+    const tabs = [await tabInFront(page), await tabInFront(drafts)];
+    assert.ok(tabs.every((id) => Number.isInteger(id)) && tabs[0] !== tabs[1], `two tabs: ${tabs}`);
+    await askTabs(tabs, "clear");
+    assert.equal((await storedMarks())?.items?.length ?? 0, 0);
+    for (let round = 0; round < 5; round += 1) {
+      assert.deepEqual(await askTabs(tabs, "set"), ["saved", "saved"], `round ${round}: both saved`);
+      assert.equal((await storedMarks()).items.length, 2, `round ${round}: both are stored`);
+      // An update in one and a removal in the other, together.
+      const [updated, removed] = await popup.evaluate(
+        ([first, second]) => {
+          const extension = globalThis.browser ?? globalThis.chrome;
+          const late = (id) => new Promise((resolve) => setTimeout(() => resolve(`no answer from tab ${id}`), 15000));
+          const ask = async (id, word) => (await extension.tabs.sendMessage(id, { readelaMark: word })).status;
+          return Promise.all([Promise.race([ask(first, "set"), late(first)]), Promise.race([ask(second, "clear"), late(second)])]);
+        },
+        round % 2 ? tabs : [...tabs].reverse(),
+      );
+      assert.deepEqual([updated, removed], ["saved", "none"], `round ${round}`);
+      assert.equal((await storedMarks()).items.length, 1, `round ${round}: the update was not lost to the removal`);
+      assert.deepEqual((await askTabs(tabs, "clear")).sort(), ["none", "none"]);
+      assert.equal((await storedMarks()).items.length, 0);
+    }
+    if (name === "chrome") {
+      // The browser lets the background component go when it is idle. One
+      // that is stopped keeps nothing, and the next change starts it again.
+      const client = await popup.createCDPSession();
+      await client.send("ServiceWorker.enable");
+      await client.send("ServiceWorker.stopAllWorkers");
+      await client.detach();
+      await sleep(300);
+      assert.deepEqual(await askTabs(tabs, "set"), ["saved", "saved"], "after the component was stopped");
+      assert.equal((await storedMarks()).items.length, 2);
+      assert.deepEqual((await askTabs(tabs, "clear")).sort(), ["none", "none"]);
+    }
+    assert.equal((await storedMarks()).items.length, 0);
+    await front(page);
+    await loadPopup(popup, popupAddress);
+    await waitForState("Save · 0 total");
+  });
+
   await step("the browser's own command bookmarks or updates exactly as the popup does; it has no key until the reader gives it one, and the page listens for none", async () => {
     // The command reaches the background component, which passes it to the
     // tab. A key the browser manages cannot be pressed through the automation
@@ -2465,6 +2569,59 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNote("Returned to your bookmark.", 40000);
     assert.deepEqual(await places(page), ["lt-same-6:exact"]);
     assert.equal(await inView("lt-same-6", page, LT), true);
+  });
+
+  await step("ChatGPT, long conversation: a place the site moves again after the jump is put back, and Return says it is there only when it stays; one that will not stay is not reported", async () => {
+    // The place is in the document, two turns above what is in view. A moment
+    // after the scrolling has stopped the site lays the conversation out
+    // again, and the view ends up most of a screen from where Return put it.
+    const away = async () => {
+      await showTurn(8);
+      await page.waitForFunction(() => document.querySelector("#lt-same-6") !== null, { polling: 100 });
+      assert.equal(await inView("lt-same-6", page, LT), false);
+    };
+    await away();
+    await page.evaluate(() => {
+      window.readelaShifts = 0;
+      window.readelaSettleShift = 1100;
+      window.readelaSettleDelay = 250;
+      // Where the place is, as the reader would see it, every few moments.
+      window.readelaTops = [];
+      window.readelaWatch = setInterval(() => {
+        const place = document.querySelector("#lt-same-6");
+        if (place) window.readelaTops.push(Math.round(place.getBoundingClientRect().top));
+      }, 40);
+    });
+    await placeButton("return");
+    await waitForNote("Returned to your bookmark.", 20000);
+    assert.equal(await page.evaluate(() => window.readelaShifts), 1, "the site did move the conversation after the jump");
+    const seen = await page.evaluate(() => {
+      clearInterval(window.readelaWatch);
+      return { lowest: Math.max(...window.readelaTops), height: innerHeight };
+    });
+    assert.ok(seen.lowest > seen.height, `the place was carried out of view on the way (to ${seen.lowest} of ${seen.height})`);
+    assert.deepEqual(await places(page), ["lt-same-6:exact"]);
+    assert.equal(await inView("lt-same-6", page, LT), true, "the place is in view when Return says so");
+    await sleep(1000);
+    assert.equal(await inView("lt-same-6", page, LT), true, "and it is still there a second later");
+    assert.equal(await page.evaluate(() => window.readelaShifts), 1);
+
+    // A site that moves the conversation after every stop: the place never
+    // stays, so it is never reported as reached. It stays saved.
+    await away();
+    await page.evaluate(() => {
+      window.readelaShifts = 0;
+      window.readelaSettleShift = 1100;
+      window.readelaSettleAlways = true;
+    });
+    await placeButton("return");
+    await waitForNote("Your bookmark was not found. It is still saved.", 30000);
+    assert.ok((await page.evaluate(() => window.readelaShifts)) >= 2, "the place was put back, and moved again");
+    assert.equal((await storedMarks()).items.length, 1);
+    await page.evaluate(() => {
+      window.readelaSettleShift = 0;
+      window.readelaSettleAlways = false;
+    });
 
     await placeButton("clear");
     await waitForNote("Bookmark removed.");
@@ -2834,6 +2991,143 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await parts.evaluate(() => document.querySelector('[data-turn-key="readela-components-turn-2"]').remove());
     await chooseOnParts("theme", "page");
     await parts.waitForFunction(() => document.querySelector("[data-readela-sheet], [data-readela-island]") === null);
+  });
+
+  // -------------------------------------------------------------------------
+  // ChatGPT: replies that hold a draft the reader can edit in place, and
+  // parts of a reply that Readela has never seen (the page was opened above)
+
+  await step("ChatGPT: a reply that holds a draft the reader can edit keeps its reading theme; the draft stays the site's, whole, and nothing in it is read or written", async () => {
+    await waitForMark(drafts, "#w-before", "rtl");
+    await drafts.waitForFunction(() => window.draftsReady === true);
+    await sleep(300);
+    const original = await draftFacts();
+    assert.equal(original.inFields, 0, "nothing in a field is marked once it is somewhere to type");
+    assert.equal(original.sheets, "false,false", "no surface without a reading theme");
+    for (const theme of ["paper", "night"]) {
+      await chooseOnDrafts("theme", theme);
+      await drafts.waitForFunction(() => document.querySelector("#m-reply").hasAttribute("data-readela-sheet"));
+      // Shown anew: the theme is there from the start, and stays when the
+      // fields become editable a moment later.
+      await drafts.reload({ waitUntil: "load" });
+      await drafts.waitForFunction(() => document.querySelector("#w-reply").hasAttribute("data-readela-sheet"), { polling: 50 });
+      await drafts.waitForFunction(() => window.draftsReady === true);
+      await sleep(600);
+      await drafts.waitForFunction(() => (document.querySelector("#m-card").getAttribute("data-readela-island") ?? "").includes("surface"), { polling: 100 });
+      const facts = await draftFacts();
+      const [surface, text] = facts.page.split(" / ");
+      assert.equal(facts.sheets, "true,true", `${theme}: both replies are reading surfaces`);
+      assert.equal(facts.tops, "true,true,true,true", theme);
+      for (const colour of facts.colours) assert.ok(isColour(colour, THEMES[theme].text), `${theme}: reading text is the theme's (${colour})`);
+      // The draft and the unknown part stand on the site's own ground, in the site's own colours.
+      for (const [index, island] of facts.islands.entries()) {
+        assert.ok(island.includes("surface"), `${theme}: part ${index} is kept on the site's ground (${island})`);
+        assert.equal(facts.grounds[index], surface, `${theme}: part ${index}`);
+      }
+      for (const id of ["w-h", "w-p", "w-li", "m-p", "m-card", "m-card-h", "m-card-p"]) {
+        assert.equal(facts.looks[id], original.looks[id], `${theme}: ${id} looks as the site made it`);
+        assert.ok(facts.looks[id].startsWith(text), `${theme}: ${id} is in the site's text colour`);
+      }
+      assert.equal(facts.inFields, 0, `${theme}: nothing in a field is marked`);
+      assert.equal(facts.inCard, 0, theme);
+      assert.equal(facts.text, original.text, `${theme}: no text is changed`);
+    }
+    await chooseOnDrafts("theme", "page");
+    await drafts.waitForFunction(() => document.querySelector("[data-readela-sheet], [data-readela-island]") === null);
+  });
+
+  await step("ChatGPT: a part of a reply that Readela has never seen stays the site's in direction, font and size, with and without a reading theme, and is no place for a bookmark", async () => {
+    await chooseOnDrafts("theme", "page");
+    await drafts.waitForFunction(() => document.querySelector("[data-readela-sheet], [data-readela-island]") === null);
+    await chooseOnDrafts("direction", "page");
+    await drafts.waitForFunction(() => document.querySelector("[data-readela-dir]") === null);
+    const site = (await draftFacts()).looks;
+    // Every reading aspect at once, and no reading theme: Original appearance.
+    await chooseOnDrafts("direction", "ltr");
+    await chooseOnDrafts("font", "sans");
+    await chooseOnDrafts("size", "125");
+    await drafts.waitForFunction(() => getComputedStyle(document.querySelector("#m-before")).zoom === "1.25" && document.querySelector("#m-before").getAttribute("data-readela-dir") === "ltr");
+    const facts = await draftFacts();
+    assert.equal(facts.units, "found,found,found", "each part is noted as the site's");
+    assert.deepEqual(facts.islands, ["none", "none", "none"], "and coloured by nothing where no theme is on");
+    assert.equal(facts.inCard, 0, "nothing in it is given a direction or taken for reading text");
+    assert.equal(facts.inFields, 0);
+    for (const id of ["m-card", "m-card-h", "m-card-p", "w-h", "w-p", "w-li", "m-p"]) assert.equal(facts.looks[id], site[id], `${id} keeps the site's direction, font and size`);
+    assert.match(await drafts.$eval("#m-after", (element) => getComputedStyle(element).fontFamily), /Readela Sans/);
+
+    // A selection inside such a part does not make it a place: the bookmark
+    // goes to reading text, or nowhere.
+    const tab = await tabInFront(drafts);
+    for (const id of ["m-card-p", "w-p"]) {
+      await select(id, drafts);
+      assert.deepEqual(await askTabs([tab], "set"), ["saved"]);
+      const where = await drafts.evaluate(() => {
+        const place = document.querySelector("[data-readela-mark]");
+        return { id: place?.id ?? null, inside: place?.closest("#m-card, #w-slot, #m-slot") !== null };
+      });
+      assert.equal(where.inside, false, `selected ${id}; the place is ${where.id}`);
+      assert.deepEqual(await askTabs([tab], "clear"), ["none"]);
+    }
+    await drafts.evaluate(() => getSelection().removeAllRanges());
+
+    await chooseOnDrafts("size", "page");
+    await chooseOnDrafts("font", "page");
+    await chooseOnDrafts("direction", "auto");
+    await waitForMark(drafts, "#m-before", "rtl");
+    await drafts.waitForFunction(() => !document.documentElement.hasAttribute("data-readela-font") && !document.documentElement.hasAttribute("data-readela-size"));
+  });
+
+  await step("ChatGPT: a part that stays the site's is readable on the first frame the browser paints, whether it arrives with its reply or after it", async () => {
+    for (const scheme of schemes) {
+      if (input) await drafts.emulateMediaFeatures([{ name: "prefers-color-scheme", value: scheme }]);
+      // The reading theme opposite to the site's own: text made for the
+      // site's ground would be lost on the theme's.
+      const theme = scheme === "dark" ? "paper" : "night";
+      await chooseOnDrafts("theme", theme);
+      await drafts.waitForFunction(() => (document.querySelector("#m-card").getAttribute("data-readela-island") ?? "").includes("surface"), { polling: 100 });
+      for (const arrive of ["arriveWhole", "arrivePart"]) {
+        const first = await drafts.evaluate((name) => window[name](), arrive);
+        const label = `${scheme} site, ${theme}, ${arrive}: ${JSON.stringify(first)}`;
+        assert.ok((first.marks ?? "").includes("surface"), label);
+        assert.ok(contrast(rgb(first.text), rgb(first.ground)) >= 4.5, label);
+        assert.ok(contrast(rgb(first.heading), rgb(first.ground)) >= 4.5, label);
+      }
+    }
+    if (input) await drafts.emulateMediaFeatures([]);
+    await chooseOnDrafts("theme", "page");
+    await drafts.waitForFunction(() => document.querySelector("[data-readela-sheet], [data-readela-island]") === null);
+  });
+
+  await step("when the system changes between light and dark, the site's own colours are measured again, without an error; Off stops listening", async () => {
+    if (!input) {
+      // This browser's colour scheme is fixed for a launch (see `start`).
+      report.schemeChange = "not run: the colour scheme cannot be changed while this browser runs";
+      return;
+    }
+    const surface = () => drafts.evaluate(() => document.documentElement.style.getPropertyValue("--readela-site-surface"));
+    const scheme = (value) => drafts.emulateMediaFeatures([{ name: "prefers-color-scheme", value }]);
+    await scheme("light");
+    await chooseOnDrafts("theme", "night");
+    await drafts.waitForFunction(() => document.documentElement.style.getPropertyValue("--readela-site-surface") === "rgb(255, 255, 255)", { polling: 100 });
+    draftErrors.length = 0;
+    for (const [value, ground] of [["dark", "rgb(33, 33, 33)"], ["light", "rgb(255, 255, 255)"], ["dark", "rgb(33, 33, 33)"]]) {
+      await scheme(value);
+      await drafts.waitForFunction((wanted) => document.documentElement.style.getPropertyValue("--readela-site-surface") === wanted, { polling: 100, timeout: 5000 }, ground).catch(() => {});
+      assert.equal(await surface(), ground, `after the system turned ${value}`);
+      assert.equal(await drafts.$eval("#m-card", (element) => getComputedStyle(element).backgroundColor), ground, "a part that stays the site's follows");
+    }
+    assert.deepEqual(draftErrors, [], "no error on a change of colour scheme");
+    // Off: the colours are let go, and a later change is no one's business.
+    await onDrafts((p) => press(p, "#enabled"));
+    await drafts.waitForFunction(() => document.documentElement.style.getPropertyValue("--readela-site-surface") === "");
+    await scheme("light");
+    await sleep(300);
+    assert.equal(await surface(), "");
+    assert.deepEqual(draftErrors, []);
+    await onDrafts((p) => press(p, "#enabled"));
+    await chooseOnDrafts("theme", "page");
+    await drafts.emulateMediaFeatures([]);
+    await waitForMark(drafts, "#m-before", "rtl");
   });
 
   // -------------------------------------------------------------------------

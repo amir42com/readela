@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Readela fixture: replies that hold a draft the reader can edit, and parts Readela has never seen</title>
+    <link rel="icon" href="data:," />
+    <!--
+      A synthetic conversation for what was read on ChatGPT on 2026-10-12
+      (element names, attribute names, nesting; every word here is made up).
+
+      The site can set a draft inside a reply in a block the reader edits in
+      place: a rounded frame that holds a field to type in, with the draft's
+      headings, paragraphs and lists inside the field. It stands among the
+      paragraphs of a plain reply, or as one part of a reply made of the
+      site's components. The field becomes editable a moment after the reply
+      is shown.
+
+      Besides, a part Readela has never seen: a wrapper with text of its own
+      and a heading, made for the site's own ground.
+
+      On window, for the tests:
+        draftsReady            true once the fields are editable
+        arriveWhole()          a reply arrives whole, holding such a part
+        arrivePart()           such a part arrives in a reply already shown
+      Each of the two returns what the part looks like on the first frame the
+      browser paints after it arrived.
+    -->
+    <style>
+      :root { color-scheme: light dark; --page: #ffffff; --text: #0d0d0d; --second: #5d5d5d; --line: rgba(0, 0, 0, 0.15); --chip: #ececec; }
+      @media (prefers-color-scheme: dark) {
+        :root { --page: #212121; --text: #ededed; --second: #cdcdcd; --line: rgba(255, 255, 255, 0.15); --chip: #414141; }
+      }
+      html, body { margin: 0; height: 100%; }
+      body { font: 16px/1.5 system-ui, sans-serif; color: var(--text); background: var(--page); }
+      main { height: 100%; display: flex; flex-direction: column; }
+      header { flex: none; height: 48px; border-bottom: 1px solid var(--line); }
+      #d-scroller { flex: 1; overflow-y: auto; }
+      .thread { max-width: 760px; margin: 0 auto; padding: 24px; }
+      section { margin-bottom: 32px; }
+      [data-user-message-bubble] { margin: 0 0 24px auto; max-width: 70%; padding: 10px 16px; border-radius: 18px; background: var(--chip); }
+      [data-theme] { color: var(--text); }
+      [data-d-direction="col"] { display: flex; flex-direction: column; gap: 12px; }
+      [data-d-text-flow] { margin: 0; }
+      p, h1, h3, ol { margin: 0 0 12px; }
+      /* The frame of a draft: rounded, with no background of its own. */
+      [data-oai-writing-block-surface] { border-radius: 24px; padding: 12px 20px; box-shadow: 0 0 0 1px var(--line); }
+      [data-oai-writing-block-surface] [role="textbox"] { outline: none; }
+      .draft-bar { display: flex; justify-content: flex-end; }
+      .draft-bar button { border: 0; background: transparent; color: var(--second); font: inherit; }
+      /* A part made for the site's ground: its own text colour, nothing behind it. */
+      .native-card { color: var(--text); padding: 12px 16px; border-radius: 12px; }
+      .native-card h3 { font-size: 18px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header aria-label="Conversation header"></header>
+      <div id="d-scroller" data-app-action-timeline-scroll="">
+        <div class="thread" id="d-thread">
+          <!-- A reply made of the site's components, with a draft as one of its parts. -->
+          <section data-turn-key="readela-drafts-turn-1">
+            <div data-user-message-bubble="true"><div dir="auto">یک پیش‌نویس بنویس.</div></div>
+            <div data-markdown-text-style="assistant-message" dir="auto" data-selected-text-overlay-target="" id="w-reply">
+              <div data-dil-source-message-id="d-m1" data-chatgpt-copy-reference="0" data-markdown-copy="contents">
+                <div>
+                  <div style="display: none"></div>
+                  <div data-theme="dark">
+                    <div dir="auto" data-d-inline-reveal="" data-d-direction="col" data-dil-message-id="d-m1" id="w-column">
+                      <p data-d-text-flow="" data-d-component="text" id="w-before">این پیش‌نویس را می‌توانید همین‌جا ویرایش کنید.</p>
+                      <div id="w-slot">
+                        <div data-oai-writing-block-surface="" data-markdown-copy="writing-block" data-markdown-copy-text="" data-testid="writing-block" data-writing-block-variant="document" id="w-block">
+                          <div class="draft-bar"><button type="button">Copy</button></div>
+                          <div><div><div><div>
+                            <div data-markdown-copy-content="" dir="auto">
+                              <div data-newline-selection-appearance="" data-table-selection-appearance="">
+                                <div class="draft-field" aria-multiline="true" aria-label="Start writing" translate="no" id="w-editable">
+                                  <h1 id="w-h">Launch plan</h1>
+                                  <p id="w-p">سلام، این متن پیش‌نویس است و خواننده می‌تواند آن را ویرایش کند.</p>
+                                  <ol><li id="w-li">First step of the plan</li></ol>
+                                </div>
+                              </div>
+                            </div>
+                          </div></div></div></div>
+                          <div></div>
+                        </div>
+                      </div>
+                      <p data-d-text-flow="" data-d-component="text" id="w-after">This sentence comes after the draft and is reading text.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- A reply of plain Markdown elements: the draft stands among the paragraphs, and so does a part Readela has never seen. -->
+          <section data-turn-key="readela-drafts-turn-2">
+            <div data-user-message-bubble="true"><div dir="auto">And a short note, please.</div></div>
+            <div data-markdown-text-style="assistant-message" dir="auto" id="m-reply">
+              <p dir="auto" id="m-before">پیش از پیش‌نویس یک جملهٔ فارسی آمده است.</p>
+              <div id="m-slot">
+                <div data-oai-writing-block-surface="" data-markdown-copy="writing-block" data-markdown-copy-text="" data-testid="writing-block" data-writing-block-variant="document" id="m-block">
+                  <div class="draft-bar"><button type="button">Copy</button></div>
+                  <div><div><div><div>
+                    <div data-markdown-copy-content="" dir="auto">
+                      <div data-newline-selection-appearance="" data-table-selection-appearance="">
+                        <div class="draft-field" aria-multiline="true" aria-label="Start writing" translate="no" id="m-editable">
+                          <p id="m-p">A short note the reader can edit in place.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div></div></div></div>
+                  <div></div>
+                </div>
+              </div>
+              <div class="native-card" id="m-card">Site note <h3 id="m-card-h">عنوان یک کارت</h3><p id="m-card-p">Text of a card, made for the site's own ground.</p></div>
+              <p dir="auto" id="m-after">After the draft, an English sentence closes the reply.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+      <form aria-label="Message composer" style="flex: none; padding: 12px 24px">
+        <div id="d-composer" contenteditable="true" role="textbox" aria-label="Message">Message</div>
+      </form>
+    </main>
+    <script>
+      {
+        // The fields become editable a moment after the page is shown, once
+        // the site's own code has run: one is put in the document anew by its
+        // editor, the other is made editable where it stands.
+        const written = document.querySelector(".draft-field").innerHTML;
+        setTimeout(() => {
+          const [first, second] = document.querySelectorAll(".draft-field");
+          const anew = document.createElement("div");
+          for (const name of ["class", "aria-multiline", "aria-label", "translate", "id"]) anew.setAttribute(name, first.getAttribute(name));
+          anew.innerHTML = written;
+          anew.setAttribute("contenteditable", "true");
+          anew.setAttribute("role", "textbox");
+          first.replaceWith(anew);
+          second.setAttribute("contenteditable", "true");
+          second.setAttribute("role", "textbox");
+          window.draftsReady = true;
+        }, 400);
+
+        const make = (name, attributes = {}, ...children) => {
+          const node = document.createElement(name);
+          for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+          node.append(...children);
+          return node;
+        };
+        const card = (id) =>
+          make("div", { class: "native-card", id }, "Site note ", make("h3", { id: `${id}-h` }, "Card title"), make("p", { id: `${id}-p` }, "Text of a card, made for the site's own ground."));
+        // What a part looks like on the first frame painted after it arrived:
+        // the colour of its text, and what is painted behind that text.
+        const firstFrame = (id) =>
+          new Promise((resolve) => {
+            requestAnimationFrame(() => {
+              const part = document.getElementById(id);
+              let ground = "rgba(0, 0, 0, 0)";
+              for (let node = part; node && /rgba\(0, 0, 0, 0\)|transparent/.test(ground); node = node.parentElement) {
+                ground = getComputedStyle(node).backgroundColor;
+              }
+              resolve({
+                marks: part.getAttribute("data-readela-island"),
+                text: getComputedStyle(part.querySelector("p")).color,
+                heading: getComputedStyle(part.querySelector("h3")).color,
+                own: getComputedStyle(part).backgroundColor,
+                ground,
+              });
+            });
+          });
+        let turns = 2;
+        window.arriveWhole = () => {
+          turns += 1;
+          const id = `a-card-${turns}`;
+          document.querySelector("#d-thread").append(
+            make(
+              "section",
+              { "data-turn-key": `readela-drafts-turn-${turns}` },
+              make(
+                "div",
+                { "data-markdown-text-style": "assistant-message", dir: "auto", id: `a-reply-${turns}` },
+                make("p", { dir: "auto" }, "A reply that arrives whole, with a part of the site's in it."),
+                card(id),
+              ),
+            ),
+          );
+          return firstFrame(id);
+        };
+        window.arrivePart = () => {
+          turns += 1;
+          const id = `a-card-${turns}`;
+          document.querySelector("#m-reply").append(card(id));
+          return firstFrame(id);
+        };
+      }
+    </script>
+  </body>
+</html>
