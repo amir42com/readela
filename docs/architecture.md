@@ -507,13 +507,38 @@ followed.
 `src/fonts/` holds the official Inter variable fonts (upright and italic), the
 official Vazirmatn Non-Latin variable font and their licences;
 `src/fonts/README.md` records the upstream versions, files and digests. The
-stylesheet declares three `@font-face` rules, each limited by `unicode-range`
-to the characters of its own script: Inter for Latin and Latin Extended,
+stylesheet declares each font by `@font-face`, limited by `unicode-range` to
+the characters of its own script: Inter for Latin and Latin Extended,
 Vazirmatn for Arabic script. A script is therefore never shown in the other's
 font, and text in neither falls through to the device's fonts. The browser
 loads a file from the extension itself, and only when such text is shown in
 Readela Sans. For a page to use them, the three files are the manifest's
 web-accessible resources, limited to the two supported hosts.
+
+The space and the marks of a sentence belong to both scripts. Given to Inter
+alone, they make a Persian sentence change font at every space, and the
+browser shapes it in dozens of pieces instead of one, which costs layout work
+and memory on a long conversation. Vazirmatn is therefore declared a second
+time, under a name of its own and with those characters added (the space,
+the no-break space, `! ( ) - . / : [ ] « »` and the two dashes; never a
+letter or a digit of the Latin script). A fourth `@font-face` rule names the
+same file, which the browser fetches once. Which declaration applies is
+decided by the stylesheet alone, from the direction Readela gave the nearest
+block: a custom property, `--readela-font`, carries the fonts of right-to-left
+text on a block marked right-to-left and those of left-to-right text on one
+marked left-to-right and on a web address kept whole, and the one rule that
+sets the reading font reads it. No text is wrapped, no text node is looked at
+for this, and nothing is written to the page. In text Readela gave no
+direction (Direction set to Original) the fonts are as they are declared for
+left-to-right text.
+
+The two Inter faces are declared with `font-feature-settings: "kern" 0`.
+Inter's kerning is most of what it costs the browser to lay Latin text out,
+enough to make frames long on a page that is being written, and long frames
+are what left the page's memory in pieces. Without it Latin letters stand
+within a fraction of a pixel of where they stood. Vazirmatn keeps its own
+kerning, which Persian needs. A site that asks for kerning by name on its
+text gets it back.
 
 Readela Sans applies to reading text. Code, keyboard input, sample text and
 mathematics are left to their own fonts, and a unit the site presents as a

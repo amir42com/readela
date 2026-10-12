@@ -202,7 +202,7 @@ test("the popup calls the feature Bookmark, shows the total only, and keeps its 
 });
 
 test("the web-accessible resources are the packaged fonts and nothing else, for the supported hosts only", () => {
-  const fonts = BUNDLED_FONTS.map((font) => font.file);
+  const fonts = [...new Set(BUNDLED_FONTS.map((font) => font.file))];
   assert.deepEqual(fonts, ["fonts/Vazirmatn-NL-wght.woff2", "fonts/InterVariable.woff2", "fonts/InterVariable-Italic.woff2"]);
   assert.deepEqual(manifest.web_accessible_resources, [{ resources: fonts, matches: matchPatterns() }]);
   for (const file of fonts) assert.ok(existsSync(new URL(`../../src/${file}`, import.meta.url)), `${file} is in the source tree`);

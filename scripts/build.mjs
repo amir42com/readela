@@ -63,7 +63,7 @@ async function buildFor(browser) {
   cpSync(path.join(source, "icons"), path.join(output, "icons"), { recursive: true });
   // The packaged fonts with their licences; the notes about them stay in the source.
   mkdirSync(path.join(output, "fonts"));
-  for (const file of [...BUNDLED_FONTS.map((font) => font.file), ...FONT_LICENCES]) {
+  for (const file of new Set([...BUNDLED_FONTS.map((font) => font.file), ...FONT_LICENCES])) {
     cpSync(path.join(source, file), path.join(output, file));
   }
 

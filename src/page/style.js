@@ -84,6 +84,12 @@ export const SITE_PROPERTIES = Object.freeze({
  */
 export const ISLAND_RADIUS = "--readela-island-radius";
 
+/**
+ * Custom property the stylesheet sets on a block Readela gave a direction,
+ * while Readela Sans is on: the fonts of the reading text in it.
+ */
+export const READING_FONT = "--readela-font";
+
 /** Paragraph-like elements: the blocks a reader reads and can save a place at. */
 export const TEXT_BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, dt, dd, th, td, caption, summary, figcaption";
 
@@ -259,6 +265,7 @@ export function buildCss({ fontUrl = (file) => file } = {}) {
       `  font-style: ${font.style};`,
       `  font-display: swap;`,
       `  unicode-range: ${font.unicodeRange};`,
+      ...(font.features ? [`  font-feature-settings: ${font.features};`] : []),
       `}`,
     );
   }
@@ -292,14 +299,22 @@ export function buildCss({ fontUrl = (file) => file } = {}) {
   // a site renders as inline code.
   const own = `${PROTECTED}, svg, [${MARK.unit}], [${MARK.token}]`;
   for (const font of FONT_CHOICES) {
-    const { fontFamily } = resolveTypography({ font });
+    const { fontFamily, fontFamilyRtl } = resolveTypography({ font });
     if (fontFamily === null) continue;
-    const scope = `html[${MARK.font}="${font}"] [${MARK.top}]:not(pre)`;
+    const chosen = `html[${MARK.font}="${font}"]`;
+    const scope = `${chosen} [${MARK.top}]:not(pre)`;
     rules.push(
-      `${scope}:not([${MARK.unit}]), ${scope}:not([${MARK.unit}]) :not(:is(${own}), :is(${own}) *) { font-family: ${fontFamily} !important; }`,
+      `${scope}:not([${MARK.unit}]), ${scope}:not([${MARK.unit}]) :not(:is(${own}), :is(${own}) *) { font-family: var(${READING_FONT}, ${fontFamily}) !important; }`,
+      // The fonts are those of the nearest block Readela gave a direction.
+      // In one that reads right-to-left the space and the marks of a sentence
+      // are the Arabic-script font's, so a sentence is shaped in one piece; a
+      // web address in it, kept left-to-right as a unit, is whole in the
+      // Latin font. Text Readela gave no direction is as it is declared.
+      `${chosen} [${MARK.dir}="rtl"] { ${READING_FONT}: ${fontFamilyRtl}; }`,
+      `${chosen} :is([${MARK.dir}="ltr"], [${MARK.ltr}]) { ${READING_FONT}: ${fontFamily}; }`,
       // A unit inside reading text would take the reading font from the text
       // around it; it is given the site's own font back.
-      `html[${MARK.font}="${font}"] [${MARK.top}] [${MARK.unit}] { font-family: var(${SITE_PROPERTIES.font}) !important; }`,
+      `${chosen} [${MARK.top}] [${MARK.unit}] { font-family: var(${SITE_PROPERTIES.font}) !important; }`,
     );
   }
 

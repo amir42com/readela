@@ -8,6 +8,16 @@ characters of its own script only:
 - **Inter** for Latin and Latin Extended text;
 - **Vazirmatn** for Arabic-script text (Persian, Arabic).
 
+In a block that reads right-to-left, Vazirmatn also draws the space and the
+marks of a sentence it has a glyph for (`! ( ) - . / : [ ] « »`, the two
+dashes and the no-break space), so that a Persian sentence is one piece in
+one font instead of changing font at every space. Latin letters and digits
+are Inter's everywhere. The file is the same; it is declared twice.
+
+Inter is declared without its kerning (`font-feature-settings: "kern" 0` in
+its two `@font-face` rules), which is most of what it costs to lay out;
+Vazirmatn keeps its own. The files themselves are not touched.
+
 Hebrew and every other script use the device's own sans-serif fonts. Code keeps
 its monospaced font and mathematics its renderer's fonts.
 

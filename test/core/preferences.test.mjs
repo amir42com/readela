@@ -14,7 +14,7 @@ import {
 
 test("defaults leave colours and typography to the page and decide direction automatically", () => {
   assert.deepEqual(normalizePreferences(undefined), { ...DEFAULT_PREFERENCES });
-  assert.deepEqual(resolveTypography(DEFAULT_PREFERENCES), { fontFamily: null, scale: null, lineHeight: null });
+  assert.deepEqual(resolveTypography(DEFAULT_PREFERENCES), { fontFamily: null, fontFamilyRtl: null, scale: null, lineHeight: null });
   assert.equal(DEFAULT_PREFERENCES.direction, "auto");
   assert.equal(DEFAULT_PREFERENCES.theme, "page");
 });
@@ -90,11 +90,11 @@ test("the unchanged state of every aspect leaves the page alone", () => {
 test("typography choices resolve to presentation values", () => {
   assert.deepEqual(resolveTypography({ font: "page", size: "125", spacing: "1.75" }), {
     fontFamily: null,
+    fontFamilyRtl: null,
     scale: 1.25,
     lineHeight: 1.75,
   });
   const stack = resolveTypography({ font: "sans" }).fontFamily;
-  // The packaged face comes first; everything after it is a system font.
   // The packaged faces come first, then system fonts only.
   assert.ok(stack.startsWith(`"Readela Sans Arabic", "Readela Sans Latin", system-ui`));
   // Each face is limited to its own script: Vazirmatn never shows Latin or
@@ -104,6 +104,7 @@ test("typography choices resolve to presentation values", () => {
     "Readela Sans Arabic normal 100 900",
     "Readela Sans Latin normal 100 900",
     "Readela Sans Latin italic 100 900",
+    "Readela Sans Arabic Text normal 100 900",
   ]);
   assert.match(arabic.unicodeRange, /U\+0600-06FF/);
   assert.doesNotMatch(arabic.unicodeRange, /U\+00|U\+05/);
@@ -112,4 +113,25 @@ test("typography choices resolve to presentation values", () => {
   assert.equal(italic.unicodeRange, latin.unicodeRange);
   // An italic of its own for Latin text; none is claimed for Arabic script.
   assert.equal(BUNDLED_FONTS.filter((font) => font.style === "italic").length, 1);
+});
+
+test("in text that reads right-to-left the space and the marks of a sentence are the Arabic-script font's", () => {
+  const { fontFamily: stack, fontFamilyRtl: stackRtl } = resolveTypography({ font: "sans" });
+  const [arabic, latin, , arabicText] = BUNDLED_FONTS;
+  // The same file, declared once more: its own script, the space and the
+  // marks of a sentence. Never a letter or a digit of the Latin script.
+  assert.equal(arabicText.file, arabic.file);
+  assert.ok(arabicText.unicodeRange.startsWith(`${arabic.unicodeRange}, U+0020, U+00A0, `));
+  const added = arabicText.unicodeRange.slice(arabic.unicodeRange.length + 2).split(", ");
+  const points = added.flatMap((range) => {
+    const [from, to = from] = range.slice(2).split("-").map((value) => parseInt(value, 16));
+    return Array.from({ length: to - from + 1 }, (_, index) => String.fromCodePoint(from + index));
+  });
+  assert.equal(points.join(""), "  !()-./:[]«»–—");
+  assert.ok(points.every((point) => !/[\p{L}\p{N}]/u.test(point)));
+  // Only the stack for right-to-left text names that face; the other is as it was.
+  assert.equal(stackRtl, stack.replace('"Readela Sans Arabic"', '"Readela Sans Arabic Text"'));
+  assert.ok(!stack.includes("Readela Sans Arabic Text"));
+  assert.ok(stackRtl.startsWith(`"Readela Sans Arabic Text", "Readela Sans Latin", system-ui`));
+  assert.equal(latin.family, "Readela Sans Latin");
 });

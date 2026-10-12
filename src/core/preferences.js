@@ -89,6 +89,13 @@ const LATIN =
 const ARABIC =
   "U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC";
 
+// What a line of either script uses and the Arabic-script font has a glyph
+// for: the space, and the marks of a sentence.
+const SHARED = "U+0020, U+00A0, U+0021, U+0028-0029, U+002D-002F, U+003A, U+005B, U+005D, U+00AB, U+00BB, U+2013-2014";
+
+// A face declared with this is laid out without the font's pair adjustments.
+const NO_KERNING = '"kern" 0';
+
 /**
  * The fonts packaged with the extension: what Readela Sans is made of. Each
  * face is declared for the characters of its own script only, so a script is
@@ -98,6 +105,20 @@ const ARABIC =
  *
  * - Latin: Inter, upright and italic, every weight.
  * - Arabic script: Vazirmatn, every weight. It has no italic of its own.
+ *
+ * The space and the marks of a sentence belong to both scripts. Given to the
+ * Latin font alone, they make a right-to-left sentence change font at every
+ * space, and the browser then shapes it in dozens of pieces instead of one.
+ * So the Arabic-script font is declared once more, with those characters,
+ * for text that reads right-to-left: there a sentence is one piece in one
+ * font, and a Latin word in it is still Inter's. It is the same file; the
+ * browser fetches it once.
+ *
+ * Inter is declared without its kerning. Applying its pair adjustments is
+ * most of what Inter costs the browser to lay out, enough to make frames
+ * long on a page that is being written, and at reading sizes the letters
+ * stand where they stood to within a fraction of a pixel. Vazirmatn keeps
+ * its own, which Persian needs.
  */
 export const BUNDLED_FONTS = Object.freeze([
   Object.freeze({
@@ -113,6 +134,7 @@ export const BUNDLED_FONTS = Object.freeze([
     style: "normal",
     weight: "100 900",
     unicodeRange: LATIN,
+    features: NO_KERNING,
   }),
   Object.freeze({
     family: "Readela Sans Latin",
@@ -120,29 +142,43 @@ export const BUNDLED_FONTS = Object.freeze([
     style: "italic",
     weight: "100 900",
     unicodeRange: LATIN,
+    features: NO_KERNING,
+  }),
+  Object.freeze({
+    family: "Readela Sans Arabic Text",
+    file: "fonts/Vazirmatn-NL-wght.woff2",
+    style: "normal",
+    weight: "100 900",
+    unicodeRange: `${ARABIC}, ${SHARED}`,
   }),
 ]);
 
 /** The licence of each packaged font, shipped beside the fonts. */
 export const FONT_LICENCES = Object.freeze(["fonts/OFL.txt", "fonts/Inter-LICENSE.txt"]);
 
-// After the packaged faces the stack names system fonts only. Families with
+// After the packaged faces a stack names system fonts only. Families with
 // spaces are quoted for direct use in CSS.
+const SYSTEM_FONTS = `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Noto Sans Hebrew", "Arial Hebrew", Arial, sans-serif`;
 const FONT_STACKS = Object.freeze({
-  sans: `${[...new Set(BUNDLED_FONTS.map((font) => `"${font.family}"`))].join(", ")}, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Noto Sans Hebrew", "Arial Hebrew", Arial, sans-serif`,
+  sans: Object.freeze({
+    fontFamily: `"Readela Sans Arabic", "Readela Sans Latin", ${SYSTEM_FONTS}`,
+    fontFamilyRtl: `"Readela Sans Arabic Text", "Readela Sans Latin", ${SYSTEM_FONTS}`,
+  }),
 });
 
 /**
  * Resolve preferences into presentation values.
  *
  * @param {ReturnType<typeof normalizePreferences>} preferences
- * @returns {{ fontFamily: string | null, scale: number | null, lineHeight: number | null }}
- *   `null` means "leave the page's own value".
+ * @returns {{ fontFamily: string | null, fontFamilyRtl: string | null, scale: number | null, lineHeight: number | null }}
+ *   `null` means "leave the page's own value". `fontFamilyRtl` is the stack
+ *   for text that reads right-to-left.
  */
 export function resolveTypography(preferences) {
   const { font, size, spacing } = normalizePreferences(preferences);
   return {
-    fontFamily: font === "page" ? null : FONT_STACKS[font],
+    fontFamily: font === "page" ? null : FONT_STACKS[font].fontFamily,
+    fontFamilyRtl: font === "page" ? null : FONT_STACKS[font].fontFamilyRtl,
     scale: size === "page" ? null : Number(size) / 100,
     lineHeight: spacing === "page" ? null : Number(spacing),
   };

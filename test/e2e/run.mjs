@@ -1034,7 +1034,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await choose("spacing", "2.0");
     await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-spacing") === "2.0");
     const after = await inspect(page, ["#p-en-start", "#code", "#h-fa", "#li-fa-1", "#ul-fa", "#code-block"]);
-    assert.match(after["#p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, "?Readela Sans Latin"?, system-ui/);
+    assert.match(after["#p-en-start"].fontFamily, /^"?Readela Sans Arabic Text"?, "?Readela Sans Latin"?, system-ui/);
     assert.notEqual(after["#p-en-start"].fontFamily, before["#p-en-start"].fontFamily);
     assert.equal(after["#code"].fontFamily, before["#code"].fontFamily);
     assert.equal(Number(after["#p-en-start"].zoom), 1.25);
@@ -1114,6 +1114,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       const ready = () =>
         uses("Readela Sans Latin", samples.latin) &&
         uses("Readela Sans Arabic", samples.persian) &&
+        uses("Readela Sans Arabic Text", samples.persian) &&
         latin("italic 400", "emphasised words") !== latin("400", "emphasised words");
       const deadline = Date.now() + 10000;
       while (!ready() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
@@ -1126,6 +1127,26 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       facts.bold = latin("700", "strong words") !== latin("500", "strong words");
       facts.boldItalic = latin("italic 700", "both at once") !== latin("700", "both at once");
       facts.arabicBold = arabic("700", "متن پررنگ") !== arabic("400", "متن پررنگ");
+      // The face for right-to-left text: the same script, and with it the
+      // space and the marks of a sentence, which the other face leaves to
+      // Inter. Never a Latin letter or a digit.
+      const inText = (text) => [uses("Readela Sans Arabic", text), uses("Readela Sans Arabic Text", text)].join(" ");
+      facts.textFace = { persian: inText(samples.persian), space: inText("   "), marks: inText("(.:!)"), latin: inText("Hello"), digits: inText("123") };
+      // Inter is declared without its kerning, Vazirmatn with its own: asking
+      // the canvas to leave kerning out changes the width of Persian text
+      // and not of Latin text, which has none to leave out.
+      const kerned = (family, text) => {
+        context.font = `40px "${family}", monospace`;
+        context.fontKerning = "none";
+        const without = context.measureText(text).width;
+        context.fontKerning = "auto";
+        return context.measureText(text).width !== without;
+      };
+      facts.kerning = {
+        latin: kerned("Readela Sans Latin", "AVAVAV To Ty We Yo, r. LT"),
+        arabic: kerned("Readela Sans Arabic", "نمونهٔ متن فارسی"),
+        arabicText: kerned("Readela Sans Arabic Text", "نمونهٔ متن فارسی"),
+      };
       return facts;
     });
     assert.deepEqual(measured, {
@@ -1139,6 +1160,8 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       bold: true,
       boldItalic: true,
       arabicBold: true,
+      textFace: { persian: "true true", space: "false true", marks: "false true", latin: "false false", digits: "false false" },
+      kerning: { latin: false, arabic: true, arabicText: true },
     });
 
     // What the choice touches and what it leaves alone, against Original.
@@ -1147,8 +1170,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
         (list) =>
           Object.fromEntries(
             list.map((selector) => {
-              const style = getComputedStyle(document.querySelector(selector));
-              return [selector, { family: style.fontFamily, style: style.fontStyle, weight: Number(style.fontWeight) }];
+              const element = document.querySelector(selector);
+              const style = getComputedStyle(element);
+              // The nearest thing Readela gave a direction: a block, or a web address kept whole.
+              const marked = element.closest("[data-readela-dir], [data-readela-ltr]");
+              const reads = marked === null || marked.hasAttribute("data-readela-ltr") ? "ltr" : marked.getAttribute("data-readela-dir");
+              return [selector, { family: style.fontFamily, style: style.fontStyle, weight: Number(style.fontWeight), reads }];
             }),
           ),
         selectors,
@@ -1161,8 +1188,16 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await choose("font", "sans");
     await page.waitForFunction(() => document.documentElement.getAttribute("data-readela-font") === "sans");
     const sans = await typography([...reading, ...own]);
+    // The fonts follow the direction Readela gave the block: in right-to-left
+    // text the Arabic-script face that also draws the space, elsewhere the
+    // one that leaves it to Inter.
+    assert.deepEqual(
+      Object.fromEntries(["#h-fa", "#li-fa-1", "#p-en-start", "#p-en"].map((selector) => [selector, sans[selector].reads])),
+      { "#h-fa": "rtl", "#li-fa-1": "rtl", "#p-en-start": "rtl", "#p-en": "ltr" },
+    );
     for (const selector of reading) {
-      assert.match(sans[selector].family, /^"?Readela Sans Arabic"?, "?Readela Sans Latin"?, system-ui/, selector);
+      const first = sans[selector].reads === "rtl" ? "Readela Sans Arabic Text" : "Readela Sans Arabic";
+      assert.match(sans[selector].family, new RegExp(`^"?${first}"?, "?Readela Sans Latin"?, system-ui`), selector);
       assert.doesNotMatch(original[selector].family, /Readela Sans/, `Original leaves ${selector} to the page`);
       assert.deepEqual(
         { style: sans[selector].style, weight: sans[selector].weight },
@@ -3226,7 +3261,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal(Number(after["#c-user"].zoom), 1.25);
     assert.equal(Number(after["#c-ul-fa"].zoom), 1.25);
     assert.equal(Number(after["#c-li-fa-1"].zoom), 1);
-    assert.match(after["#c-p-en-start"].fontFamily, /^"?Readela Sans Arabic"?, "?Readela Sans Latin"?, system-ui/);
+    assert.match(after["#c-p-en-start"].fontFamily, /^"?Readela Sans Arabic(?: Text)?"?, "?Readela Sans Latin"?, system-ui/);
     assert.equal(after["#c-code"].fontFamily, before["#c-code"].fontFamily);
     assert.equal(Number(after["#c-ui-p"].zoom), 1, "page text outside messages is not scaled");
     assert.equal(after["#c-ui-p"].fontFamily, before["#c-ui-p"].fontFamily);

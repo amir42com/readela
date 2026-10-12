@@ -34,21 +34,43 @@ test("the only resources the stylesheet names are the packaged fonts, and nothin
   // Each face is limited to the characters of its own script, and Latin text
   // has an italic of its own.
   const faces = buildCss().match(/@font-face \{[^}]*\}/g);
-  assert.equal(faces.length, 3);
+  assert.equal(faces.length, 4);
   for (const [index, font] of BUNDLED_FONTS.entries()) {
     assert.ok(faces[index].includes(`font-family: "${font.family}";`));
     assert.ok(faces[index].includes(`font-style: ${font.style};`));
     assert.ok(faces[index].includes(`unicode-range: ${font.unicodeRange};`));
   }
+  // The Latin faces are declared without kerning; the Arabic-script ones keep theirs.
+  assert.deepEqual(
+    faces.map((face) => face.includes('font-feature-settings: "kern" 0;')),
+    BUNDLED_FONTS.map((font) => font.family === "Readela Sans Latin"),
+  );
+  assert.equal(buildCss().match(/font-feature-settings/g).length, 2);
 });
 
 test("Readela Sans leaves code, mathematics and units of the site's to their own fonts", () => {
   const rule = buildCss().split("\n").find((line) => line.startsWith('html[data-readela-font="sans"]'));
-  assert.ok(rule.includes('"Readela Sans Arabic", "Readela Sans Latin", system-ui'));
+  assert.ok(rule.includes('font-family: var(--readela-font, "Readela Sans Arabic", "Readela Sans Latin", system-ui'));
   for (const kept of ["pre", "code", "kbd", "samp", "math", ".katex", "mjx-container", "svg", "[data-readela-unit]", "[data-readela-token]"]) {
     assert.ok(rule.includes(kept), kept);
   }
   assert.ok(rule.includes("[data-readela-top]:not(pre):not([data-readela-unit])"));
+});
+
+test("the fonts of reading text follow the direction Readela gave the block, and nothing else sets them", () => {
+  const lines = buildCss().split("\n");
+  const sets = lines.filter((line) => line.includes("--readela-font:"));
+  assert.deepEqual(sets.map((line) => line.slice(0, line.indexOf(" {"))), [
+    'html[data-readela-font="sans"] [data-readela-dir="rtl"]',
+    'html[data-readela-font="sans"] :is([data-readela-dir="ltr"], [data-readela-ltr])',
+  ]);
+  // Right-to-left text: the Arabic-script font with the space and the marks
+  // of a sentence. Left-to-right text and a web address kept whole: as declared.
+  assert.ok(sets[0].includes('--readela-font: "Readela Sans Arabic Text", "Readela Sans Latin", system-ui'));
+  assert.ok(sets[1].includes('--readela-font: "Readela Sans Arabic", "Readela Sans Latin", system-ui'));
+  // The property is read in one place, and does nothing unless Readela Sans is chosen.
+  assert.equal(lines.filter((line) => line.includes("var(--readela-font")).length, 1);
+  assert.ok(lines.filter((line) => line.includes("--readela-font")).every((line) => line.startsWith('html[data-readela-font="sans"]')));
 });
 
 test("a saved conversation's row gets a small bookmark that takes no part in the row's layout or input", () => {
