@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-correction-2.json",
+  "recordDate": "2026-10-10",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "relatedWorkUnits": ["ENT-240", "ENT-244", "ENT-243"],
+    "title": "Readela 0.3.0: second correction of draft pull request 9 after the owner's second review",
+    "authorizingDecisions": ["DEC-141", "DEC-142", "DEC-136", "DEC-116"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-10 continuing ENT-246, under the accepted DEC-141 and DEC-142. It authorizes the bounded work in scope.inScope on the existing branch feat/ent-240-readela-0.3.0, its tests, documentation and evidence, commits and their push to that branch, an accurate description of draft pull request 9, and a fresh local unpacked Chrome build for owner review. It does not authorize integration, merging pull request 9, marking it ready, a tag, a release, submission or publication to any store, a change to store images or store copy, or anything in scope.outOfScope.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": [
+      "docs/project-preflight/ent-246-readela-0.3.0-correction.json",
+      "docs/project-preflight/ent-240-readela-0.3.0-reading-comfort.json"
+    ],
+    "status": "Both remain the records for the work they cover and are not edited. The first ENT-246 record placed sidebar indicators out of scope, kept the packaged font unchanged and described a search of 40 stops and 12 seconds; it does not cover a mark on the site's sidebar, a second packaged font, a keyboard action, a refusal at a capacity limit or the changed targeting. This record covers the continuation and reuses neither as a parent."
+  },
+  "baseCommit": "8fe6b631af4b9ce3b90556f7d06e65afbbb8b8e8",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope expands outside the scope covered by the first ENT-246 Preflight: sidebar indicators, a second packaged font, a keyboard action, capacity semantics and the targeting of save and return",
+      "the work changes documented technical and trust invariants in docs/privacy-and-permissions.md: the application shell is no longer wholly untouched (one attribute on the links of saved conversations in the site's own lists, whose address paths are read in memory); a second third-party asset and two more web-accessible resources (Inter, roman and italic); a key listener in the page; when and how far the conversation is scrolled on Return; a refusal instead of an eviction at the capacity limit"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. The vendored dev-standards pin is v0.6.0 with the identities below; the verifier passed on baseCommit on 2026-10-10.",
+      "protocolChanged": "No. The revision is v1.23, the revision the earlier records were assessed under."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-10",
+    "branch": "feat/ent-240-readela-0.3.0 at 8fe6b631af4b9ce3b90556f7d06e65afbbb8b8e8 locally and on the remote; clean worktree and index.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 locally and on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, head 8fe6b63, mergeable, check verify succeeded.",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree.",
+    "product": "package.json version 0.3.0; permissions [\"storage\"]; content-script matches exactly https://chatgpt.com/* and https://claude.ai/*; one web-accessible resource (the packaged Vazirmatn font); no background script; stored objects readela.preferences (version 2) and readela.marks (version 2, at most 100 places, the oldest dropped).",
+    "releases": "0.2.1 is the public version in both stores. Nothing from 0.3.0 is merged, tagged, submitted or published.",
+    "ownerReview": "The owner's second review found head 8fe6b63 not ready to merge (recorded in DEC-141 and DEC-142).",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "Saved place recovery on ChatGPT for a place far above the reader in a long conversation, from the cause observed on the site; the trust model (response-scoped anchors, no duplicate, safe unresolved outcome, stop on input, on a change of conversation and when Readela is off) is kept.",
+      "Saved place targeting without a selection: the first readable response paragraph that begins clearly below whatever covers the top of the reading area, found from the page's geometry. Return places the saved paragraph clearly below the same cover and reports success only then.",
+      "Inline code, keyboard and sample text under Paper and Night: a foreground, background and boundary of their own from theme tokens. Complete code blocks stay the site's.",
+      "A table with its wrappers as one coherent part of the reading surface, at its own width and with its sideways scrolling.",
+      "Popup: whether this conversation has a saved place and how many conversations have one; a refusal message at the capacity limit; a line naming the keyboard action.",
+      "Sidebar indicators: one data-readela attribute on the link of each conversation in the site's own lists that has a saved place, drawn as a small filled bookmark by the packaged stylesheet. The links' address paths are read in memory to derive the conversation key; no title, label or address is stored.",
+      "Capacity: 1000 saved conversations; a new conversation at the limit is refused and nothing is evicted; the stored format is unchanged.",
+      "Readela Sans: the official unmodified Inter variable fonts (roman and italic) packaged for Latin text beside Vazirmatn for Arabic script, each limited by unicode-range, with licence, version and digests recorded; two more web-accessible font files for the two supported hosts only. The visible choices stay Original and Readela Sans.",
+      "One keyboard action in the content script that saves or updates the place exactly as the popup's button does, ignored while typing; no new permission, no background script, no command registered with the browser.",
+      "Tests, fixtures, documentation and dated evidence made necessary by the above; a local unpacked Chrome build for owner review; an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "Merging pull request 9, marking it ready for review, a v0.3.0 tag, a release, and submission or publication to the Chrome Web Store, Firefox Add-ons or any other provider.",
+      "Store images and store copy (ENT-243, paused).",
+      "A context-menu command; a floating, draggable or persistent saved-place control; a list or manager of saved places; return or clear from the keyboard.",
+      "A third visible font choice, further appearance modes, a popup redesign.",
+      "Read aloud, translation, highlighting, focus modes, notes, new sites, Edge, Safari, Android or other platforms.",
+      "A new permission, a broader match pattern, a background script, a backend, analytics, telemetry, account or sync infrastructure, remote code, a remote font or any network request.",
+      "Dependency changes, a new build system, a new test framework and unrelated refactors.",
+      "Changes to declared Capabilities or Exceptions, to the dev-standards pin and to the repository ruleset."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "assessment": "The extension remains a browser interface with no backend or operated service. A mark on sidebar links, a second packaged font and a key listener add no Capability."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692",
+    "adoptedInTarget": true,
+    "verification": "node .governance/dev-standards/verify-dev-standards.mjs, locally and as the required verify check."
+  },
+  "externalCapabilities": {
+    "note": "Load-bearing behaviour of the two supported sites, observed read-only in the owner's signed-in browser on 2026-10-10 before the contract was frozen: element names, attribute names, computed styles, geometry and counts only; no conversation text, title or address was recorded and nothing was typed or sent.",
+    "items": [
+      {
+        "capability": "ChatGPT: the conversation's scrolling region is a flex container with flex-direction column-reverse. Its scrollTop is 0 at the end of the conversation and negative above it; a positive value is clamped to 0.",
+        "authority": "Observed: scrollTop set to 5000 read back as 0; set to -3000 read back as -3000; the minimum equalled minus the scrollable range.",
+        "probe": "The ChatGPT fixture scrolls the same way; the end-to-end suite returns to a place far above from the end and to a place far below from the top."
+      },
+      {
+        "capability": "ChatGPT: a conversation opens with its last five turns in the document. Each time the beginning of the loaded part is scrolled into view, a batch of earlier turns is loaded and the scrollable range grows; only the turns near the viewport stay in the document, the others being replaced by an estimated height.",
+        "authority": "Observed on one conversation: five turns and a range of about 5,200px at first; after the beginning was shown, a range of about 28,000px with six turns in the document; after the new beginning was shown, about 35,600px.",
+        "probe": "A long ChatGPT fixture pages earlier turns in when its beginning is shown and keeps only nearby turns in the document."
+      },
+      {
+        "capability": "Claude: the transcript scrolls behind the chat header, which is positioned over the top of the scrolling region (48px, with an opaque band of 72px) and does not take pointer input, so a hit test passes through it. ChatGPT: the scrolling region begins below the fixed header and the composer overlays its lower edge.",
+        "authority": "Observed geometry and computed position and pointer-events.",
+        "probe": "The fixtures carry a cover over the top of the scrolling region that takes no pointer input (Claude) and a sticky bar inside it (ChatGPT)."
+      },
+      {
+        "capability": "Sidebar rows: ChatGPT a[data-interactive-row-link] with href /c/<id> or /g/<project>/c/<id>; Claude a[data-row-main-button] with href /chat/<id>. Both are flex links whose ::after is unused and whose offset parent is the row.",
+        "authority": "Observed on both sites.",
+        "probe": "Fixtures with the same hooks, including rows added later and rows removed; where the hook is missing no row is marked."
+      },
+      {
+        "capability": "ChatGPT: a table sits in [data-markdown-table][data-wide-block] > a wrapper with overflow auto > a wrapper > table, with an absolutely positioned row of controls beside it. Claude: inline code is a code element with a border and background of its own inside reading text.",
+        "authority": "Observed.",
+        "probe": "Fixtures; computed-style and painted-pixel checks."
+      },
+      {
+        "capability": "Neither site sets an accesskey attribute; the shortcuts the sites advertise in the page use Control (Control+K, Control+Shift+O).",
+        "authority": "Observed in the documents of both sites; the browsers' own shortcut lists for Alt+Shift+S.",
+        "probe": "The end-to-end suite presses the key in the page, in the composer and in an input."
+      },
+      {
+        "capability": "Inter is published by its author at github.com/rsms/inter under the SIL Open Font License 1.1, with variable web fonts in the release archive.",
+        "authority": "The upstream release and its licence file, read when the asset is added; version, file names and digests recorded in src/fonts/README.md.",
+        "probe": "The end-to-end suite asserts that Latin text is rendered with the packaged face, Arabic-script text with Vazirmatn, and that no request leaves the extension."
+      }
+    ],
+    "notObserved": [
+      "How long ChatGPT takes to load a batch of earlier turns with the page in view; the tab used for observation was not in view, where pages are not rendered.",
+      "A table wider than the reply column on either site; the wide-table case is built from the wrapper structure observed.",
+      "Inline code on ChatGPT in the conversations opened."
+    ]
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission, privacy or store-publication rule.",
+      "handling": "Unchanged. The project-local controls in docs/privacy-and-permissions.md apply and are updated in the same change, as its control 8 requires."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "Owner review of the corrected local build on real ChatGPT and Claude conversations.",
+      "reason": "Automated checks run on synthetic pages; rendered judgement on real pages, and the integration decision, are the owner's.",
+      "revisitTrigger": "The fresh unpacked Chrome build is loaded."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "Release of 0.3.0 and the refresh of store images and copy (ENT-243).",
+      "reason": "Not authorized by this work.",
+      "revisitTrigger": "Owner acceptance of the corrected build."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "Product rigor. Nothing is published by this work.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "Unit tests of the capacity rule and of matching; manifest contract test for permissions, match patterns and the web-accessible resources (the packaged fonts and nothing else); end-to-end checks that the extension makes no network request, stores only the two objects without readable text, titles or addresses, marks only the links of saved conversations, removes every mark when turned off, ignores the key while typing, never reports a return that did not arrive clearly in view, and stops a search on the reader's input and at its limits; digests of the packaged fonts compared with the upstream release."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-10",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit, their push, and an update of the description of draft pull request 9. It does not cover merging to main, marking the pull request ready, tagging or any publication.",
+      "basis": [
+        "The owner instruction of 2026-10-10 continuing ENT-246 covers this scope and the push to the existing pull-request branch.",
+        "Protocol v1.23, the Project state, ENT-246 (Active, the Project's Next item), DEC-141 and DEC-142 (Accepted), DEC-136 and DEC-116 were re-read on 2026-10-10 and are consistent with that instruction.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the continuation."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before a merge to main, bound to the exact pull-request head, a green verify check and the owner's acceptance of the review. Recorded in dated evidence under docs/evidence/."
+    },
+    "publication": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; see openItems OPEN-2."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope.",
+    "A permission, a broader match pattern, a background script, a browser command or a network request becomes necessary.",
+    "Readable conversation text, a title, an address or a page snapshot would have to be stored.",
+    "The packaged Inter files cannot be taken unmodified from an official upstream release under a licence that permits redistribution.",
+    "Declared Capabilities or Exceptions change.",
+    "The applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before integration."
+  ]
+}

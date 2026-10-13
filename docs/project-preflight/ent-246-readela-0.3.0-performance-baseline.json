@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-performance-baseline.json",
+  "recordDate": "2026-10-12",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "title": "Readela 0.3.0: a controlled memory and processor baseline of the unchanged fourth-correction code, before further corrections",
+    "authorizingDecisions": ["DEC-144", "DEC-143"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-12 for the first step of ENT-246 under DEC-144: correct the existing measuring script and its page only where a comparison would otherwise be unsound, run the cases one after another in fresh isolated browser profiles on an otherwise quiet machine, and report. It names no product change, no change to Personal OS, no merge, tag, publication or store submission, and asks that pull request 9 stay a draft. It does not name a push; none is made under this record without the owner's word."
+  },
+  "baseCommit": "247366f468af6a730865479705d1535af6eb03a1",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-246-readela-0.3.0-correction-4.json",
+    "reused": false,
+    "reason": "That record covers the fourth correction through its evidence and is not edited. It was assessed before DEC-144 and before the independent audit of 2026-10-12, and names the measuring script as it then was. This step is a separately bounded piece of work, so it carries its own assertion."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "test/perf/run.mjs and test/perf/fixtures/page.html: a case without the extension that does in the page what the measuring script does there for a bookmark and a return; a fixed number of cycles at a fixed pace; a boundary after which the fonts are loaded and the page is warm; samples of the browser's processes that force no collection; memory dumps checked for validity and kept whole; the browser, build, script and page identities written into each result.",
+      "Measurements of the code of baseCommit, built unchanged, one case at a time: without the extension, with Readela and the site's own typography, with Readela and Readela Sans, under one theme; a block of work, about five minutes left alone, the same block again.",
+      "Dated evidence under docs/evidence/ and the measurement files outside the repository."
+    ],
+    "outOfScope": [
+      "Any file under src/, the manifests, the build and packaging scripts, the unit and end-to-end suites, dependencies.",
+      "The corrections the audit and the owner's review ask for: the colour-scheme callback, ownership of site-owned parts, the first painted frame, the bookmark write authority, the wrong-target return, Auto direction.",
+      "A change of fonts or typography, a new measuring framework, a new dependency.",
+      "The owner's browser profile, a signed-in site, a real conversation, any network request by the measured page.",
+      "Merging pull request 9, marking it ready, a tag, a release, a store submission, store images and copy (ENT-243, paused), any write to Personal OS.",
+      "Capabilities, Exceptions, the dev-standards pin and the repository ruleset."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No. The project is in continuous work.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-12.",
+      "protocolChanged": "No. Revision v1.23, the revision the earlier records were assessed under; the canonical page was last edited on 2026-10-06.",
+      "architectureOrTrustBoundaryChanged": "No. Only the measuring script and its synthetic page change; neither is part of the packaged extension. The background component's wider role approved in DEC-144 is not touched here and needs its own Preflight when it is.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable. No parent Preflight is being worked under; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-12",
+    "branch": "feat/ent-240-readela-0.3.0 at 247366f468af6a730865479705d1535af6eb03a1 locally and on the remote; clean worktree and index; no stash, one worktree.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, head 247366f, mergeable, check verify succeeded.",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree.",
+    "managerialState": "Protocol v1.23, the Project (Active, Next item ENT-246), ENT-246 (Active), DEC-143 and DEC-144 (Accepted) and the update of 2026-10-12 were read on 2026-10-12 and agree with the instruction and with the repository.",
+    "audit": "The independent read-only audit dated 2026-10-12 and its evidence file, supplied by the owner outside the repository, were read. Its findings about the measuring script are taken as claims to check against the script, not as results."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "Nothing is built for release and nothing is published. The risk is a misleading number: each result names the browser, the build, the script and the page it came from, and what a run does not show is said with it."
+  },
+  "gates": {
+    "preparation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-12",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit that touch only this record, test/perf/ and dated evidence under docs/evidence/. It does not cover a push, a file under src/, merging, marking the pull request ready, a tag or any publication.",
+      "basis": [
+        "DEC-144 (Accepted) and the owner instruction of 2026-10-12 cover this scope.",
+        "Protocol, Project state, ENT-246, DEC-143 and DEC-144 were read on 2026-10-12 and are consistent.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "No full-preflight trigger fired.",
+        "This record is the first commit of the step."
+      ]
+    },
+    "measurement": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Immediately before the measured cases start: the owner's word that the machine is left alone, and a census of what else is running, kept with the results. Recorded in dated evidence under docs/evidence/. If the machine cannot be made quiet enough, no measurement is taken."
+    },
+    "integration": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; the integration gate of the fourth ENT-246 record stays not yet evaluated."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: a file under src/, a manifest, the build scripts or a dependency would have to change.",
+    "A measurement would need the owner's browser profile, a signed-in site, real conversation content or a network request.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before the step is closed."
+  ]
+}

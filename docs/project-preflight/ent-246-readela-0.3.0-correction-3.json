@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-correction-3.json",
+  "recordDate": "2026-10-11",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "relatedWorkUnits": ["ENT-240", "ENT-244", "ENT-243"],
+    "title": "Readela 0.3.0: final correction and performance validation of draft pull request 9 after the owner's third review",
+    "authorizingDecisions": ["DEC-141", "DEC-142", "DEC-136", "DEC-116"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-11 continuing ENT-246 after the owner's review of head d9d4542 on the real sites. It authorizes the bounded work in scope.inScope on the existing branch feat/ent-240-readela-0.3.0, its tests, performance measurements, documentation and evidence, commits and their push to that branch, an accurate description of draft pull request 9, and a fresh local unpacked Chrome build for owner review. It does not authorize integration, merging pull request 9, marking it ready, a tag, a release, submission or publication to any store, a change to store images or store copy, a change to Personal OS, or anything in scope.outOfScope.",
+    "departuresFromAcceptedDecisions": {
+      "note": "The instruction of 2026-10-11 knowingly changes points of DEC-141 and DEC-142, which were read again on 2026-10-11. The instruction is the owner's and later; it governs this work. No Decision recording these points existed in Personal OS when this record was written, and this work does not write there.",
+      "points": [
+        "DEC-141 authorizes no background service, and DEC-142 allowed a keyboard action only without one. The instruction removes the fixed key and allows a minimal event-driven background component to receive one browser-managed command that has no default key.",
+        "DEC-142 names the popup's language as Saved place, Save or Update, Return and Clear, with the current and total status. The instruction renames the feature to Bookmark, with Bookmark or Update, Return and Remove, and shows the total only.",
+        "DEC-136 and the Product Brief name line spacing 1.6, 1.9 and 2.2. The instruction replaces them with 1.5, 1.75 and 2.0."
+      ],
+      "dueBeforeIntegration": "The owner's record of these points in Personal OS; see openItems OPEN-3."
+    },
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": [
+      "docs/project-preflight/ent-246-readela-0.3.0-correction-2.json",
+      "docs/project-preflight/ent-246-readela-0.3.0-correction.json",
+      "docs/project-preflight/ent-240-readela-0.3.0-reading-comfort.json"
+    ],
+    "status": "All three remain the records for the work they cover and are not edited. The second ENT-246 record placed a background script, a browser command and a popup redesign out of scope and named them as invalidators; it does not cover this continuation. This record covers it and reuses none of them as a parent."
+  },
+  "baseCommit": "d9d4542bfa13a63c72b3b1e29d7334d053b42a63",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the work changes an architecture and trust boundary: the extension gains a background component (a service worker in Chrome, a non-persistent background script in Firefox) and a commands entry in the manifest, both of which the second ENT-246 Preflight named as invalidators",
+      "the declared work scope expands outside the scope covered by the second ENT-246 Preflight: the feature's visible language and the popup's saved-place section, the line-spacing choices, an eleventh optional value in a stored place and a write of it that the reader did not ask for by a button, a further mark in reading text, and changes to when the page is observed"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. The vendored dev-standards pin is v0.6.0 with the identities below; the verifier passed on baseCommit on 2026-10-11.",
+      "protocolChanged": "No. The revision is v1.23, the revision the earlier records were assessed under."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-11",
+    "branch": "feat/ent-240-readela-0.3.0 at d9d4542bfa13a63c72b3b1e29d7334d053b42a63 locally and on the remote; clean worktree and index.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 locally and on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, head d9d4542, mergeable, check verify succeeded.",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree.",
+    "product": "package.json version 0.3.0; permissions [\"storage\"]; content-script matches exactly https://chatgpt.com/* and https://claude.ai/*; three web-accessible resources (the packaged fonts); no background script and no commands entry; a key listener in the content script for Alt+Shift+S; stored objects readela.preferences (version 2) and readela.marks (version 2, at most 1000 places of ten values, none dropped).",
+    "releases": "0.2.1 is the public version in both stores. Nothing from 0.3.0 is merged, tagged, submitted or published.",
+    "managerialState": "Protocol v1.23, the Project (Active, Next item ENT-246), ENT-246 (Active), DEC-141 and DEC-142 (Accepted) were read on 2026-10-11. Their text predates the owner's third review; see work.departuresFromAcceptedDecisions.",
+    "ownerReview": "The owner's third review, on real ChatGPT and Claude, is reported in the instruction of 2026-10-11: typography, return, targeting, surfaces, wide tables, the count and the ChatGPT sidebar indicator are accepted as reviewed; the Claude sidebar indicator does not appear; inline code and tokens are too weak; the fixed key is to be removed.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "Line spacing: the choices become Original, 1.5, 1.75 and 2.0; a stored 1.6, 1.9 or 2.2 is read as 1.5, 1.75 or 2.0. The preferences format and its version are unchanged.",
+      "The feature's visible language becomes Bookmark: the popup section shows the total only, with Bookmark or Update, Return and Remove, one short helper line and the state of the shortcut. Internal names stay where a rename would only be churn. Targeting, matching, storage and return are unchanged.",
+      "Claude sidebar indicator, from the cause observed on the site: most rows of its list carry an address that does not name the conversation the page shows. Where the site marks the row of the conversation shown, a one-way fingerprint of that row's address path is kept with the place, as an optional eleventh value, so the row can be recognised later. It is written when the reader bookmarks or updates, and once more when the list first shows which row is this conversation's and the stored value is missing or different. No title, label or address is stored.",
+      "The sidebar indicator becomes about 8 by 14 CSS pixels on both sites, with placement that may differ by site and nothing else.",
+      "Inline code and tokens under Paper and Night: one stronger Readela-owned treatment on both sites, including the element ChatGPT uses for inline code, which is not a code element; that element also keeps its own font under Readela Sans. Complete code blocks and tables are not reopened.",
+      "The key listener for Alt+Shift+S and everything that mentions it are removed.",
+      "One browser-managed command with no default key: a commands entry in the manifest and a background component that only listens for it and passes one message to the content script of the active tab, which performs the same Bookmark or Update as the popup and shows the brief emphasis. The popup shows the assigned shortcut or that none is set, and opens the browser's own shortcut settings. No permission is added.",
+      "A measured performance and resource audit of the content script, the popup and the background component in Chrome, with representative cases repeated in Firefox; removal of avoidable recurring or repeated work where measurement shows it; a repeatable measuring script kept with the tests, with no cost in the packaged extension.",
+      "Tests, fixtures, documentation and dated evidence made necessary by the above; a fresh local unpacked Chrome build for owner review; an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "Merging pull request 9, marking it ready for review, a v0.3.0 tag, a release, and submission or publication to the Chrome Web Store, Firefox Add-ons or any other provider.",
+      "Store images and store copy (ENT-243, paused), and any write to Personal OS.",
+      "A bookmark manager, dashboard, search, names or per-site counts; a bulk removal; stored titles; a floating control; a context-menu entry; a key recorder of the extension's own; a default shortcut.",
+      "A third font, a change of the approved typography, further appearance themes, more spacing choices or a slider.",
+      "Read aloud, translation, highlighting, focus modes, notes, new sites, mobile, Edge, Safari or other platforms.",
+      "A new permission, a broader match pattern, a persistent background page, polling or timers in the background component, a backend, analytics, telemetry, account or sync infrastructure, remote code, a remote font or any network request.",
+      "Dependency changes, a new build system, a new test framework and unrelated refactors.",
+      "Changes to declared Capabilities or Exceptions, to the dev-standards pin and to the repository ruleset."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "assessment": "The extension remains a browser interface with no backend or operated service. A background component that wakes for one browser command and forwards one message adds no Capability."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692",
+    "adoptedInTarget": true,
+    "verification": "node .governance/dev-standards/verify-dev-standards.mjs, locally and as the required verify check."
+  },
+  "externalCapabilities": {
+    "note": "Load-bearing behaviour of the browsers and of the two supported sites, verified before the contract was frozen. The sites were read in the owner's signed-in browser on 2026-10-11: element names, attribute names, computed styles, geometry and counts only; no conversation text, title or address was recorded and nothing was typed or sent. The browsers were probed with a throwaway extension in the versions the tests use.",
+    "items": [
+      {
+        "capability": "Chrome: a command declared without suggested_key is unbound until the user assigns a key at chrome://extensions/shortcuts; commands.getAll reports its shortcut as an empty string; the commands key needs no permission; commands.onCommand is delivered to the extension's service worker with the active tab, which carries no address without the tabs permission; an extension page can open chrome://extensions/shortcuts with tabs.create and no permission. Chrome has no commands.openShortcutSettings, commands.update or commands.onChanged.",
+        "authority": "developer.chrome.com/docs/extensions/reference/api/commands and MDN's note on openShortcutSettings, read on 2026-10-11. Probe in Chrome 154.0.8037.98: getAll returned the command with an empty shortcut; tabs.create opened chrome://extensions/shortcuts; a command dispatched to the service worker's listener arrived with a tab that has an id and no address; openShortcutSettings, update and onChanged were undefined.",
+        "probe": "The end-to-end suite checks the manifest of the built Chrome package, the popup's shortcut line and its settings action, and delivers the command to the service worker's listener."
+      },
+      {
+        "capability": "Firefox: Manifest V3 runs background.scripts as a non-persistent event page and does not support background.service_worker; a command without suggested_key has an empty shortcut; commands.openShortcutSettings (Firefox 137) opens the browser's Manage Extension Shortcuts; commands.onCommand passes the tab from Firefox 126; the browser validates a shortcut and refuses a single letter. The minimum version declared in the manifest is 140.",
+        "authority": "MDN manifest.json/background and API/commands pages and the browser-compat-data for commands, read on 2026-10-11. Probe in Firefox 157.0: getAll returned an empty shortcut; commands.update accepted Alt+Shift+9 and refused B with the browser's own message; commands.onChanged reported the change; openShortcutSettings resolved and opened about:addons; runtime.getBackgroundPage returned the event page.",
+        "probe": "The end-to-end suite assigns a shortcut through the browser's own commands.update, checks the popup's line, and calls the background component's handler."
+      },
+      {
+        "capability": "A key press sent through the automation protocol does not reach the browser's own shortcut handling in either browser.",
+        "authority": "Probe in Firefox 157.0: with Alt+Shift+9 assigned, the key pressed on an ordinary page did not fire the command. Chrome's protocol delivers keys to the page only.",
+        "probe": "None possible; the path from a real key to the command is the browser's and is left to the owner's review."
+      },
+      {
+        "capability": "Claude: most rows of the sidebar's list are a[data-row-main-button] whose href is /cowork/cse_<id>, while the conversation such a row opens is shown at /chat/<uuid>; the two identifiers are not derivable from each other in the page. Rows of older conversations carry /chat/<uuid>. The row of the conversation shown carries aria-current=\"page\". A row link fills its row (left edge 8px, text 6px further in) inside a list that clips at 4px.",
+        "authority": "Observed on 2026-10-11: 24 of 28 conversation rows had the first form; clicking one showed /chat/<uuid> with that row as the only aria-current link; no attribute of the row or its ancestors held the uuid; the build of d9d4542, installed there, removed a test attribute from an unsaved row within a second, so its marking was running and found no key to match.",
+        "probe": "The Claude fixtures carry rows of both forms with aria-current on the row of the conversation shown; the end-to-end suite marks, updates, removes, re-renders and reloads them."
+      },
+      {
+        "capability": "ChatGPT: inline code in a reply is span[data-markdown-copy=\"inline-code\"] with a translucent background, 6px corners and a dir attribute; it is not a code element. Sidebar row links sit 10px inside their row.",
+        "authority": "Observed on 2026-10-11 in a conversation with 31 such spans and no inline code element; under the build of d9d4542 with Readela Sans the spans had the reading font.",
+        "probe": "The ChatGPT fixture renders inline code the same way; the end-to-end suite checks its colours under both themes and its font under Readela Sans against Original."
+      }
+    ],
+    "notObserved": [
+      "A real key assigned in the browser's shortcut settings reaching the command, in either browser.",
+      "The performance of this build on real signed-in conversations: the build cannot be installed in the owner's browser by this work, and the tab available for observation is not rendered. Measurements are made on synthetic pages shaped and sized after what was counted on the sites.",
+      "Claude's sidebar in a state other than the one seen (its list was not collapsed and held 28 conversation rows)."
+    ]
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission, privacy or store-publication rule.",
+      "handling": "Unchanged. The project-local controls in docs/privacy-and-permissions.md apply and are updated in the same change, as its control 8 requires."
+    },
+    {
+      "id": "GAP-2",
+      "gap": "The canonical baseline has no performance budget for a browser extension.",
+      "handling": "The review triggers in the owner's instruction are used as investigation triggers, measured by a script kept with the tests; results are recorded in dated evidence, with what could not be measured named."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "Owner review of the final local build on real ChatGPT and Claude conversations.",
+      "reason": "Automated checks and measurements run on synthetic pages; rendered judgement on real pages, a real shortcut, and the integration decision are the owner's.",
+      "revisitTrigger": "The fresh unpacked Chrome build is loaded."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "Release of 0.3.0 and the refresh of store images and copy (ENT-243).",
+      "reason": "Not authorized by this work.",
+      "revisitTrigger": "Owner acceptance of the corrected build."
+    },
+    {
+      "id": "OPEN-3",
+      "item": "A record in Personal OS of the points in work.departuresFromAcceptedDecisions.",
+      "reason": "Accepted Decisions and the instruction this work follows differ on those points; the record is the owner's to make and this work does not write there.",
+      "revisitTrigger": "Before the integration Gate is evaluated."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "Product rigor. Nothing is published by this work.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": false,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "targetedVerification": "Manifest contract tests: permissions stay [\"storage\"], one command with no suggested key, a background entry of one file per browser, the web-accessible resources unchanged. A source test that the background component holds no timer, no network call and no listener but the command's, and that the content script listens for no key. Unit tests of the stored place with and without the row fingerprint and of the spacing migration. End-to-end checks that the command saves through the same path as the popup, that nothing is sent anywhere, that storage holds only the two objects without readable text, titles or addresses, that only the rows of bookmarked conversations are marked on both sites and that Off removes every mark and stops the page being observed. Measurements of idle work, of interaction and of a long run, before and after any change made for them."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-11",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit, their push, and an update of the description of draft pull request 9. It does not cover merging to main, marking the pull request ready, tagging or any publication.",
+      "basis": [
+        "The owner instruction of 2026-10-11 continuing ENT-246 covers this scope, including the background component for one browser-managed command, and the push to the existing pull-request branch.",
+        "Protocol v1.23, the Project state, ENT-246 (Active, the Project's Next item), DEC-141, DEC-142, DEC-136 and DEC-116 were re-read on 2026-10-11. Where their text differs from the instruction, the difference is recorded in work.departuresFromAcceptedDecisions and carried as OPEN-3; it does not concern whether this work is authorized.",
+        "The load-bearing browser and site behaviour was verified against the official sources and by probe before this record was written.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the continuation."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before a merge to main, bound to the exact pull-request head, a green verify check, the owner's acceptance of the review and OPEN-3. Recorded in dated evidence under docs/evidence/."
+    },
+    "publication": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; see openItems OPEN-2."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope.",
+    "A permission, a broader match pattern, a persistent background page, a timer or network call in the background component, or a default shortcut becomes necessary.",
+    "Readable conversation text, a title, an address or a page snapshot would have to be stored.",
+    "The approved typography would have to change.",
+    "Declared Capabilities or Exceptions change.",
+    "The applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before integration."
+  ]
+}

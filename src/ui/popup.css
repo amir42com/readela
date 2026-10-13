@@ -1,78 +1,160 @@
+/* The popup's colours follow the Appearance that is chosen. Original, the
+   state without the attribute, is the browser's own light or dark scheme;
+   Paper and Night are theirs whatever the browser is set to. */
 :root {
   color-scheme: light dark;
   --background: #ffffff;
-  --text: #1b1f24;
-  --muted: #4b5563;
-  --border: #6b7280;
-  --accent: #0b5cad;
-  --accent-text: #ffffff;
-  --surface: #f3f4f6;
+  --surface: #f2f3f5;
+  --text: #242629;
+  --muted: #565d65;
+  --border: #828a94;
+  --rule: #dde0e4;
+  --selected: #343b43;
+  --selected-text: #ffffff;
+  --accent: #1d4f8a;
+  --warning: #b24a14;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1c1f24;
+  :root:not([data-theme]) {
+    --background: #202124;
+    --surface: #2d3035;
     --text: #f1f3f5;
-    --muted: #c3c9d1;
-    --border: #9aa3ad;
-    --accent: #8ec5ff;
-    --accent-text: #0b1b2b;
-    --surface: #2a2f36;
+    --muted: #bbc2cb;
+    --border: #8b95a2;
+    --rule: #484d55;
+    --selected: #e3e8ee;
+    --selected-text: #202124;
+    --accent: #9cc7f5;
+    --warning: #f2914a;
   }
+}
+
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --background: #fbf8f2;
+  --surface: #f1ece2;
+  --text: #211d18;
+  --muted: #5a5246;
+  --border: #857b6c;
+  --rule: #d7cfc1;
+  --selected: #302b24;
+  --selected-text: #fffaf1;
+  --accent: #1d4f8a;
+  --warning: #b24a14;
+}
+
+:root[data-theme="night"] {
+  color-scheme: dark;
+  --background: #1f1d1a;
+  --surface: #2b2824;
+  --text: #efe9dd;
+  --muted: #bdb4a5;
+  --border: #948b7c;
+  --rule: #4f4940;
+  --selected: #e7dfd1;
+  --selected-text: #211d18;
+  --accent: #9cc7f5;
+  --warning: #f2914a;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* The popup is laid out to be shown whole, footer included, in the room a
+   browser gives a popup at its ordinary zoom. Where there is less room, the
+   text is much enlarged, Help is open or a message is long, the content
+   scrolls; nothing is clipped and no height is fixed. */
+html {
+  overflow-y: auto;
+}
+
 body {
   margin: 0;
-  width: 320px;
+  width: 360px;
   max-width: 100%;
   background: var(--background);
   color: var(--text);
-  font: 14px/1.45 system-ui, "Segoe UI", sans-serif;
+  font: 13px/18px system-ui, "Segoe UI", sans-serif;
 }
 
+/* The room at the sides and between a name and its choices is measured from
+   the width the content really has. When the popup scrolls, as it does with
+   Help open, a scrollbar takes 15 pixels or so from that width, which a
+   rule written for the popup's own width cannot see; the rows then give up
+   a little air and stay as they are: 14 pixels at the sides in 360, 12 in
+   345 and less. */
 main {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
+  padding: 10px clamp(12px, calc(13.333% - 34px), 14px) 8px;
 }
 
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  min-height: 32px;
 }
 
 h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 30px;
+  letter-spacing: -0.6px;
 }
 
-.by {
-  color: var(--muted);
+h2,
+legend {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 650;
+  line-height: 17px;
+  overflow-wrap: anywhere;
 }
+
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* On/off switch */
 
 .switch {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  min-height: 32px;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .switch input {
   appearance: none;
   position: relative;
-  width: 40px;
-  height: 22px;
+  flex: none;
+  width: 38px;
+  height: 23px;
   margin: 0;
-  border: 2px solid var(--border);
-  border-radius: 11px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   background: var(--surface);
   cursor: pointer;
 }
@@ -80,89 +162,488 @@ h1 {
 .switch input::before {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
+  top: 3px;
+  left: 3px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: var(--border);
+  background: var(--muted);
 }
 
 .switch input:checked {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--selected);
+  background: var(--selected);
 }
 
 .switch input:checked::before {
-  left: 20px;
-  background: var(--accent-text);
+  left: 18px;
+  background: var(--selected-text);
 }
 
-fieldset {
-  margin: 0;
-  padding: 8px 12px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+/* Under the name: what holds for every setting, and Help beside it. Help is
+   closed until it is opened; open, it reads on under the line, and the popup
+   grows and scrolls as it must. */
+
+.intro {
+  position: relative;
+  margin: 5px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
 }
 
-legend,
-.field > label {
-  padding: 0 4px;
-  font-weight: 600;
+.intro > .note {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 32px;
+  padding-inline-end: 64px;
 }
 
-.field > label {
-  padding: 0;
-}
-
-.choices {
-  display: grid;
-  gap: 6px;
-}
-
-.choices label {
+.help > summary {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.choices input {
-  margin: 0;
-  accent-color: var(--accent);
-}
-
-.field {
-  display: grid;
-  gap: 4px;
-}
-
-select,
-button {
-  width: 100%;
-  min-height: 32px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-}
-
-button {
+  gap: 6px;
+  height: 32px;
+  list-style: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 3px;
   cursor: pointer;
 }
 
-.note {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
+.help > summary::-webkit-details-marker {
+  display: none;
 }
 
-.note:empty {
+/* The arrow of a thing that opens, drawn so that it is no part of the words. */
+.help > summary::before {
+  content: "";
+  border-block: 4px solid transparent;
+  border-inline-start: 6px solid currentColor;
+}
+
+.help[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.help-body {
+  padding: 8px 0 4px;
+}
+
+.help-body p + p {
+  margin-top: 8px;
+}
+
+.help-body strong {
+  display: block;
+  color: var(--text);
+}
+
+/* Settings: each a row, its name at the start and its choices at the end. */
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.group,
+.place-row {
+  display: grid;
+  /* The name's column: 82 pixels in the popup's own width, down to 76 in
+     the room a scrollbar leaves, and never less than its longest name needs,
+     also when the text is enlarged. */
+  grid-template-columns: max(clamp(76px, calc(54.55% - 99.1px), 82px), 5.85em) minmax(0, 1fr);
+  align-items: center;
+  column-gap: clamp(6px, calc(9.09% - 23.18px), 7px);
+}
+
+.group {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* A legend that floats is laid out as an ordinary box, so it can stand in
+   the row beside the choices. It still names the group. */
+.group > legend {
+  float: left;
+  grid-area: 1 / 1;
+}
+
+.group > .segments {
+  grid-area: 1 / 2;
+}
+
+/* The choices of a row share its width evenly, and none is ever narrower
+   than its longest word: a word in a choice does not break. */
+.segments {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+}
+
+.segments label {
+  position: relative;
+  display: grid;
+  flex: 1 1 0;
+  min-height: 32px;
+  padding: 5px 2px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  text-align: center;
+  cursor: pointer;
+}
+
+/* The radio covers its choice, so its focus ring is the choice's. */
+.segments input {
+  appearance: none;
+  position: absolute;
+  inset: -1px;
+  margin: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Selected: a fill and a border of its own and heavier words, at the size of
+   the others, so the choice does not rest on colour. Focus is a separate
+   ring in the accent colour around whichever choice has the keyboard. */
+.segments label:has(input:checked) {
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-text);
+  font-weight: 700;
+}
+
+.segments label:has(input:focus-visible) {
+  z-index: 1;
+}
+
+/* Off: the choices stay readable and the selected one stays marked. */
+.settings:disabled .segments label {
+  border-style: dashed;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: default;
+}
+
+.settings:disabled .segments label:has(input:checked) {
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-weight: 700;
+}
+
+.settings:disabled .segments input,
+button:disabled {
+  cursor: default;
+}
+
+/* Something to say, beside what it is about: under the settings about a
+   change of settings, under the bookmark's buttons about the bookmark. */
+
+.said {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+/* What did not happen: a sign before the words, and a colour of their own. */
+.said[data-kind="warning"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--warning);
+}
+
+.said[data-kind="warning"]::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background:
+    linear-gradient(currentColor, currentColor) center 2.5px / 1.5px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) center 8.5px / 1.5px 1.5px no-repeat;
+}
+
+/* Nothing to say about the settings is the ordinary state: no room is kept. */
+#status {
+  margin-top: 6px;
+}
+
+#status:empty {
   display: none;
+}
+
+/* Bookmark: a row like the settings, then what there is to say, then what is
+   known besides. */
+
+.place {
+  margin-top: 5px;
+  padding-top: 2px;
+}
+
+.place-row {
+  padding: 5px 0 4px;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.actions button {
+  flex: 1 1 0;
+  min-height: 32px;
+  padding: 5px 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  font-weight: 600;
+}
+
+.actions button.primary {
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-text);
+}
+
+.actions button:disabled {
+  border-color: var(--border);
+  border-style: dashed;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+/* Under the buttons: what there is to say, and at the end of its line the
+   number of conversations that have a bookmark. Room for two lines, so that
+   most of what is said moves nothing. */
+.place-said {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  margin: 2px 0 3px;
+}
+
+.place-said > .said {
+  flex: 1;
+  min-width: 0;
+}
+
+.total {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* The shortcuts, a part of their own: its name with the way to the browser's
+   settings beside it, and under it each assigned key as a pair, the action
+   in one column and its key in the other. */
+.shortcuts {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.shortcuts-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.shortcuts-head h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 16px;
+}
+
+#shortcut-state:empty {
+  display: none;
+}
+
+.shortcuts-head .quiet {
+  margin-inline-start: auto;
+}
+
+#shortcut-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 16px;
+  margin: 0 0 5px;
+}
+
+#shortcut-list[hidden] {
+  display: none;
+}
+
+#shortcut-list dt,
+#shortcut-list dd {
+  margin: 0;
+}
+
+/* A key is shown as the browser gives it, whole; it breaks only where it
+   would otherwise not fit at all. */
+#shortcut-list dd {
+  overflow-wrap: anywhere;
+}
+
+/* A quiet button for something done rarely. */
+button.quiet {
+  flex: none;
+  min-height: 24px;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The footer: the rarely used button, and who made this and which version it
+   is. Nothing is ever said here. */
+
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 6px;
+  min-height: 24px;
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.about {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.about > span + span:not([hidden])::before {
+  content: " · ";
+  white-space: pre;
+}
+
+.about a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 3px;
 }
 
 :focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Where the words of a row do not fit beside one another (the text much
+   enlarged, or very little room) the choices go on to a second line whole;
+   nothing is made smaller and no word breaks. Four choices then stand two
+   by two, not three and one: each asks for half the row as soon as the row
+   is narrower than the four words of the widest row need, measured in the
+   text's own size so that it follows the text. Not in a room narrower than
+   any popup is given; see below. */
+@media (min-width: 120px) {
+  .segments,
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .segments:has(> label:nth-child(4)) > label {
+    flex-basis: calc((11.3em + 34px - 100%) * 999);
+    max-width: calc(50% - 1.5px);
+  }
+}
+
+/* In very little room, a name stands over its choices. That makes the popup
+   tall, as do choices on a second line, so neither is for a room narrower
+   than any popup is given: a browser that sizes the popup to its content
+   starts from such a room, and a tall layout there makes it leave space for
+   a scrollbar that the popup, once sized, does not need. */
+@media (min-width: 120px) and (max-width: 290px) {
+  .group,
+  .place-row {
+    display: block;
+  }
+
+  .group > legend {
+    float: none;
+    margin-bottom: 4px;
+  }
+
+  .place-row h2 {
+    margin-bottom: 4px;
+  }
+
+  .intro > .note {
+    padding-inline-end: 0;
+  }
+
+  .help > summary {
+    position: static;
+    height: 24px;
+  }
+}
+
+@media (min-width: 120px) and (max-width: 220px) {
+  .actions button {
+    flex-basis: 100%;
+  }
+
+  .place-said {
+    flex-wrap: wrap;
+  }
+}
+
+@media (forced-colors: active) {
+  .segments label:has(input:checked) {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .settings:disabled .segments label:has(input:checked) {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
+  }
+
+  .switch input:checked {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .actions button.primary:not(:disabled) {
+    border-color: Highlight;
+  }
+
+  :focus-visible {
+    outline-color: CanvasText;
+  }
 }

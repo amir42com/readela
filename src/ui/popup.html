@@ -10,55 +10,111 @@
   <body>
     <main>
       <header>
-        <h1>Readela <span class="by">by Amir42</span></h1>
+        <h1>Readela</h1>
         <label class="switch" for="enabled">
-          <input type="checkbox" role="switch" id="enabled" />
-          <span id="enabled-label">On</span>
+          <span id="enabled-label" aria-hidden="true">On</span>
+          <input type="checkbox" role="switch" id="enabled" aria-label="Readela" aria-describedby="state-note" />
         </label>
       </header>
-      <p class="note" id="state-note"></p>
 
-      <fieldset>
-        <legend>Text direction</legend>
-        <div class="choices">
-          <label><input type="radio" name="direction" value="auto" /> Automatic</label>
-          <label><input type="radio" name="direction" value="rtl" /> Right to left</label>
-          <label><input type="radio" name="direction" value="ltr" /> Left to right</label>
-        </div>
+      <div class="intro">
+        <p class="note" id="state-note"><span>Settings apply instantly.</span> <span>Original keeps the site’s setting.</span></p>
+        <details class="help" id="help">
+          <summary id="help-summary">Help</summary>
+          <div class="help-body">
+            <p><strong>Appearance</strong> Original leaves response colours unchanged; the popup follows your browser’s light or dark theme. Paper uses warm light colours, and Night uses dark colours, for both responses and the popup.</p>
+            <p><strong>Text direction</strong> Auto chooses text direction from the words in each paragraph. RTL means right-to-left; LTR means left-to-right. Code, mathematics and web addresses keep their own presentation.</p>
+            <p><strong>Font</strong> Readela Sans uses Inter for Latin and Vazirmatn for Persian and Arabic. Other scripts use your device’s fonts.</p>
+            <p><strong>Text size and line spacing</strong> 110%, 125% and 140% enlarge the site’s text size. Line spacing of 1.5, 1.75 or 2.0 sets the line height to that multiple of the text size.</p>
+            <p><strong>Bookmark</strong> One bookmark per conversation, stored on this device. Save place marks the first response paragraph in view, or the paragraph containing your selected text. Update replaces that conversation’s bookmark. Return goes to it; Remove deletes it. The total covers all bookmarked conversations.</p>
+            <p><strong>Shortcuts</strong> Shortcuts are optional and have no keys until you assign them in your browser’s extension shortcut settings. Save place / Update uses the same shortcut.</p>
+            <p><strong>Reset settings</strong> Reset restores Original for appearance, font, text size and line spacing, and Auto for text direction. It keeps Readela On or Off and keeps your bookmarks.</p>
+          </div>
+        </details>
+      </div>
+
+      <fieldset id="settings" class="settings">
+        <legend class="hidden">Reading settings</legend>
+
+        <fieldset class="group">
+          <legend>Appearance</legend>
+          <div class="segments">
+            <label><input type="radio" name="theme" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="theme" value="paper" /><span>Paper</span></label>
+            <label><input type="radio" name="theme" value="night" /><span>Night</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend><span aria-hidden="true">Direction</span><span class="hidden">Text direction</span></legend>
+          <div class="segments">
+            <label><input type="radio" name="direction" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="direction" value="auto" /><span>Auto</span></label>
+            <label><input type="radio" name="direction" value="rtl" aria-label="RTL, right-to-left" /><span>RTL</span></label>
+            <label><input type="radio" name="direction" value="ltr" aria-label="LTR, left-to-right" /><span>LTR</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Font</legend>
+          <div class="segments">
+            <label><input type="radio" name="font" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="font" value="sans" /><span>Readela Sans</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Text size</legend>
+          <div class="segments">
+            <label><input type="radio" name="size" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="size" value="110" /><span>110%</span></label>
+            <label><input type="radio" name="size" value="125" /><span>125%</span></label>
+            <label><input type="radio" name="size" value="140" /><span>140%</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Line spacing</legend>
+          <div class="segments">
+            <label><input type="radio" name="spacing" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="spacing" value="1.5" /><span>1.5</span></label>
+            <label><input type="radio" name="spacing" value="1.75" /><span>1.75</span></label>
+            <label><input type="radio" name="spacing" value="2.0" /><span>2.0</span></label>
+          </div>
+        </fieldset>
       </fieldset>
+      <p class="said" id="status" role="status" aria-live="polite" aria-atomic="true"></p>
 
-      <div class="field">
-        <label for="font">Font</label>
-        <select id="font">
-          <option value="page">Page default</option>
-          <option value="sans">Sans-serif (installed fonts)</option>
-          <option value="serif">Serif / Naskh (installed fonts)</option>
-        </select>
-      </div>
+      <section class="place" aria-labelledby="place-title">
+        <div class="place-row">
+          <h2 id="place-title">Bookmark</h2>
+          <div class="actions">
+            <button type="button" id="place-save" aria-label="Save place in this conversation" title="Saves the first response paragraph in view, or the paragraph containing your selected text.">Save place</button>
+            <button type="button" id="place-return" aria-label="Return to bookmark">Return</button>
+            <button type="button" id="place-clear" aria-label="Remove bookmark">Remove</button>
+          </div>
+        </div>
+        <div class="place-said">
+          <p class="said" id="place-note" role="status" aria-live="polite" aria-atomic="true"></p>
+          <p class="total"><span id="place-total" aria-hidden="true"></span><span class="hidden" id="place-total-name"></span></p>
+        </div>
+        <div class="shortcuts" id="shortcuts" hidden>
+          <div class="shortcuts-head">
+            <h3 id="shortcuts-title">Shortcuts</h3>
+            <span id="shortcut-state"></span>
+            <button type="button" id="shortcut-set" class="quiet" title="Opens your browser’s extension shortcut settings. The browser assigns and manages shortcuts."></button>
+          </div>
+          <dl id="shortcut-list" aria-labelledby="shortcuts-title" hidden></dl>
+        </div>
+      </section>
 
-      <div class="field">
-        <label for="size">Text size</label>
-        <select id="size">
-          <option value="page">Page default</option>
-          <option value="110">110%</option>
-          <option value="125">125%</option>
-          <option value="140">140%</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="spacing">Line spacing</label>
-        <select id="spacing">
-          <option value="page">Page default</option>
-          <option value="1.6">1.6</option>
-          <option value="1.9">1.9</option>
-          <option value="2.2">2.2</option>
-        </select>
-      </div>
-
-      <button type="button" id="reset">Reset reading settings</button>
-      <p class="note" id="status" role="status" aria-live="polite"></p>
-      <p class="note">Works on ChatGPT and Claude. Settings stay on this device.</p>
+      <footer>
+        <button type="button" id="reset" class="quiet" title="Restores the default reading settings. Keeps Readela On or Off and keeps your bookmarks.">Reset settings</button>
+        <p class="about">
+          <span>By <a id="publisher" href="https://amir42.com" target="_blank" rel="noopener noreferrer">Amir42</a></span>
+          <span id="version-line">Version <span id="version"></span></span>
+        </p>
+      </footer>
     </main>
     <script src="popup.js"></script>
   </body>

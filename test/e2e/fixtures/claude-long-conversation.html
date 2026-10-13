@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Readela fixture: long Claude conversation</title>
+    <link rel="icon" href="data:," />
+    <!--
+      A synthetic long conversation written for these tests. It contains no
+      real conversation. Like the transcript observed on the site on
+      2026-10-10 it is a virtual list: the scrolling region has the full
+      height, and only the rows near the viewport are in the document. A row
+      enters the document a moment after it scrolls near, and leaves it when
+      it scrolls away. Every reply ends with the same sentence, so text alone
+      cannot tell the replies apart.
+
+      Two knobs for the tests, both on window:
+        readelaMountDelay   milliseconds before rows near the viewport appear
+        readelaNeverMount   index of a row that never enters the document
+    -->
+    <style>
+      html, body { height: 100%; }
+      body { margin: 0; font: 16px/1.65 system-ui, sans-serif; color: #141413; background: #faf9f5; overflow: hidden; }
+      @media (prefers-color-scheme: dark) { body { color: #f0eee6; background: #262624; } }
+      .shell { display: flex; height: 100%; }
+      nav { width: 220px; padding: 12px 0; }
+      nav > p, nav > button { margin-left: 12px; }
+      /* The list clips 4px in; a row begins 8px in and its text 6px further. */
+      #c-rows { margin: 0 4px; padding: 0 4px; overflow: hidden auto; }
+      [data-selected] > .row-link, .row[data-selected] { background: rgb(128 128 128 / 0.15); }
+      .column { flex: 1; min-width: 0; display: flex; flex-direction: column; max-width: 800px; }
+      [data-autoscroll-container] { flex: 1; min-height: 0; overflow: hidden auto; }
+      .column { position: relative; }
+      .chat-header { position: absolute; z-index: 11; top: 0; left: 0; right: 0; height: 48px; padding: 0 16px; display: flex; align-items: center; pointer-events: none; }
+      .chat-header-band { position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 56px; background: #faf9f5; }
+      @media (prefers-color-scheme: dark) { .chat-header-band { background: #262624; } }
+      .row { position: relative; border-radius: 8px; }
+      .row:hover { background: #8882; }
+      .row-link { display: flex; align-items: center; padding: 2px; height: 32px; box-sizing: border-box; color: inherit; text-decoration: none; font-size: 14px; }
+      .row-link span { padding-left: 4px; overflow: hidden; white-space: nowrap; }
+
+      [data-testid="transcript-sizer"] { position: relative; }
+      [data-testid="transcript-row"] { position: absolute; left: 0; right: 0; padding: 0 16px; box-sizing: border-box; }
+      .bubble { margin: 0 0 0 auto; max-width: 80%; padding: 8px 12px; background: rgb(20 20 19 / 0.06); border-radius: 12px; }
+      h3, p { margin: 0 0 10px; }
+      fieldset { margin: 0; border: 0; border-top: 1px solid #8886; padding: 8px 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <nav aria-label="Sidebar">
+        <p>Long conversation</p>
+        <div id="c-rows">
+          <div data-row-key="chat:l-row-this" data-multiselect-row=""><div class="row" data-row="" data-selected="focused"><a class="row-link" data-row-main-button="" id="l-row-this" href="/chat/readela-long-fixture" aria-current="page" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
+          <div data-row-key="cowork:cse_01ReadelaFixtureThis0000aa" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="l-row-other" href="/cowork/cse_01ReadelaFixtureThis0000aa" draggable="false"><span data-row-label="iconless">TypeScript</span></a></div></div>
+        </div>
+      </nav>
+      <div class="column" data-testid="chat-column">
+        <!-- The chat header lies over the top of the scrolling region and lets the pointer through. -->
+        <div class="chat-header" data-testid="chat-header" id="l-header"><div class="chat-header-band"></div><span id="l-header-title">Conversation</span></div>
+        <div data-autoscroll-container="true" id="l-scroller">
+          <div id="l-transcript" role="feed" aria-label="Conversation">
+            <div data-testid="transcript-sizer" id="l-sizer"></div>
+          </div>
+        </div>
+        <fieldset id="l-composer">
+          <div id="l-input" contenteditable="true" aria-label="Write your prompt"><p>Ask something</p></div>
+        </fieldset>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const ROWS = 60;
+        const HEIGHTS = { human: 90, assistant: 310 };
+        const NEAR = 220;
+        const scroller = document.querySelector("#l-scroller");
+        const sizer = document.querySelector("#l-sizer");
+        const kind = (index) => (index % 2 === 0 ? "human" : "assistant");
+        const tops = [];
+        let total = 0;
+        for (let index = 0; index < ROWS; index += 1) {
+          tops.push(total);
+          total += HEIGHTS[kind(index)];
+        }
+        sizer.style.height = `${total}px`;
+
+        const element = (name, attributes = {}, text) => {
+          const node = document.createElement(name);
+          for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+          if (text !== undefined) node.textContent = text;
+          return node;
+        };
+
+        function row(index) {
+          const role = kind(index);
+          const number = Math.floor(index / 2) + 1;
+          const outer = element("div", {
+            "data-testid": "transcript-row",
+            "data-index": String(index),
+            "data-perf-row": role,
+            style: `top: ${tops[index]}px; height: ${HEIGHTS[role]}px`,
+          });
+          const article = element("div", { role: "article", "aria-setsize": String(ROWS), "aria-posinset": String(index + 1) });
+          outer.append(article);
+          if (role === "human") {
+            const message = element("div", { "data-cds": "UserMessage", "data-turn-key": `l-turn-${index}` });
+            const bubble = element("div", { class: "bubble" });
+            bubble.append(element("div", { "data-testid": "user-message", id: `l-user-${index}` }, `Question ${number}, please.`));
+            message.append(bubble);
+            article.append(message);
+            return outer;
+          }
+          const message = element("div", {
+            "data-cds": "AssistantMessage",
+            "data-testid": "assistant-message",
+            "data-turn-key": `l-turn-${index}-hub-reply`,
+            "data-is-streaming": "false",
+            id: `l-row-${index}`,
+          });
+          const markdown = element("div", { class: "standard-markdown", id: `l-md-${index}` });
+          markdown.append(
+            element("h3", { id: `l-h-${index}` }, `Answer ${number}`),
+            element("p", { id: `l-p-${index}-1` }, `Paragraph one of answer ${number} explains the first idea.`),
+            element("p", { id: `l-p-${index}-2` }, `Paragraph two of answer ${number} adds an example.`),
+            element("p", { id: `l-same-${index}` }, "This closing line is the same in every answer."),
+          );
+          message.append(markdown);
+          article.append(message);
+          return outer;
+        }
+
+        function render() {
+          const from = scroller.scrollTop - NEAR;
+          const to = scroller.scrollTop + scroller.clientHeight + NEAR;
+          const wanted = new Set();
+          for (let index = 0; index < ROWS; index += 1) {
+            if (index === window.readelaNeverMount) continue;
+            if (tops[index] + HEIGHTS[kind(index)] > from && tops[index] < to) wanted.add(index);
+          }
+          for (const node of [...sizer.children]) {
+            const index = Number(node.getAttribute("data-index"));
+            if (wanted.has(index)) wanted.delete(index);
+            else node.remove();
+          }
+          for (const index of [...wanted].sort((a, b) => a - b)) {
+            const before = [...sizer.children].find((node) => Number(node.getAttribute("data-index")) > index);
+            sizer.insertBefore(row(index), before ?? null);
+          }
+        }
+
+        let waiting = null;
+        scroller.addEventListener("scroll", () => {
+          if (waiting !== null) return;
+          waiting = setTimeout(() => {
+            waiting = null;
+            render();
+          }, window.readelaMountDelay ?? 40);
+        });
+
+        window.readelaRows = () => [...sizer.children].map((node) => Number(node.getAttribute("data-index")));
+        window.readelaRender = render;
+        render();
+        // Like the site, a conversation opens at its end.
+        scroller.scrollTop = scroller.scrollHeight;
+        render();
+      })();
+    </script>
+  </body>
+</html>

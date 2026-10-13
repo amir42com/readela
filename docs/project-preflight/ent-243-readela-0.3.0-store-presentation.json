@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-243-readela-0.3.0-store-presentation.json",
+  "recordDate": "2026-10-13",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-243",
+    "relatedWorkUnits": ["ENT-246"],
+    "title": "Readela 0.3.0: release preparation — store images, store copy, release-facing documents and candidate packages",
+    "authorizingDecisions": ["DEC-143", "DEC-116", "DEC-115"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-13, after the owner accepted the final popup and confirmed the build of c7c0244 in their own Chrome, and the release-preparation section of DEC-143 of the same day. It authorizes complete release preparation for 0.3.0 on the existing pull request: correcting release-facing documents that no longer describe the source; new store screenshots taken from the built extension on synthetic pages and a refreshed promotional tile where it is outdated; the final English store copy for both stores with the dashboard hand-off; the final build, the package and source-archive checks and their digests; focused commits and a plain push. It does not authorize a new feature or a change of what the extension does, requests, reads or stores; merging pull request 9 or marking it ready; a tag or a release; uploading or submitting a version to the Chrome Web Store or Firefox Add-ons; changing a live listing or privacy field; any use of publication credentials; or a write to Personal OS."
+  },
+  "baseCommit": "eb19cc045b90aa234586107dc10887c1dbf16603",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-246-readela-0.3.0-correction-5.json",
+    "reused": false,
+    "reason": "That record and the three popup records after it place store images and store copy out of scope, as the work of ENT-243. This is that work, separately bounded, so it carries its own assertion. Those records stay the records for the code they cover and are not edited."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "README.md, docs/store-listing.md, docs/privacy-policy.md and docs/privacy-and-permissions.md, and docs/architecture.md and docs/product-brief.md only where a release-facing statement contradicts the source: corrected to describe the 0.3.0 source as it is. Dated evidence already recorded is not rewritten.",
+      "src/manifest/base.json: the description string only, which the Chrome Web Store shows as the summary. No other manifest entry.",
+      "scripts/store-images.mjs and the synthetic pages it serves, written for the listing: screenshots of the built extension, a contact sheet and reduced copies for checking legibility. docs/store-images/ regenerated from them.",
+      "The existing verification run against the result: the dev-standards verifier, the unit tests, the end-to-end suite in Chrome and Firefox, the packages, the source archive and their digests, and a check that the packages hold what the documents say and nothing else.",
+      "Dated evidence under docs/evidence/, candidate packages and generated evidence kept outside the repository under the project's evidence convention, and an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "Everything that runs in a page, the popup's markup, style and behaviour, the background component, the commands, permissions, match patterns, web-accessible resources, stored forms, the fonts, supported sites and browsers, and the version number.",
+      "A new feature, a new brand identity, optional marketing material beyond the listing's own images.",
+      "A repeat of the hour-long memory comparison, unless this work shows a regression that calls for it.",
+      "Dependency changes, a new build or packaging system.",
+      "Merging pull request 9, marking it ready, a v0.3.0 tag, a release, an upload or submission to either store, a change to a live listing, and any write to Personal OS."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No. The project is in continuous work.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-13.",
+      "protocolChanged": "No. Revision v1.23; the canonical page was last edited on 2026-10-06.",
+      "architectureOrTrustBoundaryChanged": "No. No permission, match pattern, resource, stored field, message or request changes. One manifest string that describes the extension changes; documents and images change. If the comparison of documents with source shows that the extension itself would have to change to make a privacy or permission statement true, the work stops for the owner.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable. No parent Preflight is being worked under; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-13",
+    "branch": "feat/ent-240-readela-0.3.0 at eb19cc045b90aa234586107dc10887c1dbf16603 locally and on the remote; clean worktree and index.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 on the remote (version 0.2.1); it is the merge base of the branch.",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, mergeable, head eb19cc0, check verify succeeded.",
+    "repositoryRuleset": "ENT-197 main protection, id 24401132, active.",
+    "localVerification": "The dev-standards verifier passed; npm test: 89 passed; npm run package gave the archives of the build the owner installed (Chrome sha256 0ce4e54b…2a8895, Firefox 94a762b1…f3471e), 18 files each.",
+    "publicListings": "The owner's captures of the Chrome Web Store page of 2026-10-13 show Readela 0.2.1, updated 8 October 2026, with the screenshots and description of that version and the disclosure Website content.",
+    "managerialState": "The Project (Active, Next item ENT-243), ENT-243 (Active), ENT-246 (Active until integration) and DEC-143 with its section of 2026-10-13 (Accepted) were read on 2026-10-13 and agree with the instruction."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "Nothing is published by this work. What it prepares is published later, and a published version can only be superseded: so every statement in the copy is checked against the source, every image is taken from the built extension, and the candidate archives are bound by SHA-256 to one commit. The archives the stores receive are built from the frozen commit after integration, under the Gates of that stage."
+  },
+  "ordering": "This assertion committed first; documents, the manifest string and the image script after it; then the build, the checks, the images and the candidate archives from that source; then dated evidence. Integration, the frozen commit, the final archives, a publication Gate per provider and the submissions are later stages with their own authorization.",
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-13",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit within scope.inScope, their plain push to that branch, and an update of the description of draft pull request 9. It does not cover merging, marking the pull request ready, a tag, a release or any upload, submission or publication.",
+      "basis": [
+        "The owner instruction of 2026-10-13 and DEC-143 (Accepted, with its release-preparation section) cover this scope and the push to the existing pull-request branch.",
+        "Protocol v1.23, the Project state, ENT-243, ENT-246, DEC-143, DEC-144 and DEC-116 were read on 2026-10-13 and agree with the instruction.",
+        "Repository, remote, ruleset and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the work."
+      ]
+    },
+    "integration": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope. The integration gate of the fifth ENT-246 record stays not yet evaluated; it is evaluated before a merge, bound to the exact pull-request head, with the owner's explicit approval."
+    },
+    "publication": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope. Evaluated per provider immediately before a submission, bound to the archives built from the frozen commit and to the live listing, with the owner's explicit authorization."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: a file that runs in a page, the popup, the background component or any manifest entry other than the description would have to change.",
+    "A permission, match pattern, web-accessible resource, stored form, command or the version number would have to change.",
+    "A statement about privacy or permissions can be made true only by changing the extension.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before the work is closed."
+  ]
+}

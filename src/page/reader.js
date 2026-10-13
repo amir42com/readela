@@ -1,16 +1,47 @@
-// Page integration: reads the conversation, marks blocks with the direction
-// the core decides, and keeps the marks current while content streams in.
+// Page integration: reads the conversation, marks its blocks for the reading
+// aspects that are switched on, keeps the marks current while content streams
+// in, and keeps the saved place (the reader's bookmark).
 //
 // Readela's whole footprint in the page is a set of `data-readela-*`
-// attributes (plus, on a list or quotation that needs mirroring, a few
-// `--readela-*` custom properties). Text nodes, element structure, page-owned
+// attributes, plus a few `--readela-*` custom properties: on a list or
+// quotation that needs mirroring, on a rounded unit that keeps the site's
+// presentation under a reading theme, and on the root element while a reading
+// theme or Readela Sans is on. Text nodes, element structure, page-owned
 // attributes and page-owned styles are never written, so removing the
 // footprint restores the page's own presentation exactly.
 
-import { isAddressText, measureScripts, normalizePreferences, resolveDirection } from "../core/index.js";
-import { ELEMENT_MARKS, MARK, MIRROR_PROPERTIES, PROTECTED, ROOT_MARKS } from "./style.js";
+import {
+  POSITION_STEPS,
+  blockKind,
+  changesPage,
+  colourAlpha,
+  conversationId,
+  conversationKey,
+  createPlace,
+  fingerprint,
+  indexMarks,
+  isAddressText,
+  locatePlace,
+  measureScripts,
+  messageKey,
+  normalizeMarks,
+  normalizePreferences,
+  resolveDirection,
+  rowFingerprint,
+  samePlace,
+} from "../core/index.js";
+import {
+  ELEMENT_MARKS,
+  FLOWING,
+  ISLAND_RADIUS,
+  MARK,
+  MIRROR_PROPERTIES,
+  PROTECTED,
+  ROOT_MARKS,
+  SITE_PROPERTIES,
+  TEXT_BLOCKS,
+} from "./style.js";
 
-const TEXT_BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, dt, dd, th, td, caption, summary, figcaption";
 const LISTS = "ul, ol";
 const CONTAINERS = "ul, ol, table, blockquote";
 const MIRRORED = "ul, ol, blockquote";
@@ -18,8 +49,97 @@ const MIRRORED = "ul, ol, blockquote";
 // Elements whose boundaries separate words when text is gathered.
 const WORD_BOUNDARIES = `${TEXT_BLOCKS}, div, br, tr, hr`;
 
-// Streaming produces many small mutations; they are handled together.
+// Somewhere to type. A response that holds one outside a part that stays the
+// site's is never a reading surface.
+const TYPING = 'form, textarea, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
+
+// A part of a response that holds one of these is an application of its own,
+// not text in a wrapper, and keeps the site's presentation as a whole.
+const RICH = `iframe, canvas, video, audio, object, embed, ${TYPING}`;
+
+// What a unit can hold that is drawn, not written. One at least this many
+// pixels each way is a drawing (a chart, a diagram), made for the ground the
+// site puts it on; a smaller one is an icon. Only the first few are measured.
+const DRAWN = "svg, canvas, img";
+const DRAWING_SIDE = 48;
+const DRAWINGS_MEASURED = 12;
+
+// Streaming produces many small mutations; they are handled together. A
+// response that arrives whole is marked as it arrives instead, before the
+// browser has styled or laid it out, so it is styled and laid out once, with
+// the marks, and not a second time for them; what has to be measured for it
+// waits with the rest.
 const FLUSH_DELAY_MS = 60;
+
+// A saved place that is not on the page yet is looked for again as content
+// arrives, at most this often.
+const PLACE_RETRY_MS = 500;
+
+// A site changes conversation without loading a page. Where the browser says
+// so itself (the Navigation API), nothing runs until it does. Elsewhere the
+// address is compared with the one last seen on a beat, this often, while the
+// page is in view, and nothing else is done on a beat unless it changed.
+// After a change the conversation region is looked at again on the next few
+// beats, because a site can show a conversation it kept hidden a moment after
+// the address; then the beats stop again where the browser reports changes.
+const ROUTE_CHECK_MS = 1000;
+const ROUTE_SETTLE_BEATS = 4;
+
+// How long the place stays emphasised after Return.
+const FLASH_MS = 1800;
+
+// Return, when the place is in a response that is not in the document: the
+// conversation's scrolling region is searched in at most this many stops and
+// this much time. One stop waits for the page to settle: at least the minimum,
+// a little longer for a first change to the document where none has come yet,
+// then until the document has been quiet for a moment, at most the maximum.
+// At the beginning of what is loaded, the page is given GROW_MS to load what
+// came before.
+//
+// The time is what a long conversation needs on a site that loads its earlier
+// part a few turns at a time, each load a request of its own: thirty seconds
+// reach back in the order of a hundred turns. Nothing is reported as found
+// unless the place itself is then seen clearly in view within ARRIVE_MS.
+const SEARCH_STOPS = 90;
+const SEARCH_MS = 30000;
+const SETTLE_MIN_MS = 120;
+const SETTLE_WAIT_MS = 360;
+const SETTLE_MAX_MS = 700;
+const QUIET_MS = 100;
+const GROW_MS = 2500;
+const ROW_JUMPS = 10;
+const ARRIVE_MS = 2500;
+// A place is looked at this many times on arrival: seen in place, seen again
+// once the page has settled, with room to be put back twice in between.
+const ARRIVE_TRIES = 6;
+
+// A stretch of a walk where nothing is in the document: this share of a screen.
+const STRIDE = 0.8;
+// Turns further apart than this are not one unbroken run.
+const GAP = 32;
+// Within this many pixels of an end of the scrolling region is at that end: a
+// browser reports the region's size in whole pixels and its position in parts.
+const EDGE = 2;
+
+// The reading area. A cover lies within COVER_REACH pixels of an edge of the
+// scrolling region and takes up at most COVER_SHARE of its height; what is
+// read begins SAFE_INSET pixels clear of it. LINE is the least of a block that
+// has to be in view for the block to count as there.
+const COVER_REACH = 8;
+const COVER_SHARE = 0.4;
+const SAFE_INSET = 8;
+const LINE = 24;
+
+// Addresses of rows whose conversation key is remembered, at most.
+const ROW_MEMORY = 2000;
+
+// The reader taking over stops a search: these arrive only from real input.
+const TAKEOVER = ["wheel", "touchstart", "pointerdown", "keydown"];
+
+// The value of the unit mark on a part of a response that the reader itself
+// found to be the site's; a unit the site adapter names carries the mark
+// without a value.
+const FOUND = "found";
 
 const ELEMENT = 1;
 const TEXT = 3;
@@ -27,23 +147,78 @@ const TEXT = 3;
 /**
  * @param {object} options
  * @param {Document} options.document
- * @param {{ scope: string, within?: string, extraBlocks?: string, exclude: string }} options.site
- *   a site adapter; see `sites/index.js` for the contract
+ * @param {object} options.site a site adapter; see `sites/index.js` for the contract
  * @param {() => boolean} [options.isAlive] returns false once the extension
  *   that owns this reader is gone; the reader then removes its footprint.
+ * @param {(request: object) => Promise<object>} [options.store] asks for a
+ *   change of the stored places (see `changeFor` in the core) and resolves
+ *   with what is stored afterwards; the reader never writes them itself
  */
-export function createReader({ document, site, isAlive = () => true }) {
+export function createReader({
+  document,
+  site,
+  isAlive = () => true,
+  store = () => Promise.reject(new Error("no store")),
+}) {
   const view = document.defaultView;
+  const root = document.documentElement;
   const candidates = [TEXT_BLOCKS, CONTAINERS, "pre", site.extraBlocks].filter(Boolean).join(", ");
+  const markable = TEXT_BLOCKS;
+  // Units inside a response that keep the site's presentation as a whole.
+  const kept = ["pre", site.capsule].filter(Boolean).join(", ");
+  // Code and mathematics, with whatever else the site renders as inline code:
+  // not words of the sentence when its direction is decided.
+  const protectedText = [PROTECTED, site.token].filter(Boolean).join(", ");
   const anyMark = ELEMENT_MARKS.map((name) => `[${name}]`).join(", ");
+  // What a response or a message of the reader's own is recognised by when it
+  // arrives whole.
+  const whole = [site.prose, site.user].filter(Boolean).join(", ") || null;
 
   let preferences = null; // null while stopped
   let observer = null;
+  let siteWatcher = null; // follows the site's own theme while a reading theme is on
   let timer = null;
+  let routeTimer = null;
+  // Whether the browser reports a change of address by itself.
+  const routeEvents = typeof view.navigation?.addEventListener === "function";
+  let pathSeen = null; // the address path at the last beat
+  let beatsLeft = 0; // beats on which the region is still looked at after a change
   const pending = new Set();
-  let mirrorChecked = new WeakSet(); // lists and quotations already examined by mirrorFor
+  let arrived = []; // trees marked as they arrived, since the last flush
+  let mirrorChecked = new WeakSet(); // lists and quotations already examined for mirroring
+  let freshIslands = []; // kept units marked in this pass and not yet examined
+  let freshBlocks = []; // blocks given a direction in this pass, whose alignment is not yet examined
+  let scopeSeen = null; // the conversation region the marks were made for
+  let routeSeen = null;
+  let changedAt = 0; // when the document last changed
 
-  const scopeElement = () => document.querySelector(site.scope) ?? document.body;
+  // The stored places, by conversation: asked for often, built when they change.
+  let saved = indexMarks(normalizeMarks(undefined));
+  let place = null; // { key, element, quality } while the saved place is shown
+  let placeLookedAt = 0;
+  let placeTimer = null;
+  let flashTimer = null;
+  let search = null; // { stop } while a place is being searched for
+  const turnKeys = new WeakMap(); // turn element -> { value, key }
+  const rowKeys = new Map(); // address of a row -> { key, row }: its conversation, its own fingerprint
+  let rowsChanged = false; // a row of the site's lists came, went or changed
+  let rowSeen = null; // { key, row, at }: the row the site marked as this conversation's, when first seen
+
+  // Whether an element has a box. Asked without making the browser hand out
+  // a list of boxes where it can say so directly.
+  const isRendered = (element) =>
+    typeof element.checkVisibility === "function" ? element.checkVisibility() : element.getClientRects().length > 0;
+  const pause = (ms) => new Promise((resolve) => view.setTimeout(resolve, ms));
+  const reading = () => preferences !== null && changesPage(preferences);
+  const theming = () => preferences !== null && preferences.theme !== "page";
+
+  // The region that holds the conversation shown. A site can keep other
+  // conversations in the document, hidden; they are not this one.
+  function scopeElement() {
+    const found = document.querySelectorAll(site.scope);
+    for (const element of found) if (isRendered(element)) return element;
+    return found[0] ?? document.body;
+  }
 
   function setMark(element, name, value) {
     if (value === null) {
@@ -53,16 +228,36 @@ export function createReader({ document, site, isAlive = () => true }) {
     }
   }
 
+  function removeProperties(element, properties) {
+    for (const property of properties) element.style.removeProperty(property);
+    if (element.getAttribute("style") === "") element.removeAttribute("style");
+  }
+
+  function clearIsland(element) {
+    if (!element.hasAttribute(MARK.island)) return;
+    if (element.getAttribute(MARK.island).includes("round")) removeProperties(element, [ISLAND_RADIUS]);
+    element.removeAttribute(MARK.island);
+  }
+
   function clearMarks(element) {
-    if (element.hasAttribute(MARK.mirror)) {
-      for (const property of MIRROR_PROPERTIES) element.style.removeProperty(property);
-      if (element.getAttribute("style") === "") element.removeAttribute("style");
-    }
+    if (element.hasAttribute(MARK.mirror)) removeProperties(element, MIRROR_PROPERTIES);
+    clearIsland(element);
     for (const name of ELEMENT_MARKS) setMark(element, name, null);
+  }
+
+  // Take from an element the marks it carried as a block of reading text,
+  // and leave what it may be marked as otherwise (a unit that stays the
+  // site's, say).
+  function clearBlock(element) {
+    if (element.hasAttribute(MARK.mirror)) removeProperties(element, MIRROR_PROPERTIES);
+    for (const name of [MARK.dir, MARK.top, MARK.align, MARK.mirror]) setMark(element, name, null);
   }
 
   // Text of an element for measurement. Subtrees matching `skip` are left out.
   function textOf(element, skip) {
+    // Most blocks hold nothing that is left out and nothing that separates
+    // words: their text is then what the browser gives for them, in one piece.
+    if (element.querySelector(`${skip}, ${WORD_BOUNDARIES}`) === null) return element.textContent;
     const walker = document.createTreeWalker(element, view.NodeFilter.SHOW_ELEMENT | view.NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         if (node.nodeType === TEXT) return view.NodeFilter.FILTER_ACCEPT;
@@ -89,37 +284,59 @@ export function createReader({ document, site, isAlive = () => true }) {
   }
 
   function directionFor(element) {
-    if (element.matches("pre")) return null;
+    if (preferences.direction === "page" || element.matches("pre")) return null;
 
     // A list presents as one unit so markers, indentation and item text agree;
     // a table likewise, so its column order and cell text agree.
     if (element.matches("li")) return element.parentElement?.closest(LISTS)?.getAttribute(MARK.dir) ?? null;
     if (element.matches("th, td, caption")) return element.closest("table")?.getAttribute(MARK.dir) ?? null;
 
-    let skip = PROTECTED;
+    let skip = protectedText;
     if (element.matches(LISTS)) {
-      skip = `${PROTECTED}, ${LISTS}`; // nested lists decide for themselves
+      skip = `${protectedText}, ${LISTS}`; // nested lists decide for themselves
     } else if (!element.matches(CONTAINERS)) {
       const owner = element.parentElement?.closest("li, th, td, blockquote");
       if (owner && !owner.matches("blockquote")) return owner.getAttribute(MARK.dir);
     }
 
-    return resolveDirection({
-      counts: measureScripts(textOf(element, skip)),
-      mode: preferences.direction,
-      context: contextFor(element),
-    });
+    let counts = measureScripts(textOf(element, skip));
+    let parts = null;
+    if (element.matches(LISTS)) {
+      // A list with fewer right-to-left words than left-to-right is decided
+      // by its items, each a sentence of its own.
+      if (preferences.direction === "auto" && counts.rtl > 0 && counts.ltr > counts.rtl) {
+        parts = [...element.children].filter((item) => item.matches("li")).map((item) => measureScripts(textOf(item, skip)));
+      }
+    } else if (element.matches(CONTAINERS)) {
+      // A table or a quotation is not one sentence: its words decide, not
+      // which of them happens to stand first or last.
+      counts = { rtl: counts.rtl, ltr: counts.ltr };
+    }
+    return resolveDirection({ counts, mode: preferences.direction, context: contextFor(element), parts });
   }
 
-  function isEligible(element, scope) {
+  // Whether an element is reading text by where it stands: in the
+  // conversation shown, outside everything that is never touched, outside a
+  // unit the adapter names, and neither code nor mathematics.
+  function isReadingText(element, scope) {
     if (!scope.contains(element) || element.closest(site.exclude)) return false;
     if (site.within && !element.closest(site.within)) return false;
-    return element.matches("pre") ? !element.parentElement?.closest(PROTECTED) : !element.closest(PROTECTED);
+    if (element.matches("pre")) return !element.parentElement?.closest(PROTECTED);
+    // Text inside a unit the site presents as a whole is not reading text.
+    if (site.capsule && element.closest(site.capsule)) return false;
+    return !element.closest(PROTECTED);
+  }
+
+  // ... and outside every part of a response found to be the site's (see
+  // `partsOf`): such a part takes no direction, font or size, and holds no
+  // place to save.
+  function isEligible(element, scope) {
+    return isReadingText(element, scope) && element.closest(`[${MARK.unit}="${FOUND}"]`) === null;
   }
 
   // The page pinned the text to the physical side opposite the reading start.
   function needsStartAlignment(element, direction) {
-    if (element.style.textAlign || element.hasAttribute("align")) return false;
+    if (element.hasAttribute("align") || (element.hasAttribute("style") && element.style.textAlign)) return false;
     const align = view.getComputedStyle(element).textAlign;
     return direction === "rtl" ? align === "left" : align === "right";
   }
@@ -141,13 +358,10 @@ export function createReader({ document, site, isAlive = () => true }) {
   // physical side they do not: the layout is then identical under both
   // directions, and this returns it re-expressed on logical sides. Returns
   // null when nothing has to be mirrored.
-  function mirrorFor(element, direction) {
-    const pageDirection = view.getComputedStyle(document.documentElement).direction;
-    const ours = sideLayout(element);
-    setMark(element, MARK.dir, pageDirection);
-    const pages = sideLayout(element);
-    setMark(element, MARK.dir, direction);
-
+  //
+  // `ours` is the element's layout under its own direction and `pages` its
+  // layout under the page's.
+  function mirrorFor(ours, pages, pageDirection) {
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     if (!same(ours, pages) || same(pages.Left, pages.Right)) return null;
 
@@ -162,33 +376,437 @@ export function createReader({ document, site, isAlive = () => true }) {
     };
   }
 
-  function processTree(root) {
-    const scope = scopeElement();
-    const elements = root.matches(candidates) ? [root] : [];
-    elements.push(...root.querySelectorAll(candidates));
+  // ---------------------------------------------------------------------------
+  // Reading surface
+  //
+  // Ownership under a reading theme. The application shell and the reader's
+  // own messages are the site's. The roots of a response's text, which the
+  // site adapter names, are Readela's: they become the reading surface. Inside
+  // a surface, reading blocks are reading text; a wrapper that only holds
+  // reading blocks (around a table, say) is part of the surface; everything
+  // else is a unit that stays the site's, whole: a code block, a card, a
+  // grid of figures, a chart, a poll, and anything Readela does not know.
+  // Such a unit is never coloured in part. Where the adapter recognises no
+  // root, nothing is coloured.
+
+  // The site's own background and text colour around the conversation, for the
+  // parts of a response that keep the site's presentation under a theme.
+  function measureSite(scope = scopeElement()) {
+    // Where nothing behind the conversation is painted, the browser's own
+    // page colour is what shows.
+    let surface = "Canvas";
+    for (let element = scope; element; element = element.parentElement) {
+      const colour = view.getComputedStyle(element).backgroundColor;
+      if (colourAlpha(colour) === 1) {
+        surface = colour;
+        break;
+      }
+    }
+    const values = { [SITE_PROPERTIES.surface]: surface, [SITE_PROPERTIES.text]: view.getComputedStyle(scope).color };
+    for (const [property, value] of Object.entries(values)) {
+      if (root.style.getPropertyValue(property) !== value) root.style.setProperty(property, value);
+    }
+  }
+
+  // The site's own font around the conversation, for a unit inside reading
+  // text that keeps the site's presentation while Readela Sans is on. The
+  // conversation region itself is never given a font, so what is read is the
+  // site's.
+  function measureFont(scope = scopeElement()) {
+    if (preferences.font === "page") {
+      if (root.style.getPropertyValue(SITE_PROPERTIES.font) !== "") removeProperties(root, [SITE_PROPERTIES.font]);
+      return;
+    }
+    const value = view.getComputedStyle(scope).fontFamily;
+    if (root.style.getPropertyValue(SITE_PROPERTIES.font) !== value) root.style.setProperty(SITE_PROPERTIES.font, value);
+  }
+
+  // Whether `element` holds something matching `selector` that is not shut
+  // inside a unit that stays the site's as a whole.
+  function holdsOutsideUnits(element, selector) {
+    for (const found of element.querySelectorAll(selector)) {
+      const unit = found.closest(kept);
+      if (unit === null || unit === element || !element.contains(unit)) return true;
+    }
+    return false;
+  }
+
+  // Whether an element carries text of its own, outside its child elements.
+  function hasOwnText(element) {
+    for (const node of element.childNodes) {
+      if (node.nodeType === TEXT && node.data.trim() !== "") return true;
+    }
+    return false;
+  }
+
+  // Whether `element`, a root of response text by the adapter's word, is one
+  // Readela may own: inside the conversation shown, outside everything that is
+  // never touched (somewhere to type included), and neither in nor around a
+  // message of the reader's own. Somewhere to type inside a response (a draft
+  // the site lets the reader edit in place, a poll) does not make the whole
+  // response the site's: it is a part of it that stays the site's, see
+  // `partsOf`.
+  function ownsProse(element, scope) {
+    if (element === scope || !scope.contains(element) || element.closest(site.exclude)) return false;
+    if (element.parentElement?.closest(site.prose)) return false; // part of the root around it
+    return !(site.user && (element.closest(site.user) || element.querySelector(site.user)));
+  }
+
+  // The corner radii of an element as one `border-radius` value, or null when
+  // every corner is square.
+  function cornerRadii(style) {
+    const corners = [
+      style.borderTopLeftRadius,
+      style.borderTopRightRadius,
+      style.borderBottomRightRadius,
+      style.borderBottomLeftRadius,
+    ].map((corner) => corner.split(" "));
+    if (corners.every((corner) => corner.every((part) => parseFloat(part) === 0))) return null;
+    const across = corners.map((corner) => corner[0]).join(" ");
+    const down = corners.map((corner) => corner[1] ?? corner[0]).join(" ");
+    return across === down ? across : `${across} / ${down}`;
+  }
+
+  // What a kept part of a response is made of: the element itself, or the
+  // element it wraps exactly, whichever first has a background or rounded
+  // corners of its own. Read before Readela colours anything here.
+  function unitIn(element) {
+    const frame = element.getBoundingClientRect();
+    const same = (box) =>
+      ["left", "right", "top", "bottom"].every((side) => Math.abs(box[side] - frame[side]) <= 1.5);
+    for (let node = element, depth = 0; node !== null && depth < 4; node = node.firstElementChild, depth += 1) {
+      if (depth > 0 && !same(node.getBoundingClientRect())) return null;
+      const style = view.getComputedStyle(node);
+      const radius = cornerRadii(style);
+      const alpha = colourAlpha(style.backgroundColor);
+      if (alpha > 0 || radius !== null) return { opaque: alpha === 1, tinted: alpha > 0 && alpha < 1, radius };
+    }
+    return null;
+  }
+
+  // Whether an element shows text of any kind, the labels of controls included.
+  function showsText(element) {
+    const walker = document.createTreeWalker(element, view.NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      if (walker.currentNode.data.trim() !== "") return true;
+    }
+    return false;
+  }
+
+  // Whether a unit shows something made to be seen on the site's own ground:
+  // text, or a drawing.
+  function madeForSite(element) {
+    if (showsText(element)) return true;
+    const drawn = element.matches(DRAWN) ? [element] : element.querySelectorAll(DRAWN);
+    for (let index = 0; index < drawn.length && index < DRAWINGS_MEASURED; index += 1) {
+      const box = drawn[index].getBoundingClientRect();
+      if (box.width >= DRAWING_SIDE && box.height >= DRAWING_SIDE) return true;
+    }
+    return false;
+  }
+
+  // A unit that stays the site's, with a note of what it needs for that. One
+  // that brings an opaque background of its own needs nothing behind it, and
+  // neither does one that shows nothing but icons (a row of controls). Any
+  // other gets the site's own background behind it ("surface"), in the unit's
+  // own shape where that is rounded ("round"): one that shows text, a
+  // control's label included; one that holds a drawing, whose lines and
+  // labels were made for that background, also where it is an image with a
+  // clear ground; and one with a see-through tint of its own (a divider),
+  // which is a colour only against it. What kind of thing the unit is, is not
+  // asked, so one Readela has never seen is treated like one it has. A unit
+  // whose text takes its colour from around it would take the theme's, and
+  // keeps the site's instead ("text"); one that sets a colour of its own
+  // keeps that.
+  //
+  // A unit is marked when it is first seen and examined afterwards, with every
+  // other unit seen in the same pass: reading a unit's own box and colours
+  // makes the browser lay the page out, and it should do so once for all of
+  // them, not once for each between two writes.
+  //
+  // Until it is examined, a unit that shows text stands on the site's own
+  // ground in the site's own text colour, both measured long before: text made
+  // for the site's ground is then readable from the first frame the browser
+  // paints, whatever the reading theme. Nothing is measured for that.
+  function markIsland(element) {
+    if (element.hasAttribute(MARK.island)) return; // examined when it was first seen
+    element.setAttribute(MARK.island, showsText(element) ? "surface text" : "");
+    freshIslands.push(element);
+  }
+
+  // Everything that waits to be measured, blocks first: their marks decide
+  // what a unit beside them looks like.
+  function examine() {
+    examineBlocks();
+    examineIslands();
+  }
+
+  function examineIslands() {
+    if (freshIslands.length === 0) return;
+    const fresh = [...new Set(freshIslands)].filter((element) => element.isConnected && element.hasAttribute(MARK.island));
+    freshIslands = [];
+    // What a unit was given for its first frame is taken off again, so that
+    // no rule of Readela's is in the way when its own colours are read.
+    for (const element of fresh) setMark(element, MARK.island, "");
+    // Everything is read before anything more is written.
+    const noted = fresh
+      .map((element) => {
+        const needs = [];
+        let radius = null;
+        const unit = unitIn(element);
+        if (!unit?.opaque && (unit?.tinted || madeForSite(element))) {
+          needs.push("surface");
+          if (unit?.radius) {
+            radius = unit.radius;
+            needs.push("round");
+          }
+        }
+        const around = element.parentElement;
+        if (around && view.getComputedStyle(element).color === view.getComputedStyle(around).color) needs.push("text");
+        return { element, needs, radius };
+      });
+    for (const { element, needs, radius } of noted) {
+      if (radius !== null) element.style.setProperty(ISLAND_RADIUS, radius);
+      setMark(element, MARK.island, needs.join(" "));
+    }
+  }
+
+  // What a root of response text is made of, by its structure alone. This is
+  // the one decision of what in a response is Readela's and what stays the
+  // site's; colour, direction, typography and the places a bookmark can be
+  // saved at all follow it.
+  //
+  //   - a reading block standing in the root is reading text; a unit inside
+  //     it (a code block in a list item) stays the site's;
+  //   - a wrapper that holds reading blocks and no text but theirs is part of
+  //     the surface (`inner`), and is looked into in the same way;
+  //   - everything else is a unit that stays the site's, whole (`units`): one
+  //     the adapter names, and any other, whatever it is. A wrapper that
+  //     holds reading blocks together with something that is an application
+  //     of its own (a field to type in, a frame, a canvas) is such a unit, so
+  //     a card with its labels and its form is never taken apart; unless it
+  //     holds all the reading text there is where it stands, which makes it
+  //     the response's own structure and not a part among others. What stays
+  //     the site's is then the part of it that holds no reading text.
+  //
+  // Only the document is read: nothing is measured, nothing is written, and
+  // no mark of Readela's is asked for, so the answer is the same whatever is
+  // switched on.
+  function partsOf(sheet, scope) {
+    const inner = [];
+    const units = [];
+    const walk = (container) => {
+      for (const child of container.children) {
+        const kind = partKind(child, container, scope);
+        if (kind === "unit") {
+          units.push(child);
+        } else if (kind === "text") {
+          for (const unit of child.querySelectorAll(kept)) {
+            const outer = unit.parentElement.closest(kept);
+            if (!(outer && child.contains(outer))) units.push(unit);
+          }
+        } else if (kind === "inner") {
+          inner.push(child);
+          walk(child);
+        }
+      }
+    };
+    walk(sheet);
+    return { inner, units };
+  }
+
+  // What one child of a root of response text, or of a wrapper that is part
+  // of one, is: reading text, a wrapper of it ("inner"), something that only
+  // flows with it, or a unit that stays the site's. See `partsOf`.
+  function partKind(child, container, scope) {
+    if (child.matches(kept)) return "unit";
+    if (child.matches(candidates) && isReadingText(child, scope)) return "text";
+    if (child.matches(FLOWING)) return "flow";
+    const reads = (element) => !element.matches("pre") && isReadingText(element, scope);
+    const blocksIn = (element) => [...element.querySelectorAll(candidates)].filter(reads).length;
+    let holdsBlocks = false;
+    for (const found of child.querySelectorAll(candidates)) {
+      if (!reads(found)) continue;
+      holdsBlocks = true;
+      break;
+    }
+    if (!holdsBlocks || hasOwnText(child)) return "unit";
+    return !holdsOutsideUnits(child, RICH) || blocksIn(child) === blocksIn(container) ? "inner" : "unit";
+  }
+
+  // Mark a root of response text after `partsOf`. With a reading theme on it
+  // becomes the reading surface and its units are kept as the site made them;
+  // without one only the units the reader found itself are noted, so nothing
+  // in them is taken for reading text. Returns the elements that were such
+  // units until now and are reading text again.
+  function markSurface(sheet, scope) {
+    const themed = theming();
+    const { inner, units } = partsOf(sheet, scope);
+    const surface = new Set([sheet, ...inner]);
+    const sites = new Set(units);
+    const released = [];
+    for (const element of surface) {
+      clearIsland(element);
+      setMark(element, MARK.sheet, themed ? (element === sheet ? "" : "inner") : null);
+    }
+    for (const element of units) {
+      setMark(element, MARK.sheet, null);
+      // A unit the adapter does not name is noted as the site's where it
+      // holds anything that could be taken for reading text; one that holds
+      // nothing of the kind needs no note and gets none.
+      const noted = element.getAttribute(MARK.unit) === FOUND;
+      const holds = !element.matches(kept) && element.querySelector(candidates) !== null;
+      if (holds && !noted) {
+        // Found to be the site's now: what was marked in it as reading text
+        // is that no longer.
+        for (const inside of element.querySelectorAll(anyMark)) clearMarks(inside);
+        setMark(element, MARK.unit, FOUND);
+      } else if (!holds && noted) {
+        setMark(element, MARK.unit, null);
+      }
+      if (themed) markIsland(element);
+      else clearIsland(element);
+    }
+    for (const element of sheet.querySelectorAll(`[${MARK.sheet}], [${MARK.island}], [${MARK.unit}="${FOUND}"]`)) {
+      if (sites.has(element)) continue;
+      if (!surface.has(element)) {
+        clearIsland(element);
+        setMark(element, MARK.sheet, null);
+      }
+      if (element.getAttribute(MARK.unit) === FOUND) {
+        setMark(element, MARK.unit, null);
+        released.push(element);
+      }
+    }
+    return released;
+  }
+
+  function unmarkSurface(sheet) {
+    const marked = `[${MARK.sheet}], [${MARK.island}], [${MARK.unit}="${FOUND}"]`;
+    for (const element of [sheet, ...sheet.querySelectorAll(marked)]) {
+      clearIsland(element);
+      setMark(element, MARK.sheet, null);
+      if (element.getAttribute(MARK.unit) === FOUND) setMark(element, MARK.unit, null);
+    }
+  }
+
+  // Bring the roots of response text in and around `tree` up to date.
+  // Returns the elements whose content is reading text again.
+  function markSurfaces(tree, scope) {
+    const released = [];
+    if (!site.prose) return released;
+    // A root inside another root is part of it.
+    const outermost = (element) => {
+      let found = element;
+      for (let outer = element; outer; outer = outer.parentElement?.closest(site.prose)) found = outer;
+      return found;
+    };
+    const roots = new Set();
+    const around = tree.closest(site.prose);
+    if (around) roots.add(outermost(around));
+    for (const element of tree.querySelectorAll(site.prose)) roots.add(outermost(element));
+    const marked = [...tree.querySelectorAll(`[${MARK.sheet}=""]`)];
+    for (const sheet of marked) if (!roots.has(sheet)) unmarkSurface(sheet);
+    for (const sheet of roots) {
+      if (ownsProse(sheet, scope)) released.push(...markSurface(sheet, scope));
+      else unmarkSurface(sheet);
+    }
+    return released;
+  }
+
+  // The site can change its own theme without touching the conversation: by
+  // an attribute on the root element, or by following the system's light or
+  // dark setting. Either is followed while a reading theme is on, and only then.
+  function watchSite() {
+    if (theming() === (siteWatcher !== null)) return;
+    if (siteWatcher !== null) {
+      siteWatcher.stop();
+      siteWatcher = null;
+      return;
+    }
+    // Either way the conversation region is measured: an event of the
+    // browser's is not the region, and is not handed on as one.
+    const measure = () => measureSite();
+    const attributes = new view.MutationObserver(measure);
+    attributes.observe(root, { attributes: true });
+    const scheme = view.matchMedia("(prefers-color-scheme: dark)");
+    scheme.addEventListener("change", measure);
+    siteWatcher = {
+      stop() {
+        attributes.disconnect();
+        scheme.removeEventListener("change", measure);
+      },
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Blocks
+
+  // Mark the blocks in and under `tree`. Only the document is read and only
+  // marks are written: nothing here makes the browser style or lay out the
+  // page. `scope` is the conversation region, found once for a pass over
+  // several trees.
+  function processTree(tree, scope = scopeElement()) {
+    // First what is the site's in the responses here, with or without a
+    // reading theme: a block inside such a part is not reading text. What
+    // was such a part until now and is not any more is marked with the rest.
+    const released = markSurfaces(tree, scope);
+    const elements = tree.matches(candidates) ? [tree] : [];
+    elements.push(...tree.querySelectorAll(candidates));
+    for (const element of released) {
+      if (!tree.contains(element)) elements.push(...element.querySelectorAll(candidates));
+    }
 
     // Writes first, in document order, so each block can read its ancestors' marks.
     const marked = [];
     for (const element of elements) {
       if (!isEligible(element, scope)) {
-        clearMarks(element);
+        clearBlock(element);
         continue;
       }
       const direction = directionFor(element);
       setMark(element, MARK.dir, direction);
-      const outermost =
-        (direction !== null || element.matches("pre")) &&
-        !element.parentElement?.closest(`[${MARK.dir}], [${MARK.top}]`);
+      const outermost = !element.parentElement?.closest(`[${MARK.top}]`);
       setMark(element, MARK.top, outermost ? "" : null);
       if (direction !== null) marked.push(element);
     }
 
-    for (const link of root.querySelectorAll("a")) {
+    for (const link of tree.querySelectorAll("a")) {
       const inMarkedBlock = link.closest(`[${MARK.dir}]`) !== null;
       setMark(link, MARK.ltr, inMarkedBlock && isAddressText(link.textContent) ? "" : null);
     }
 
-    // Then alignment reads, gathered before any further write.
+    // A unit the site presents as a whole keeps its own typography, and what
+    // the site renders as inline code without a code element is treated as
+    // inline code.
+    for (const [selector, mark] of [[site.capsule, MARK.unit], [site.token, MARK.token]]) {
+      if (!selector) continue;
+      const found = [...tree.querySelectorAll(selector)];
+      if (tree.matches(selector)) found.push(tree);
+      for (const element of found) {
+        const ours =
+          scope.contains(element) &&
+          !element.closest(site.exclude) &&
+          (!site.within || element.closest(site.within) !== null) &&
+          // The outermost says it for everything inside it.
+          !element.parentElement?.closest(selector);
+        setMark(element, mark, ours ? "" : null);
+      }
+    }
+
+    // Nothing is measured here: see examineBlocks.
+    for (const element of marked) freshBlocks.push(element);
+  }
+
+  // What has to be read from the browser about the blocks marked since the
+  // last time: all of it together, after every mark is written, so the
+  // browser works out styles once for all of them.
+  function examineBlocks() {
+    if (freshBlocks.length === 0) return;
+    const marked = [...new Set(freshBlocks)].filter((element) => element.isConnected && element.hasAttribute(MARK.dir));
+    freshBlocks = [];
+
+    // Alignment reads, gathered before any further write.
     const misaligned = [];
     const containers = [];
     for (const element of marked) {
@@ -201,12 +819,21 @@ export function createReader({ document, site, isAlive = () => true }) {
     for (const element of misaligned) setMark(element, MARK.align, "");
 
     // Last, the mirror check, once per list or quotation that reads against
-    // the page's direction.
-    for (const element of containers) {
-      const direction = element.getAttribute(MARK.dir);
-      if (direction === view.getComputedStyle(document.documentElement).direction) continue;
+    // the page's direction. Each is measured under its own direction and under
+    // the page's; they are measured together, so the browser works out the
+    // styles twice for all of them and not twice for each.
+    if (containers.length === 0) return;
+    const pageDirection = view.getComputedStyle(root).direction;
+    const against = containers.filter((element) => element.getAttribute(MARK.dir) !== pageDirection);
+    if (against.length === 0) return;
+    const directions = against.map((element) => element.getAttribute(MARK.dir));
+    const ours = against.map(sideLayout);
+    for (const element of against) setMark(element, MARK.dir, pageDirection);
+    const pages = against.map(sideLayout);
+    for (const [index, element] of against.entries()) setMark(element, MARK.dir, directions[index]);
+    for (const [index, element] of against.entries()) {
       mirrorChecked.add(element);
-      const mirror = mirrorFor(element, direction);
+      const mirror = mirrorFor(ours[index], pages[index], pageDirection);
       if (mirror) applyMirror(element, mirror);
     }
   }
@@ -225,6 +852,855 @@ export function createReader({ document, site, isAlive = () => true }) {
     return found;
   }
 
+  // Remove every block mark and keep the saved place, which does not depend
+  // on the reading aspects.
+  function clearBlocks() {
+    mirrorChecked = new WeakSet();
+    const shown = place?.element.getAttribute(MARK.place) ?? null;
+    const flashing = place?.element.hasAttribute(MARK.flash) ?? false;
+    for (const element of document.querySelectorAll(anyMark)) clearMarks(element);
+    removeProperties(root, Object.values(SITE_PROPERTIES));
+    if (shown !== null) place.element.setAttribute(MARK.place, shown);
+    if (flashing) place.element.setAttribute(MARK.flash, "");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Saved place
+
+  const conversation = () => conversationId(site.conversation, document.location.pathname);
+
+  // The region that scrolls the conversation.
+  function scrollerElement() {
+    const scope = scopeElement();
+    if (site.scroller) {
+      const named = scope.closest(site.scroller) ?? [...scope.querySelectorAll(site.scroller)].find(isRendered);
+      if (named) return named;
+    }
+    const from = (site.prose && scope.querySelector(site.prose)) || scope;
+    for (let element = from.parentElement; element && element !== document.body && element !== root; element = element.parentElement) {
+      const overflow = view.getComputedStyle(element).overflowY;
+      if ((overflow === "auto" || overflow === "scroll") && element.scrollHeight > element.clientHeight + 1) return element;
+    }
+    return document.scrollingElement ?? root;
+  }
+
+  // The conversation's scrolling region in one coordinate system. A site can
+  // lay the conversation out from its end (a reversed flex column); the
+  // browser then counts scrollTop from 0 at the end into negative numbers
+  // towards the beginning, and a positive value does nothing. Here a position
+  // is always the distance from the beginning of the conversation, whichever
+  // way the site lays it out.
+  function scrolling(scroller) {
+    const style = view.getComputedStyle(scroller);
+    const reversed =
+      scroller.scrollTop < -0.5 || (style.display.includes("flex") && style.flexDirection === "column-reverse");
+    const range = () => Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    const start = () => (reversed ? -range() : 0);
+    return {
+      range,
+      get offset() {
+        return scroller.scrollTop - start();
+      },
+      moveTo(offset) {
+        scroller.scrollTop = start() + Math.min(range(), Math.max(0, offset));
+      },
+      moveBy(distance, behavior = "auto") {
+        scroller.scrollBy({ top: distance, behavior });
+      },
+    };
+  }
+
+  // The part of the window in which the conversation can be read clearly: the
+  // scrolling region, less whatever the site keeps over its top and bottom
+  // edges, less a small inset. A cover is found from the page's geometry, not
+  // by asking what a pointer would hit: a header can lie over the text and let
+  // the pointer through. A cover is a positioned element that lies across an
+  // edge of the region, is a good part of its width and a small part of its
+  // height, and does not scroll with the conversation. Something painted
+  // behind the text can be taken for one; the only cost is a place a little
+  // further down.
+  //
+  // What a response or a message of the reader's own holds scrolls with the
+  // conversation and covers nothing, and a conversation the site keeps hidden
+  // is not on screen: none of that is measured. That leaves the application
+  // around the conversation, a small part of the document, so the browser is
+  // asked for few boxes however long the conversation is.
+  function readingArea() {
+    const scroller = scrollerElement();
+    const page = scroller === (document.scrollingElement ?? root);
+    const frame = page
+      ? { top: 0, bottom: view.innerHeight, left: 0, right: view.innerWidth }
+      : scroller.getBoundingClientRect();
+    const edge = { top: Math.max(0, frame.top), bottom: Math.min(view.innerHeight, frame.bottom) };
+    const height = edge.bottom - edge.top;
+    const width = frame.right - frame.left;
+    let top = edge.top;
+    let bottom = edge.bottom;
+    if (height > 0 && width > 0) {
+      const scope = scopeElement();
+      const content = [site.prose, site.user].filter(Boolean).join(", ");
+      const shell = document.createTreeWalker(document.body, view.NodeFilter.SHOW_ELEMENT, {
+        acceptNode(element) {
+          if (content !== "" && element.matches(content)) return view.NodeFilter.FILTER_REJECT;
+          if (element !== scope && element.matches(site.scope) && !element.contains(scope)) return view.NodeFilter.FILTER_REJECT;
+          return view.NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      for (let element = shell.nextNode(); element !== null; element = shell.nextNode()) {
+        const box = element.getBoundingClientRect();
+        if (box.height < 4 || box.height > height * COVER_SHARE || box.width < width * 0.3) continue;
+        if (box.right <= frame.left + 16 || box.left >= frame.right - 16) continue;
+        const over = box.top <= edge.top + COVER_REACH && box.bottom > top;
+        const under = box.bottom >= edge.bottom - COVER_REACH && box.top < bottom;
+        if (!over && !under) continue;
+        const style = view.getComputedStyle(element);
+        const position = style.position;
+        if (position !== "fixed" && position !== "sticky" && position !== "absolute") continue;
+        if (style.visibility === "hidden" || style.opacity === "0") continue;
+        // What is placed in the conversation's own content moves with it.
+        if (position === "absolute" && (page || (scroller.contains(element) && element.offsetParent !== scroller))) continue;
+        if (over) top = Math.max(top, box.bottom);
+        else bottom = Math.min(bottom, box.top);
+      }
+    }
+    return { top: top + SAFE_INSET, bottom: bottom - SAFE_INSET, edge };
+  }
+
+  // Larger than a text kept only for screen readers, and not hidden.
+  function isReadable(element) {
+    if (element.offsetWidth <= 2 || element.offsetHeight <= 2) return false;
+    return element.checkVisibility?.({ visibilityProperty: true }) ?? true;
+  }
+
+  // The key of the turn that holds a root of response text, where the site
+  // identifies turns.
+  function turnOf(prose, scope) {
+    const turn = site.turn ? prose.closest(`[${site.turn}]`) : null;
+    if (turn === null || !scope.contains(turn)) return { holder: prose, key: null };
+    const value = turn.getAttribute(site.turn);
+    let known = turnKeys.get(turn);
+    if (known?.value !== value) turnKeys.set(turn, (known = { value, key: messageKey(value) }));
+    return { holder: known.key === null ? prose : turn, key: known.key };
+  }
+
+  function orderOf(holder) {
+    if (!site.order) return null;
+    const value = Number.parseInt(holder.closest(`[${site.order}]`)?.getAttribute(site.order) ?? "", 10);
+    return Number.isInteger(value) && value >= 0 ? value : null;
+  }
+
+  // The responses now on the page, in order. A response is the roots of
+  // response text that one turn holds; its blocks are read only when asked for.
+  function responses() {
+    const scope = scopeElement();
+    const found = [];
+    if (!site.prose) return found;
+    for (const prose of scope.querySelectorAll(site.prose)) {
+      if (!ownsProse(prose, scope) || !isRendered(prose)) continue;
+      const { holder, key } = turnOf(prose, scope);
+      let response = found.at(-1);
+      if (response?.holder !== holder) {
+        response = {
+          holder,
+          key,
+          ordinal: orderOf(holder),
+          roots: [],
+          list: null,
+          // The blocks a reader reads: paragraph-like elements that hold text
+          // and no smaller paragraph-like element, outside every part that
+          // stays the site's. Which parts those are is asked of the document
+          // here, not of the marks, which are there only while a reading
+          // aspect is on.
+          get blocks() {
+            if (this.list !== null) return this.list;
+            this.list = [];
+            for (const part of this.roots) {
+              const sites = partsOf(part, scope).units.filter((unit) => !unit.matches(kept));
+              for (const element of part.querySelectorAll(markable)) {
+                if (element.querySelector(markable) !== null || !isReadingText(element, scope)) continue;
+                if (sites.some((unit) => unit.contains(element))) continue;
+                const f = fingerprint(element.textContent);
+                if (f !== null && isReadable(element)) this.list.push({ element, f, t: blockKind(element.localName) });
+              }
+            }
+            return this.list;
+          },
+        };
+        found.push(response);
+      }
+      response.roots.push(prose);
+    }
+    return found;
+  }
+
+  function hidePlace() {
+    if (place === null) return;
+    setMark(place.element, MARK.place, null);
+    setMark(place.element, MARK.flash, null);
+    place = null;
+  }
+
+  function showPlace(element, quality, key) {
+    if (place !== null && place.element !== element) hidePlace();
+    setMark(element, MARK.place, quality);
+    place = { key, element, quality };
+  }
+
+  // Find the saved place of this conversation on the page as it is now.
+  function locate() {
+    placeLookedAt = Date.now();
+    const id = conversation();
+    const key = id === null ? null : conversationKey(site.id, id);
+    const record = key === null ? null : (saved.byKey.get(key) ?? null);
+    if (record === null) {
+      hidePlace();
+      return { status: id === null ? "nowhere" : "none" };
+    }
+    const found = responses();
+    const answer = locatePlace(record, found);
+    if (answer.status !== "exact" && answer.status !== "approximate") {
+      hidePlace();
+      return { status: answer.status, record };
+    }
+    const { element } = found[answer.message].blocks[answer.block];
+    showPlace(element, answer.status, key);
+    return { status: answer.status, element, record };
+  }
+
+  // Keep the place shown while content arrives, re-renders or the
+  // conversation changes. Costs next to nothing where no place is saved.
+  function keepPlace() {
+    if (preferences === null) return;
+    const id = conversation();
+    const key = id === null ? null : conversationKey(site.id, id);
+    const record = key === null ? null : (saved.byKey.get(key) ?? null);
+    if (record === null) {
+      hidePlace();
+      return;
+    }
+    // A place that was found exactly is still the place only while it is on
+    // the page with the text it was saved with.
+    const settled =
+      place !== null &&
+      place.key === key &&
+      place.quality === "exact" &&
+      place.element.isConnected &&
+      fingerprint(place.element.textContent) === record.f;
+    if (settled) return;
+    const wait = PLACE_RETRY_MS - (Date.now() - placeLookedAt);
+    if (wait <= 0) {
+      locate();
+    } else if (placeTimer === null) {
+      placeTimer = view.setTimeout(() => {
+        placeTimer = null;
+        keepPlace();
+      }, wait);
+    }
+  }
+
+  // Whether a point of a block is the block's own on screen: nothing that takes
+  // the pointer (a menu, a dialog) lies over it there.
+  function shows(element, x, y) {
+    const hit = document.elementFromPoint(Math.min(view.innerWidth - 1, Math.max(0, x)), y);
+    return hit !== null && element.contains(hit);
+  }
+
+  // Whether a block begins clearly in the reading area: its first line is
+  // below whatever covers the top, and at least a line of it is above the
+  // bottom.
+  function beginsIn(area, box) {
+    return box.top >= area.top - 0.5 && box.top <= area.bottom - Math.min(box.height, LINE);
+  }
+
+  // The block to save. A selection in view says exactly which: the readable
+  // block that holds it. Without one it is the first readable block that
+  // begins clearly in the reading area, so the reader sees all of what was
+  // saved; a block that merely reaches into view from above, under the site's
+  // header, is passed over. Only where no block begins in view (one long
+  // paragraph fills the screen) is it the block being read at the top. Nothing
+  // is guessed about where the reader is looking.
+  function blockToSave(found) {
+    const area = readingArea();
+    const inSight = (box) => box.bottom > area.edge.top + 1 && box.top < area.edge.bottom - 1;
+
+    const selection = document.getSelection?.();
+    if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      for (const response of found) {
+        if (!response.roots.some((part) => range.intersectsNode(part))) continue;
+        const index = response.blocks.findIndex(({ element }) => range.intersectsNode(element));
+        if (index !== -1 && inSight(response.blocks[index].element.getBoundingClientRect())) return { response, index };
+      }
+    }
+
+    let reading = null;
+    for (const response of found) {
+      if (!response.roots.some((part) => inSight(part.getBoundingClientRect()))) continue;
+      for (const [index, { element }] of response.blocks.entries()) {
+        const box = element.getBoundingClientRect();
+        if (!inSight(box)) continue;
+        const x = box.left + box.width / 2;
+        if (beginsIn(area, box) && shows(element, x, box.top + Math.min(box.height / 2, 10))) return { response, index };
+        const fills = box.top < area.top && box.bottom > area.top + LINE;
+        if (reading === null && fills && shows(element, x, area.top + LINE / 2)) reading = { response, index };
+      }
+    }
+    return reading;
+  }
+
+  // Where a block is along the conversation, from 0 to 1.
+  function positionOf(element) {
+    const scroller = scrollerElement();
+    if (!(scroller.scrollHeight > 0)) return 0;
+    const frame = scroller === (document.scrollingElement ?? root) ? 0 : scroller.getBoundingClientRect().top;
+    return (element.getBoundingClientRect().top - frame + scrolling(scroller).offset) / scroller.scrollHeight;
+  }
+
+  function flash(element) {
+    if (flashTimer !== null) view.clearTimeout(flashTimer);
+    for (const other of document.querySelectorAll(`[${MARK.flash}]`)) if (other !== element) setMark(other, MARK.flash, null);
+    setMark(element, MARK.flash, "");
+    flashTimer = view.setTimeout(() => {
+      flashTimer = null;
+      setMark(element, MARK.flash, null);
+    }, FLASH_MS);
+  }
+
+  // Wait for the page to settle after the conversation was scrolled.
+  async function settle() {
+    const began = Date.now();
+    await pause(SETTLE_MIN_MS);
+    // Nothing has changed yet: the page may still be bringing content in.
+    while (changedAt < began && Date.now() - began < SETTLE_WAIT_MS) await pause(40);
+    while (Date.now() - changedAt < QUIET_MS && Date.now() - began < SETTLE_MAX_MS) await pause(40);
+  }
+
+  // Look through the conversation for the response a place was saved in, when
+  // that response is not in the document. A site can keep only the responses
+  // near the viewport in the document, and can load the earlier part of a
+  // conversation only when its beginning is scrolled into view.
+  //
+  // The conversation's own scrolling region is moved, and the page is asked
+  // again after each move:
+  //   1. where the site numbers its rows, a few jumps straight towards the
+  //      row the place was saved in;
+  //   2. then a walk in the direction the place is expected in, and after
+  //      that in the other, each from where the reader was. A walk goes one
+  //      stretch at a time. A stretch ends at the edge of what the site has
+  //      in the document on that side, so nothing lies between two stops that
+  //      was never in the document, and it is most of one screen where
+  //      nothing is. At the beginning the page is given a moment to load what
+  //      came before; if the conversation grows, the walk goes on.
+  //
+  // The search ends when the place is found, when the reader does anything,
+  // when the conversation or Readela's state changes, and at its limits.
+  // Unless it found the place or was taken over, it puts the conversation
+  // back where it was.
+  async function searchFor(record) {
+    const scroller = scrollerElement();
+    const page = scroller === (document.scrollingElement ?? root);
+    const motion = scrolling(scroller);
+    const frame = () => (page ? { top: 0, bottom: view.innerHeight } : scroller.getBoundingClientRect());
+    const screen = () => (page ? view.innerHeight : scroller.clientHeight);
+
+    const origin = { offset: motion.offset, fromEnd: motion.range() - motion.offset };
+    const restore = () =>
+      motion.moveTo(origin.fromEnd < origin.offset ? motion.range() - origin.fromEnd : origin.offset);
+    const route = conversation();
+    let stopped = false;
+    const stop = () => {
+      stopped = true;
+    };
+    const live = () => !stopped && preferences !== null && conversation() === route;
+    for (const name of TAKEOVER) view.addEventListener(name, stop, { capture: true, passive: true });
+    search = { stop };
+
+    const began = Date.now();
+    let stops = 0;
+    const spent = () => stops >= SEARCH_STOPS || Date.now() - began > SEARCH_MS;
+    let found = { status: "absent" };
+    // One stop: move, let the page settle, ask again. True while the search goes on.
+    const look = async (offset) => {
+      stops += 1;
+      motion.moveTo(offset);
+      await settle();
+      if (!live()) return false;
+      found = locate();
+      return found.status === "absent";
+    };
+
+    // The rows the site numbers, and the one nearest to the saved row.
+    const nearestRow = () => {
+      if (record.n === null) return null;
+      const rows = responses().filter((response) => response.ordinal !== null);
+      if (rows.length === 0) return null;
+      const row = rows.reduce((best, other) =>
+        Math.abs(other.ordinal - record.n) < Math.abs(best.ordinal - record.n) ? other : best,
+      );
+      return { row, rows, gap: record.n - row.ordinal };
+    };
+
+    // 1. By row number. The number only says which way to go and roughly how far.
+    const jump = async () => {
+      for (let jumps = 0; jumps < ROW_JUMPS && !spent(); jumps += 1) {
+        const near = nearestRow();
+        if (near === null || Math.abs(near.gap) <= 2) return true;
+        const heights = near.rows.map((row) => row.holder.getBoundingClientRect().height);
+        const average = heights.reduce((sum, height) => sum + height, 0) / heights.length;
+        const from = near.row.holder.getBoundingClientRect().top - frame().top + motion.offset;
+        if (!(await look(from + near.gap * average * 0.8 - screen() / 4))) return false;
+      }
+      return true;
+    };
+
+    // What the site has in the document around the viewport on one side: how
+    // far the unbroken run of turns reaches beyond the edge of the viewport.
+    const reach = (direction) => {
+      const edges = frame();
+      // Rows where the site numbers them, turns where it marks them, else the responses.
+      const part = site.order ?? site.turn;
+      const boxes = (part ? [...scopeElement().querySelectorAll(`[${part}]`)] : responses().map((response) => response.holder))
+        .filter(isRendered)
+        .map((element) => element.getBoundingClientRect())
+        .sort((first, second) => first.top - second.top);
+      let run = null;
+      for (const box of direction < 0 ? boxes.reverse() : boxes) {
+        if (run === null) {
+          if (box.bottom > edges.top && box.top < edges.bottom) run = box;
+        } else if (direction < 0 ? run.top - box.bottom <= GAP && box.top < run.top : box.top - run.bottom <= GAP && box.bottom > run.bottom) {
+          run = { top: Math.min(run.top, box.top), bottom: Math.max(run.bottom, box.bottom) };
+        }
+      }
+      if (run === null) return 0;
+      return Math.max(0, direction < 0 ? edges.top - run.top : run.bottom - edges.bottom);
+    };
+
+    // Whether the conversation grows at its beginning within a moment.
+    const grows = async () => {
+      const before = motion.range();
+      const until = Date.now() + GROW_MS;
+      while (live() && Date.now() < until) {
+        await pause(80);
+        if (motion.range() > before + 4) {
+          await settle();
+          return live();
+        }
+      }
+      return false;
+    };
+
+    // 2. A walk towards the beginning (-1) or the end (+1). True while the search goes on.
+    // The end of the region is where the position says so, within the
+    // rounding of what a browser reports, and wherever a move no longer moves.
+    const walk = async (direction) => {
+      let held = false;
+      for (;;) {
+        if (spent()) return false;
+        const at = motion.offset;
+        const end = held || (direction < 0 ? at <= EDGE : at >= motion.range() - EDGE);
+        if (end) {
+          if (direction > 0 || !(await grows())) return live();
+          held = false;
+          found = locate();
+          if (found.status !== "absent") return false;
+          continue;
+        }
+        const stretch = Math.max(screen() * STRIDE, reach(direction) + screen() * 0.6);
+        if (!(await look(at + direction * stretch))) return false;
+        held = Math.abs(motion.offset - at) < 1;
+      }
+    };
+
+    // Which way first: by row number where there is one, otherwise by where
+    // the place was along the conversation when it was saved.
+    const first = () => {
+      const near = nearestRow();
+      if (near !== null && near.gap !== 0) return Math.sign(near.gap);
+      const here = (motion.offset + screen() / 2) / Math.max(1, scroller.scrollHeight);
+      return record.p / POSITION_STEPS < here ? -1 : 1;
+    };
+
+    try {
+      if (motion.range() > 0) {
+        if (await jump()) {
+          const direction = first();
+          if (await walk(direction)) {
+            restore();
+            await settle();
+            if (live()) await walk(-direction);
+          }
+        }
+      }
+      if (!live()) return { status: "stopped" };
+      if (!found.element) {
+        restore();
+        found = found.status === "absent" || spent() ? { status: "absent" } : found;
+      }
+      return found;
+    } finally {
+      for (const name of TAKEOVER) view.removeEventListener(name, stop, { capture: true });
+      if (search?.stop === stop) search = null;
+    }
+  }
+
+  // Bring a place into view and confirm it is there to be read: its beginning
+  // a little below whatever covers the top of the reading area, with some of
+  // what precedes it still in view. Returns what was found there, or null: a
+  // place is reported as reached only when it is seen clearly.
+  async function arrive(element, immediate) {
+    const calm = immediate || view.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    const motion = scrolling(scrollerElement());
+    // What covers the edges of the scrolling region does not move while the
+    // conversation does, so the reading area is worked out once.
+    const area = readingArea();
+    const put = (target, behavior) => {
+      const box = target.getBoundingClientRect();
+      const room = area.bottom - area.top;
+      const lead = Math.min(room * 0.2, 120);
+      // A block taller than the room below the lead begins at the top of the area.
+      const want = area.top + (box.height > room - lead ? Math.min(lead, 4) : lead);
+      if (Math.abs(box.top - want) >= 1) motion.moveBy(box.top - want, behavior);
+    };
+    const rest = async (target) => {
+      const began = Date.now();
+      let top = null;
+      while (Date.now() - began < ARRIVE_MS) {
+        await pause(90);
+        if (preferences === null || !target.isConnected) return;
+        const now = target.getBoundingClientRect().top;
+        if (top !== null && Math.abs(now - top) < 1) return;
+        top = now;
+      }
+    };
+
+    put(element, calm ? "auto" : "smooth");
+    await rest(element);
+    // The page may have rendered the block again on the way, or moved it. And
+    // seen in place once is not there to stay: a site that keeps only a part
+    // of a long conversation in the document goes on laying it out after a
+    // jump, and what was in view a moment ago is then somewhere else, with
+    // another passage in its place. So the place is reported as reached only
+    // when it is found in place a second time, after the page has settled;
+    // one that moved is put back, and one that will not stay is not reported.
+    let seen = false;
+    for (let tries = 0; tries < ARRIVE_TRIES; tries += 1) {
+      if (preferences === null) return null;
+      const again = locate();
+      if (!again.element) return null;
+      if (beginsIn(area, again.element.getBoundingClientRect())) {
+        if (seen) {
+          flash(again.element);
+          return again;
+        }
+        seen = true;
+        await settle();
+        continue;
+      }
+      seen = false;
+      put(again.element, "auto");
+      await rest(again.element);
+    }
+    return null;
+  }
+
+  /** Whether this conversation has a saved place. */
+  function placeStatus() {
+    if (preferences === null) return { status: "off" };
+    const { status } = locate();
+    return { status: status === "nowhere" || status === "none" ? status : "saved" };
+  }
+
+  /**
+   * Save the place the reader is at as this conversation's saved place.
+   * Nothing is shown and nothing is reported as saved before the browser has
+   * stored it. A conversation that has no place yet is refused when every
+   * place is in use; no other place is given up for it.
+   */
+  async function savePlace() {
+    if (preferences === null) return { status: "off" };
+    const id = conversation();
+    if (id === null) return { status: "nowhere" };
+    const found = responses();
+    const target = blockToSave(found);
+    if (target === null) return { status: "nothing" };
+
+    const key = conversationKey(site.id, id);
+    const { response, index } = target;
+    const record = { ...createPlace(response, index, positionOf(response.blocks[index].element)), k: key };
+    // A place that could not be told from an identical one is not saved.
+    const check = locatePlace(record, found);
+    if (check.status !== "exact" || found[check.message] !== response || check.block !== index) {
+      return { status: "ambiguous" };
+    }
+    if (saved.full && !saved.byKey.has(key)) return { status: "full" };
+    // The row of this conversation in the site's list, where its address
+    // does not say so itself; one that was known is kept until another is seen.
+    const row = ownRow() ?? saved.byKey.get(key)?.r ?? null;
+    if (row !== null) record.r = row;
+
+    search?.stop();
+    let stored;
+    try {
+      stored = await store({ change: "save", key, place: record });
+    } catch {
+      return { status: "failed" };
+    }
+    const now = indexMarks(stored);
+    if (!samePlace(now.byKey.get(key) ?? null, record)) {
+      return { status: now.full && !now.byKey.has(key) ? "full" : "failed" };
+    }
+    saved = now;
+    if (preferences === null) return { status: "saved" };
+    watch();
+    markRows();
+    return { status: "saved", element: locate().element ?? null };
+  }
+
+  /**
+   * Bring the saved place into view. Nothing is reported as reached unless the
+   * place is trusted and seen clearly in view; a place that is not found stays
+   * saved.
+   */
+  async function returnToPlace() {
+    if (preferences === null) return { status: "off" };
+    search?.stop();
+    let found = locate();
+    const searched = found.status === "absent";
+    if (searched) found = await searchFor(found.record);
+    if (found.status === "stopped" || found.status === "nowhere" || found.status === "none") return { status: found.status };
+    if (!found.element) return { status: "unresolved" };
+    const reached = await arrive(found.element, searched);
+    if (reached === null) return { status: "unresolved" };
+    return { status: reached.status === "exact" ? "arrived" : "approximate" };
+  }
+
+  /** Forget this conversation's saved place, once the browser has removed it. */
+  async function clearPlace() {
+    if (preferences === null) return { status: "off" };
+    const id = conversation();
+    if (id === null) return { status: "nowhere" };
+    const key = conversationKey(site.id, id);
+    search?.stop();
+    let stored;
+    try {
+      stored = await store({ change: "remove", key });
+    } catch {
+      return { status: "failed" };
+    }
+    const now = indexMarks(stored);
+    if (now.byKey.has(key)) return { status: "failed" };
+    saved = now;
+    hidePlace();
+    watch();
+    markRows();
+    return { status: "none" };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bookmarked conversations in the site's own lists
+  //
+  // The one thing Readela does outside the conversation: the link of a
+  // conversation that has a saved place, in the sidebar or history the site
+  // shows, gets one attribute, and the stylesheet draws a small bookmark in
+  // the row from it. Only the link's address path is read, in memory. No
+  // title, label or address is kept, and nothing else about a row is changed.
+  //
+  // A row is recognised in one of two ways. Where its address names the
+  // conversation, the same key the place is stored under is derived from it.
+  // Where it does not (a site can list a conversation under an address other
+  // than the one it shows it at), the site's own mark on the row of the
+  // conversation shown says which row it is, and a fingerprint of that row's
+  // address path is kept with the place.
+
+  function rowOf(link) {
+    const address = link.getAttribute("href") ?? "";
+    const known = rowKeys.get(address);
+    if (known !== undefined) return known;
+    const found = { key: null, row: null };
+    try {
+      const url = new URL(address, document.location.href);
+      if (site.hosts.includes(url.hostname)) {
+        const id = conversationId(site.conversation, url.pathname);
+        if (id !== null) found.key = conversationKey(site.id, id);
+        else found.row = rowFingerprint(site.id, url.pathname);
+      }
+    } catch {
+      // Not an address: no row of a conversation.
+    }
+    if (rowKeys.size >= ROW_MEMORY) rowKeys.clear();
+    rowKeys.set(address, found);
+    return found;
+  }
+
+  // The bookmark is drawn in the row a link sits in, which has to be the box
+  // the link is positioned in; where it is not, the row is left unmarked.
+  function sitsInRow(link) {
+    const row = link.offsetParent;
+    if (row === null || !row.contains(link)) return false;
+    return row.getBoundingClientRect().height <= link.getBoundingClientRect().height * 3 + 24;
+  }
+
+  // The fingerprint of the row the site marks as the conversation shown,
+  // where there is exactly one and its address does not name a conversation.
+  function ownRow() {
+    if (!site.rows || !site.rowShown) return null;
+    let found = null;
+    for (const link of document.querySelectorAll(site.rows)) {
+      if (!link.matches(site.rowShown) || !isRendered(link)) continue;
+      if (found !== null) return null;
+      found = rowOf(link);
+    }
+    return found === null || found.key !== null ? null : found.row;
+  }
+
+  function markRows() {
+    rowsChanged = false;
+    if (!site.rows) return;
+    const marked = document.querySelectorAll(`[${MARK.saved}]`);
+    if (preferences === null || saved.size === 0) {
+      for (const link of marked) link.removeAttribute(MARK.saved);
+      return;
+    }
+    const wanted = new Set();
+    for (const link of document.querySelectorAll(site.rows)) {
+      const { key, row } = rowOf(link);
+      if (!(key !== null ? saved.byKey.has(key) : row !== null && saved.rows.has(row))) continue;
+      if (!link.hasAttribute(MARK.saved) && !sitsInRow(link)) continue;
+      wanted.add(link);
+      setMark(link, MARK.saved, site.rowPlacement ?? "");
+    }
+    for (const link of marked) if (!wanted.has(link)) link.removeAttribute(MARK.saved);
+  }
+
+  // Where a row is recognised by its fingerprint: keep the fingerprint of the
+  // row the site marks as this conversation's with the place. It is written
+  // when the same row has been seen for this conversation on two beats, and
+  // the stored place names none or another. Only that one value changes.
+  function learnRow() {
+    if (preferences === null || !site.rowShown) return;
+    const id = conversation();
+    const key = id === null ? null : conversationKey(site.id, id);
+    const record = key === null ? null : (saved.byKey.get(key) ?? null);
+    const row = record === null ? null : ownRow();
+    if (row === null || record.r === row) {
+      rowSeen = null;
+      return;
+    }
+    if (rowSeen === null || rowSeen.key !== key || rowSeen.row !== row) {
+      rowSeen = { key, row, at: Date.now() };
+      wake(2); // look once more
+      return;
+    }
+    if (Date.now() - rowSeen.at < ROUTE_CHECK_MS / 2) return;
+    rowSeen = null;
+    store({ change: "row", key, row }).then(
+      (stored) => {
+        if (preferences !== null) setMarks(stored);
+      },
+      () => {},
+    );
+  }
+
+  /**
+   * Save or update the place as `savePlace` does, for a command that comes
+   * without the popup: the saved paragraph says so itself, for a moment.
+   */
+  async function quickSave() {
+    const answer = await savePlace();
+    if (answer.status === "saved" && answer.element && preferences !== null) flash(answer.element);
+    return answer;
+  }
+
+  /** Take the stored places, at start and whenever they change in storage. */
+  function setMarks(next) {
+    saved = indexMarks(normalizeMarks(next));
+    if (preferences === null) return;
+    watch();
+    markRows();
+    // The row of this conversation may be one the changed places do not name.
+    wake(2);
+    placeLookedAt = 0;
+    keepPlace();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Following the page
+  //
+  // What keeps Readela current, and nothing more:
+  //   - changes to the document, gathered and handled together (flush);
+  //   - a change of address, which a site makes without loading a page: by
+  //     the browser's own event for it, or, where there is none, by comparing
+  //     the address once a second while the page is in view (beat);
+  //   - the stored preferences and places, as they change.
+  // Off, and with every aspect Original and nothing saved, none of this runs.
+
+  // Move the marks to the conversation now shown, where that has changed, and
+  // bring the site's lists up to date where their rows have.
+  function follow() {
+    if (preferences === null) return;
+    const scope = scopeElement();
+    if (scope !== scopeSeen) {
+      scopeSeen = scope;
+      if (place !== null && !scope.contains(place.element)) hidePlace();
+      for (const element of document.querySelectorAll(anyMark)) {
+        if (!scope.contains(element)) clearMarks(element);
+      }
+      if (reading()) {
+        processTree(scope, scope);
+        if (theming()) measureSite(scope);
+        measureFont(scope);
+        examine();
+      }
+    }
+    const route = conversation();
+    if (route !== routeSeen) {
+      routeSeen = route;
+      search?.stop();
+      placeLookedAt = 0;
+    }
+    if (rowsChanged) {
+      markRows();
+      learnRow();
+    }
+  }
+
+  // One beat. Where the browser does not report it, the address is compared
+  // with the one last seen. Only after a change, and on the few beats that
+  // follow it, is anything else looked at.
+  function beat() {
+    if (preferences === null) return;
+    if (!isAlive()) {
+      stop();
+      return;
+    }
+    const path = document.location.pathname;
+    if (path !== pathSeen) {
+      pathSeen = path;
+      beatsLeft = ROUTE_SETTLE_BEATS;
+    }
+    if (beatsLeft > 0) {
+      beatsLeft -= 1;
+      follow();
+      learnRow();
+      keepPlace();
+    }
+    keepBeat();
+  }
+
+  // Look at the page again on the next `beats` beats.
+  function wake(beats) {
+    beatsLeft = Math.max(beatsLeft, beats);
+    keepBeat();
+  }
+
+  // The browser's own word that the address changed. It arrives while the
+  // site is still changing it, so nothing is looked at here: the next beats do.
+  function onRoute() {
+    if (preferences === null) return;
+    wake(ROUTE_SETTLE_BEATS);
+    if (timer === null) timer = view.setTimeout(flush, FLUSH_DELAY_MS);
+  }
+
   function flush() {
     timer = null;
     if (preferences === null) return;
@@ -233,67 +1709,231 @@ export function createReader({ document, site, isAlive = () => true }) {
       return;
     }
 
-    const scope = scopeElement();
-    const roots = new Set();
-    for (const node of pending) {
-      if (!node.isConnected) continue;
-      if (!scope.contains(node)) {
-        if (node.contains(scope)) roots.add(scope);
-        continue;
+    follow();
+    // What arrived whole and was marked at once belongs to the conversation
+    // shown, or its marks go again.
+    for (const tree of arrived) {
+      if (tree.isConnected && !scopeSeen.contains(tree)) {
+        for (const element of [tree, ...tree.querySelectorAll(anyMark)]) clearMarks(element);
       }
-      if (node.closest(site.exclude)) continue;
-      // Changes that neither sit in nor bring in readable content are skipped.
-      if (site.within && !node.closest(site.within) && !node.querySelector(site.within)) continue;
-      roots.add(outermostCandidate(node, scope) ?? node);
+    }
+    arrived = [];
+    if (reading()) {
+      const scope = scopeSeen; // found by follow, a moment ago
+      const roots = new Set();
+      for (let node of pending) {
+        if (!node.isConnected) continue;
+        if (!scope.contains(node)) {
+          if (node.contains(scope)) roots.add(scope);
+          continue;
+        }
+        const shut = node.closest(site.exclude);
+        if (shut !== null) {
+          // What is never touched is not read. Where it stands inside a
+          // response, though (a field to type in that the site puts there a
+          // moment after the response), what the response is made of has
+          // changed, and the response is looked at again from just outside it.
+          let outer = shut;
+          for (let up = outer.parentElement?.closest(site.exclude); up; up = up.parentElement?.closest(site.exclude)) outer = up;
+          node = outer.parentElement;
+          if (!node || !site.prose || !scope.contains(node) || node.closest(site.prose) === null) continue;
+        }
+        // A kept unit whose content changed is examined again as the site made it.
+        const unit = node.closest(`[${MARK.island}]`);
+        if (unit) clearIsland(unit);
+        // Changes that neither sit in nor bring in readable content are skipped.
+        if (site.within && !node.closest(site.within) && !node.querySelector(site.within)) continue;
+        roots.add(outermostCandidate(node, scope) ?? node);
+      }
+      for (const tree of roots) {
+        let covered = false;
+        for (const other of roots) covered ||= other !== tree && other.contains(tree);
+        if (!covered) processTree(tree, scope);
+      }
+      if (theming()) measureSite(scope);
+      examine();
     }
     pending.clear();
+    keepPlace();
+  }
 
-    for (const root of roots) {
-      let covered = false;
-      for (const other of roots) covered ||= other !== root && other.contains(root);
-      if (!covered) processTree(root);
+  // A response that arrives whole (a conversation shown, an earlier part
+  // loaded, a row of a long conversation scrolled into the document) is
+  // marked now, in the same turn of the browser as it arrived, so the first
+  // time the browser styles and lays it out is with the marks. Only marks are
+  // written here; whatever has to be measured waits for the flush.
+  function markArrivals(nodes) {
+    for (const node of nodes) {
+      if (!node.isConnected || node.closest(site.exclude)) continue;
+      // The region it arrived in, without asking the browser what is shown:
+      // the one known, or the one it came with. The flush checks.
+      const scope =
+        scopeSeen?.isConnected && scopeSeen.contains(node)
+          ? scopeSeen
+          : (node.closest(site.scope) ?? (node.matches(site.scope) ? node : node.querySelector(site.scope)));
+      if (scope === null) continue;
+      if (site.within && !node.closest(site.within) && !node.querySelector(site.within)) continue;
+      const tree = outermostCandidate(node, scope) ?? node;
+      processTree(tree, scope);
+      arrived.push(tree);
     }
   }
 
+  // A part that arrives by itself in a response already on the page (a card
+  // streamed in after the text before it) and stays the site's is given the
+  // site's own ground at once, as a unit of a response that arrives whole is,
+  // so that it is readable from the first frame under a reading theme. Only
+  // the document is read; the flush decides everything else.
+  function markArrivedPart(node) {
+    const surface = node.parentElement?.closest(`[${MARK.sheet}]`);
+    if (!surface || !scopeSeen?.isConnected || node.closest(`[${MARK.island}], [${MARK.top}]`)) return;
+    let part = node;
+    while (part.parentElement !== surface) part = part.parentElement;
+    if (partKind(part, surface, scopeSeen) === "unit") markIsland(part);
+  }
+
   function onMutations(records) {
+    changedAt = Date.now();
+    const coming = []; // added nodes that are or hold a whole response or message
     for (const record of records) {
+      const { target } = record;
+      if (record.type === "attributes") {
+        // The address of a link in the site's lists changed in place; or an
+        // element became somewhere to type, or stopped being one, where it
+        // stands: what is in it is then looked at again.
+        if (record.attributeName === "contenteditable") pending.add(target);
+        else if (site.rows && target.matches(site.rows)) rowsChanged = true;
+        continue;
+      }
+      // What is typed is none of the reader's business: nothing in an
+      // editable field is ever read, and typing changes it key by key.
+      const holder = target.nodeType === ELEMENT ? target : target.parentElement;
+      if (holder === null || holder.isContentEditable) continue;
       if (record.type === "characterData") {
-        if (record.target.parentElement) pending.add(record.target.parentElement);
+        pending.add(holder);
         continue;
       }
       let textChanged = record.removedNodes.length > 0;
       for (const node of record.addedNodes) {
-        if (node.nodeType === ELEMENT) pending.add(node);
-        else textChanged = true;
+        if (node.nodeType !== ELEMENT) {
+          textChanged = true;
+          continue;
+        }
+        if (whole !== null && (node.matches(whole) || node.querySelector(whole) !== null)) {
+          coming.push(node);
+        } else {
+          pending.add(node);
+          if (theming() && node.isConnected) markArrivedPart(node);
+        }
+        if (site.rows && !rowsChanged && (node.matches(site.rows) || node.querySelector(site.rows) !== null)) {
+          rowsChanged = true;
+        }
       }
       // A block whose own text changed is measured again; a plain wrapper
       // that only lost children is not worth a pass over everything in it.
-      if (textChanged && record.target.nodeType === ELEMENT && record.target.closest(candidates)) {
-        pending.add(record.target);
-      }
+      if (textChanged && target.nodeType === ELEMENT && target.closest(candidates)) pending.add(target);
     }
-    if (pending.size > 0 && timer === null) timer = view.setTimeout(flush, FLUSH_DELAY_MS);
+    if (coming.length > 0) {
+      // With no reading aspect on there is nothing to mark, only a saved
+      // place to look for; that, and an extension that has gone, are the
+      // flush's business.
+      if (reading() && isAlive()) markArrivals(coming);
+      else for (const node of coming) pending.add(node);
+    }
+    const waiting = pending.size > 0 || rowsChanged || arrived.length > 0;
+    if (waiting && timer === null) timer = view.setTimeout(flush, FLUSH_DELAY_MS);
+  }
+
+  // The beat runs only while the page is observed and in view, and, where the
+  // browser reports changes of address, only while there is something left to
+  // look at. A page that comes back into view is looked at once, at once.
+  function keepBeat() {
+    const wanted = observer !== null && document.visibilityState !== "hidden" && (!routeEvents || beatsLeft > 0);
+    if (wanted && routeTimer === null) {
+      routeTimer = view.setInterval(beat, ROUTE_CHECK_MS);
+    } else if (!wanted && routeTimer !== null) {
+      view.clearInterval(routeTimer);
+      routeTimer = null;
+    }
+  }
+
+  function onVisibility() {
+    if (observer === null || document.visibilityState === "hidden") {
+      keepBeat();
+      return;
+    }
+    wake(1);
+    beat();
+  }
+
+  // The page is observed only while there is something to keep current: a
+  // reading aspect that changes the page, or a saved place.
+  function watch() {
+    const needed = preferences !== null && (reading() || saved.size > 0);
+    if (needed && observer === null) {
+      observer = new view.MutationObserver(onMutations);
+      // Two attributes are observed: the address of a link, for the rows of
+      // the site's lists, and whether an element is somewhere to type.
+      observer.observe(root, { childList: true, subtree: true, characterData: true, attributeFilter: ["href", "contenteditable"] });
+      document.addEventListener("visibilitychange", onVisibility);
+      if (routeEvents) view.navigation.addEventListener("currententrychange", onRoute);
+      pathSeen = document.location.pathname;
+      wake(ROUTE_SETTLE_BEATS);
+    } else if (!needed && observer !== null) {
+      observer.disconnect();
+      observer = null;
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (routeEvents) view.navigation.removeEventListener("currententrychange", onRoute);
+      beatsLeft = 0;
+      keepBeat();
+      if (timer !== null) view.clearTimeout(timer);
+      timer = null;
+      pending.clear();
+      arrived = [];
+    }
   }
 
   function setRootMarks() {
     for (const [preference, name] of Object.entries(ROOT_MARKS)) {
       const value = preferences[preference];
-      setMark(document.documentElement, name, value === "page" ? null : value);
+      setMark(root, name, value === "page" ? null : value);
     }
   }
 
-  /** Remove Readela's footprint and release its observer. Safe to call repeatedly. */
+  /** Remove Readela's footprint and release everything it holds. Safe to call repeatedly. */
   function stop() {
     preferences = null;
+    search?.stop();
     observer?.disconnect();
     observer = null;
-    if (timer !== null) view.clearTimeout(timer);
+    document.removeEventListener("visibilitychange", onVisibility);
+    if (routeEvents) view.navigation.removeEventListener("currententrychange", onRoute);
+    beatsLeft = 0;
+    keepBeat();
+    watchSite();
+    for (const pendingTimer of [timer, placeTimer, flashTimer]) {
+      if (pendingTimer !== null) view.clearTimeout(pendingTimer);
+    }
     timer = null;
+    placeTimer = null;
+    flashTimer = null;
     pending.clear();
     mirrorChecked = new WeakSet();
+    freshIslands = [];
+    freshBlocks = [];
+    arrived = [];
+    place = null;
+    scopeSeen = null;
+    routeSeen = null;
+    pathSeen = null;
+    beatsLeft = 0;
+    rowSeen = null;
+    rowKeys.clear();
+    markRows();
 
     for (const element of document.querySelectorAll(anyMark)) clearMarks(element);
-    for (const name of Object.values(ROOT_MARKS)) setMark(document.documentElement, name, null);
+    for (const name of Object.values(ROOT_MARKS)) setMark(root, name, null);
+    removeProperties(root, Object.values(SITE_PROPERTIES));
   }
 
   /**
@@ -309,14 +1949,26 @@ export function createReader({ document, site, isAlive = () => true }) {
       return;
     }
 
+    // Marks made for another direction or theme are not carried over.
+    const restyled =
+      preferences !== null && (preferences.direction !== normalized.direction || preferences.theme !== normalized.theme);
     preferences = normalized;
     setRootMarks();
-    if (observer === null) {
-      observer = new view.MutationObserver(onMutations);
-      observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    watchSite();
+    if (restyled || !reading()) clearBlocks();
+    scopeSeen = scopeElement();
+    routeSeen = conversation();
+    if (reading()) {
+      processTree(scopeSeen, scopeSeen);
+      if (theming()) measureSite(scopeSeen);
+      measureFont(scopeSeen);
+      examine();
     }
-    processTree(scopeElement());
+    watch();
+    markRows();
+    placeLookedAt = 0;
+    keepPlace();
   }
 
-  return { apply, stop };
+  return { apply, stop, setMarks, placeStatus, savePlace, quickSave, returnToPlace, clearPlace };
 }

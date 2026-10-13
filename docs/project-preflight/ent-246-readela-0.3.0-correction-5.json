@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "full-preflight",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-correction-5.json",
+  "recordDate": "2026-10-12",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "relatedWorkUnits": ["ENT-240", "ENT-243"],
+    "title": "Readela 0.3.0: fifth correction on draft pull request 9 — the typography's cost and choice, the defects of the independent audit, the wrong-target return, Auto direction, the last response under a theme, one writer for bookmarks",
+    "authorizingDecisions": ["DEC-144", "DEC-143", "DEC-142", "DEC-141", "DEC-136", "DEC-116"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-12 continuing ENT-246 after the controlled baseline of the same day. It authorizes, on the existing branch feat/ent-240-readela-0.3.0 and without a check after each step: pushing the three commits of the baseline; a bounded comparison of typography, with openly licensed fonts from their official sources kept for tests outside the product, experimental builds and measurements; the corrections in scope.inScope with their tests; commits and their push to that branch; local test builds; dated evidence. It says that Inter and Vazirmatn need not stay if something demonstrably better exists, and that a replacement is to be recommended with its evidence and left for the owner's approval. It does not authorize merging pull request 9, marking it ready, a tag, a release, a store submission, a change to Personal OS, a new permission or outside service, a forced push, or a permanent replacement of the approved fonts.",
+    "ownerReviewOfExactRecord": "Not performed. This record was prepared under the authorization above; its exact bytes have not been separately reviewed or accepted by the owner."
+  },
+  "relationToEarlierRecords": {
+    "records": [
+      "docs/project-preflight/ent-246-readela-0.3.0-performance-baseline.json",
+      "docs/project-preflight/ent-246-readela-0.3.0-correction-4.json",
+      "docs/project-preflight/ent-246-readela-0.3.0-correction-3.json",
+      "docs/project-preflight/ent-246-readela-0.3.0-correction-2.json",
+      "docs/project-preflight/ent-246-readela-0.3.0-correction.json",
+      "docs/project-preflight/ent-240-readela-0.3.0-reading-comfort.json"
+    ],
+    "status": "All remain the records for the work they cover and are not edited. The light assertion for the baseline excluded every file under src/ and said that the background component's wider role needs its own Preflight; this is it. None is reused as a parent."
+  },
+  "baseCommit": "c18e7d2a57cf8c0f9ca1e8d650c1d0ed94dae8f4",
+  "fullPreflightTrigger": {
+    "fired": true,
+    "triggers": [
+      "the declared work scope expands outside the scope covered by the earlier records: product code again, after a step that excluded it",
+      "the work changes a trust boundary of the product: the background component, until now a forwarder of three commands that keeps no state, becomes the one place where bookmarks are written; and which parts of a response Readela may give a direction, a font, a size or a colour is decided anew"
+    ],
+    "notFired": {
+      "capabilitiesChanged": "No. The declared Capability set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-12, locally and as the check verify.",
+      "protocolChanged": "No. Revision v1.23, the revision the earlier records were assessed under; the canonical page was last edited on 2026-10-06."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-12",
+    "branch": "feat/ent-240-readela-0.3.0 at c18e7d2a57cf8c0f9ca1e8d650c1d0ed94dae8f4 locally and on the remote, after a plain push of b36aad9, 37e53fe and c18e7d2 onto 247366f; clean worktree and index.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, head c18e7d2, mergeable, check verify succeeded on that head.",
+    "product": "No file under src/ differs from 247366f. package.json version 0.3.0; permissions [\"storage\"]; content-script matches exactly https://chatgpt.com/* and https://claude.ai/*; three web-accessible resources (the packaged fonts); three commands with no suggested key; a background component of one file that passes a command to the page and does nothing else; bookmarks written by each page's content script, which reads the stored object, changes it and writes the whole of it back.",
+    "releases": "0.2.1 is the public version in both stores. Nothing from 0.3.0 is merged, tagged, submitted or published.",
+    "managerialState": "Protocol v1.23, the Project (Active, Next item ENT-246), ENT-246 (Active, edited 2026-10-11), DEC-142, DEC-143 and DEC-144 (Accepted) were read on 2026-10-12. Personal OS does not yet record the result of the baseline or the owner's word on the fonts; DEC-142 is unchanged, so the approved fonts stay in the product until the owner decides otherwise. This work does not write there.",
+    "evidenceRead": "docs/evidence/2026-10-12-readela-0.3.0-performance-baseline.md and its measurement files; the independent audit dated 2026-10-12, supplied by the owner outside the repository.",
+    "sessionCoordination": "No local session-coordination control exists for this target; none was bypassed."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "Typography, comparison: the present pairing as the control; the same two families with their faces declared otherwise; and a small number of other openly licensed families, each from its official source with its licence and digests recorded, kept outside the product. The same samples for every configuration; which faces the browser takes, how many runs it shapes, layout time, size; then the best one or two measured against the control with the reuse suite of test/perf/run.mjs. One recommendation.",
+      "Typography, product: only what keeps the approved families (Inter for Latin, Vazirmatn for Arabic script) and the two visible choices, Original and Readela Sans — the way the faces are declared and matched to text, by the browser's own font selection — and only if the measurements support it. A replacement of a family is prepared as an experimental build and left for the owner.",
+      "The colour-scheme listener: the page's colours are measured again when the system changes between light and dark, without an error, and the listener is removed when Readela is turned off.",
+      "Ownership: one decision, used by colour, typography, direction and bookmark targets alike, of which parts of a response are reading text and which stay the site's whole; the same with a reading theme on and with Original appearance.",
+      "The first painted frame of a part that stays the site's is readable, from colours already measured, with no measurement added to the moment of arrival.",
+      "The last response under a reading theme: ordinary reading text of a response keeps the theme through arrival, streaming, completion, a reload, a change of conversation and a change of theme; a part that is the site's own stays whole.",
+      "Bookmarks, one writer: the background component performs every change of the stored bookmarks (save, update, remove, and the row a conversation is learned to belong to), one after another, each against what is stored at that moment, and answers only once the browser has stored it. No state kept between changes, no timer, no request, no permission beyond storage. A failure is answered as a failure.",
+      "Return: never report as reached a place that is not the saved one. What a candidate must agree with before it is accepted, in a long conversation of which the site keeps only a part in the document, and with passages that repeat.",
+      "Auto direction: a Persian sentence that carries many Latin terms reads right-to-left, by a signal from the sentence itself and its context, while English paragraphs, figures with units and structured numeric layouts stay as they are. Code, addresses and mathematics are not touched.",
+      "Removal of logic the above makes redundant, where it is directly related.",
+      "The measuring script, where a comparison of fonts needs a small addition; unit and end-to-end tests and fixtures for the defects reproduced; documentation and dated evidence made necessary by the above; local Chrome and Firefox builds for the owner's review; an accurate description of pull request 9.",
+      "A final comparison of no extension against the build eligible for integration, with the matched suite, over about an hour of work."
+    ],
+    "outOfScope": [
+      "Merging pull request 9, marking it ready for review, a v0.3.0 tag, a release, and submission or publication to the Chrome Web Store, Firefox Add-ons or any other provider.",
+      "Store images and store copy (ENT-243, paused), and any write to Personal OS.",
+      "Replacing Inter or Vazirmatn in the product, a third visible font choice, a font picker, a remote font or any request for a font at run time.",
+      "Wrapping words or characters in elements, a script that decides the language of every text node, shaping of text by the extension.",
+      "A general engine for rewriting a site's styles; recolouring the site's own components, charts, forms or controls; the dark data widgets that are readable today.",
+      "A floating or draggable control, a dashboard, a context-menu entry, a default shortcut, a key listener in the page, an element created in a page.",
+      "A new permission, a broader match pattern, a persistent background page, a timer or polling or a network request in the background component, a cache of bookmarks kept there, a backend, analytics, telemetry, account or sync infrastructure, remote code.",
+      "Dependency changes in the product, a new build system, a new test framework, a new measuring framework and unrelated refactors.",
+      "Read aloud, translation, highlighting, focus modes, notes, new sites, mobile, Edge, Safari or other platforms.",
+      "Changes to declared Capabilities or Exceptions, to the dev-standards pin and to the repository ruleset."
+    ]
+  },
+  "capabilities": {
+    "declared": ["web-interface"],
+    "changedByThisWork": false,
+    "assessment": "The extension remains a browser interface with no backend or operated service."
+  },
+  "baselineIdentity": {
+    "sourceRepository": "amir42com/dev-standards",
+    "policyRef": "v0.6.0",
+    "policyCommit": "f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8",
+    "sourceBundleSha256": "d885508cd89e21f53577c4b43a1210e812220af91e77c720d001437703d93694",
+    "effectivePolicyHash": "sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692",
+    "adoptedInTarget": true,
+    "verification": "node .governance/dev-standards/verify-dev-standards.mjs, locally and as the required verify check."
+  },
+  "externalCapabilities": {
+    "note": "Load-bearing behaviour of the browsers. Each is to be confirmed by a probe on the installed versions before the code that depends on it is settled; a difference between a browser's documentation and what it does blocks that part.",
+    "items": [
+      {
+        "capability": "A message sent to the background component is answered asynchronously, and the browser keeps the component running until the answer is given: in Chrome an extension service worker, in Firefox an event page.",
+        "authority": "developer.chrome.com/docs/extensions/develop/concepts/messaging and .../service-workers/lifecycle; MDN runtime.onMessage and background scripts.",
+        "probe": "The end-to-end suite sends changes to the background component in both browsers, overlapping, and reads what is stored; and sends one after the component has been stopped."
+      },
+      {
+        "capability": "Changes made one after another by a single background component cannot interleave: its handlers share one thread, and a chain of promises there orders them. A component the browser stops between two changes starts the next from what is stored.",
+        "authority": "The same pages; storage.local has no transaction of its own.",
+        "probe": "A unit test of the ordering with a storage double that answers late and out of order; the end-to-end check above."
+      },
+      {
+        "capability": "A browser takes each character from the first face of a family list whose unicode-range holds it; a character outside the range of the first family is drawn by the next, and starts a new shaping run.",
+        "authority": "drafts.csswg.org/css-fonts, the unicode-range descriptor and font matching; measured on Chrome 154 on 2026-10-12 (37 runs for a Persian sentence of 19 words).",
+        "probe": "The run count of the same samples under every configuration, in Chrome and in Firefox where it can be read."
+      }
+    ],
+    "notObserved": [
+      "This build on the real sites: it cannot be installed in the owner's browser by this work. What the owner saw there is taken from the owner's report.",
+      "The exact conversation in which a return went to the wrong place, and the exact response that lost its theme."
+    ]
+  },
+  "localGaps": [
+    {
+      "id": "GAP-1",
+      "gap": "The canonical baseline has no browser-extension permission, privacy or store-publication rule.",
+      "handling": "Unchanged. The project-local controls in docs/privacy-and-permissions.md apply and are updated in the same change where a contract changes; the background component's new role is described there."
+    },
+    {
+      "id": "GAP-2",
+      "gap": "The canonical baseline has no performance or memory budget for a browser extension.",
+      "handling": "DEC-143 makes bounded memory a release gate. The matched suite of the baseline is used; results and their limits are recorded in dated evidence. No number is invented here as a budget."
+    }
+  ],
+  "openItems": [
+    {
+      "id": "OPEN-1",
+      "item": "Owner review of the final local build on real ChatGPT and Claude conversations.",
+      "reason": "Automated checks and measurements run on synthetic pages; the wrong-target return and the last response losing its theme were seen only there.",
+      "revisitTrigger": "The fresh local builds are prepared."
+    },
+    {
+      "id": "OPEN-2",
+      "item": "The owner's decision on the fonts, if the comparison recommends replacing a family.",
+      "reason": "DEC-142 names Inter and Vazirmatn. The owner's word that they need not stay is in the instruction and not yet a Decision.",
+      "revisitTrigger": "The recommendation and its experimental build are reported."
+    },
+    {
+      "id": "OPEN-3",
+      "item": "Release of 0.3.0 and the refresh of store images and copy (ENT-243).",
+      "reason": "Not authorized by this work.",
+      "revisitTrigger": "Owner acceptance of the corrected build."
+    },
+    {
+      "id": "OPEN-4",
+      "item": "The in-page mouse control for Bookmark (OPEN-3 of the fourth record).",
+      "reason": "Still the owner's to decide; not part of this work.",
+      "revisitTrigger": "The owner's decision on the reported options."
+    }
+  ],
+  "exceptions": [],
+  "risk": {
+    "tier": "T2",
+    "tierNote": "Product rigor. Nothing is published by this work.",
+    "mechanicalTriggerInputs": {
+      "trustBoundaryChange": true,
+      "publishedArtifactChange": false,
+      "destructiveOrDataLossRisk": true,
+      "rollbackCost": "low",
+      "operatedService": false
+    },
+    "dataLossNote": "Bookmarks are the reader's own data. The change of who writes them keeps the stored form, the limit of 1000 and the rule that none is dropped; a build that can neither read nor write them through the new path must say so and change nothing.",
+    "targetedVerification": "Manifest contract tests: permissions stay [\"storage\"], three commands with no suggested key, content-script matches and web-accessible resources as the packaged fonts require. A source test that the background component holds no timer, no network call, nothing kept between two changes, and no listener but the command's and the message's; that the page code creates no element and listens for no key. Unit tests of changes that overlap, arrive out of order and fail, against a storage double; end-to-end checks of the same in Chrome and Firefox, with the stored object read back, at the limit of 1000, and after the component was stopped. A check that a change of the system's colour scheme raises no error and renews the measured colours, and that turning Readela off removes the listener. Fixtures of a response made of the site's components: every part that stays the site's keeps its direction, font, size and colours and is no bookmark target, on its first frame and after, under both themes and under Original; reading text keeps the theme through arrival, streaming and completion. A long conversation of which only a part is in the document, with repeated passages: a return reaches the saved place or says it could not. Direction: the sentences the owner reported and their English counterparts. Measurements with the matched suite."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-12",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit within scope.inScope, their plain push to that branch, and an update of the description of draft pull request 9. It does not cover merging to main, marking the pull request ready, tagging, any publication, or a replacement of a packaged family in the product.",
+      "basis": [
+        "DEC-144, DEC-143 and DEC-142 (Accepted) and the owner instruction of 2026-10-12 cover this scope and the push to the existing pull-request branch.",
+        "Protocol v1.23, the Project state, ENT-246 (Active, the Project's Next item) and the Decisions were read on 2026-10-12 and agree with the instruction; where the instruction goes further than DEC-142 on the fonts, the product stays within DEC-142.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the continuation."
+      ]
+    },
+    "measurement": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Immediately before each measured run: a census of what else is running, kept with the results; each result names the browser, the build, the script and the page. Recorded in dated evidence under docs/evidence/."
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before a merge to main, bound to the exact pull-request head, a green verify check, the owner's acceptance of the review on the real sites, the owner's decision on the fonts where one is needed, and memory evidence the owner accepts as bounded. Recorded in dated evidence under docs/evidence/."
+    },
+    "publication": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; see openItems OPEN-3."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope.",
+    "A permission, a broader match pattern, a persistent background page, a timer, a network call or a kept copy of the bookmarks in the background component becomes necessary.",
+    "An element would have to be created in a page, a key listened for in a page, or words wrapped in elements.",
+    "Readable conversation text, a title, an address or a page snapshot would have to be stored, or a private conversation read into evidence.",
+    "A packaged family would have to be replaced in the product before the owner has decided.",
+    "The stored form of bookmarks or their limit would have to change.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before integration."
+  ]
+}

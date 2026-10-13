@@ -5,22 +5,58 @@
     <title>Readela fixture: Claude conversation</title>
     <link rel="icon" href="data:," />
     <!--
-      A synthetic conversation page written for these tests. It reproduces the
-      structural traits observed in the site's public assets on 2026-10-02:
-      messages carry data-testid="assistant-message" / "user-message" and
-      data-is-streaming; rendered Markdown sits in .standard-markdown (or
-      .progressive-markdown while streaming); lists use logical start padding
-      while every text block also has physical left and right padding; there
-      is no <main>; the composer is a contenteditable outside any <form>.
-      It contains no real conversation.
+      A synthetic conversation page written for these tests. It contains no
+      real conversation. It reproduces the structure observed on the site on
+      2026-10-10, by element and attribute names only:
+
+      - the transcript scrolls in data-autoscroll-container; the document does
+        not scroll; there is no <main>. The chat header is positioned over the
+        top of that region, with an opaque band behind it, and takes no
+        pointer input, so what is under it cannot be found by a hit test;
+      - most rows of the sidebar carry an address that does not name the
+        conversation the page shows: /cowork/cse_<id> for a conversation shown
+        at /chat/<id>. The row of the conversation shown carries
+        aria-current="page". Rows of conversations sit under data-row-key;
+        the site's own navigation uses the same link hook without it;
+      - the sidebar lists conversations as links marked data-row-main-button,
+        each in a row it is positioned in;
+      - each message is a row (data-testid="transcript-row", data-index) and
+        carries data-turn-key; messages are data-testid="assistant-message" or
+        "user-message"; rendered Markdown sits in .standard-markdown (or
+        .progressive-markdown while streaming);
+      - the reader's message is a rounded bubble with a translucent background
+        whose text can be paragraphs carrying the site's own dir;
+      - a code block is a rounded group with a translucent background, a
+        header and a pre element inside, wrapped in data-not-prose;
+      - lists use logical start padding while every text block also has
+        physical left and right padding; the composer is a contenteditable
+        outside any <form>; colours are written with a slash alpha.
     -->
     <style>
-      body { margin: 0; font: 16px/1.65 system-ui, sans-serif; color: #141413; background: #faf9f5; }
+      html, body { height: 100%; }
+      body { margin: 0; font: 16px/1.65 system-ui, sans-serif; color: #141413; background: #faf9f5; overflow: hidden; }
       @media (prefers-color-scheme: dark) { body { color: #f0eee6; background: #262624; } }
-      .shell { display: flex; }
-      nav { width: 220px; padding: 12px; }
-      .column { flex: 1; max-width: 760px; padding: 16px; }
-      [data-testid="user-message"] { padding: 8px 12px; margin: 0 0 16px auto; max-width: 80%; background: #8882; border-radius: 12px; }
+      .shell { display: flex; height: 100%; }
+      nav { width: 220px; padding: 12px 0; }
+      nav > p, nav > button { margin-left: 12px; }
+      /* The list clips 4px in; a row begins 8px in and its text 6px further. */
+      #c-rows { margin: 0 4px; padding: 0 4px; overflow: hidden auto; }
+      [data-selected] > .row-link, .row[data-selected] { background: rgb(128 128 128 / 0.15); }
+      .column { flex: 1; min-width: 0; display: flex; flex-direction: column; max-width: 800px; }
+      [data-autoscroll-container] { flex: 1; min-height: 0; overflow: hidden auto; padding: 64px 16px 16px; }
+      .column { position: relative; }
+      .chat-header { position: absolute; z-index: 11; top: 0; left: 0; right: 0; height: 48px; padding: 0 16px; display: flex; align-items: center; pointer-events: none; }
+      .chat-header-band { position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 56px; background: #faf9f5; }
+      @media (prefers-color-scheme: dark) { .chat-header-band { background: #262624; } }
+      .row { position: relative; border-radius: 8px; }
+      .row:hover { background: #8882; }
+      .row-link { display: flex; align-items: center; padding: 2px; height: 32px; box-sizing: border-box; color: inherit; text-decoration: none; font-size: 14px; }
+      .row-link span { padding-left: 4px; overflow: hidden; white-space: nowrap; }
+
+      [data-testid="transcript-row"] { position: relative; display: flow-root; margin-bottom: 16px; }
+      .bubble { margin: 0 0 0 auto; max-width: 80%; padding: 8px 12px; background: rgb(20 20 19 / 0.06); border-radius: 12px; }
+      @media (prefers-color-scheme: dark) { .bubble { background: color(srgb 1 1 1 / 0.05); } }
+      .clip { overflow: hidden; }
       .whitespace-pre-wrap { white-space: pre-wrap; }
       .plaintext { unicode-bidi: plaintext; }
       .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
@@ -30,11 +66,22 @@
       .progressive-markdown :is(p, blockquote, h1, h2, h3, h4, h5, h6) { padding-left: 0.5rem; }
       .standard-markdown :is(p, blockquote, ul, ol, h1, h2, h3, h4, h5, h6),
       .progressive-markdown :is(p, blockquote, ul, ol, h1, h2, h3, h4, h5, h6) { padding-right: 2rem; }
-      pre { padding: 12px; background: #8882; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; }
+      [data-not-prose] { margin: 0 0 12px; }
+      .code-group { position: relative; border: 1px solid rgb(20 20 19 / 0.15); border-radius: 12px; background: rgb(20 20 19 / 0.04); }
+      .code-group .head { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 13px; }
+      .code-scroll { overflow: auto; }
+      pre.code-block__code { margin: 0; padding: 12px; border-radius: 12px; font: 14px/1.5 ui-monospace, Consolas, monospace; }
+      .code-group .kw { color: #a626a4; }
+      @media (prefers-color-scheme: dark) {
+        .code-group { border-color: color(srgb 1 1 1 / 0.15); background: oklab(0.243143 -0.000520527 0.00179528 / 0.5); }
+        .code-group .kw { color: #f97583; }
+      }
       code { font-family: ui-monospace, Consolas, monospace; }
-      td, th { padding: 4px 8px; border: 1px solid #8884; }
+      p code { padding: 1px 4px; border-radius: 6px; background: rgb(20 20 19 / 0.06); }
+      td, th { padding: 4px 8px; border: 1px solid #8884; white-space: nowrap; }
+      .md-table-scroll { overflow-x: auto; }
       .katex { font-family: "Times New Roman", serif; }
-      fieldset { margin-top: 24px; border: 1px solid #8886; padding: 8px; }
+      fieldset { margin: 0; border: 0; border-top: 1px solid #8886; padding: 8px 16px; }
       .ProseMirror { min-height: 24px; }
     </style>
   </head>
@@ -43,17 +90,38 @@
       <nav aria-label="Sidebar">
         <p id="c-nav-title">گفت‌وگو دربارهٔ React</p>
         <button id="c-page-button" type="button">New chat</button>
+        <div id="c-rows">
+          <div class="row" data-row=""><a class="row-link" data-row-main-button="" data-nav-item="" id="c-row-page" href="/recents" draggable="false"><span data-row-label="iconless">Recents</span></a></div>
+          <div data-row-key="cowork:cse_01ReadelaFixtureThis0000aa" data-multiselect-row=""><div class="row" data-row="" data-selected="focused" id="c-row-this-frame"><a class="row-link" data-row-main-button="" id="c-row-this" href="/cowork/cse_01ReadelaFixtureThis0000aa" aria-current="page" draggable="false"><span data-row-label="iconless" id="c-row-this-title">TypeScript</span></a></div></div>
+          <div data-row-key="chat:c-row-long" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-long" href="/chat/readela-long-fixture" draggable="false"><span data-row-label="iconless">A long one</span></a></div></div>
+          <div data-row-key="cowork:cse_01ReadelaFixtureOther000bb" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-other" href="/cowork/cse_01ReadelaFixtureOther000bb" draggable="false"><span data-row-label="iconless">Another</span></a></div></div>
+          <div data-row-key="chat:c-row-plain" data-multiselect-row=""><div class="row" data-row=""><a class="row-link" data-row-main-button="" id="c-row-plain" href="/chat/readela-fixture-7" draggable="false"><span data-row-label="iconless">An older chat</span></a></div></div>
+        </div>
       </nav>
 
-      <div class="column">
-        <div class="transcript" id="c-transcript">
-          <div data-testid="user-message" class="whitespace-pre-wrap plaintext" id="c-user">TypeScript را به زبان ساده توضیح بده.
-با مثال لطفاً.</div>
+      <div class="column" data-testid="chat-column">
+        <!-- The chat header lies over the top of the scrolling region and lets the pointer through. -->
+        <div class="chat-header" data-testid="chat-header" id="c-header"><div class="chat-header-band"></div><span id="c-header-title">Conversation</span></div>
+        <div data-autoscroll-container="true" id="c-scroller">
+          <div class="transcript" id="c-transcript" role="feed" aria-label="Conversation">
 
-          <div data-testid="assistant-message" data-is-streaming="false" id="c-assistant-fa">
-            <h2 class="sr-only" data-find-omitted="" id="c-sr-heading">Assistant said:</h2>
-            <div class="font-claude-response">
-              <div class="standard-markdown" id="c-markdown-fa">
+            <div data-testid="transcript-row" data-index="0" data-perf-row="human">
+              <div role="article" aria-setsize="4" aria-posinset="1">
+                <div data-cds="UserMessage" data-turn-key="c-turn-0">
+                  <div class="bubble" id="c-user-bubble"><div class="clip">
+                    <div data-testid="user-message" class="whitespace-pre-wrap plaintext" id="c-user">TypeScript را به زبان ساده توضیح بده.
+با مثال لطفاً.</div>
+                  </div></div>
+                </div>
+              </div>
+            </div>
+
+            <div data-testid="transcript-row" data-index="1" data-perf-row="assistant">
+              <div role="article" aria-setsize="4" aria-posinset="2">
+                <div data-cds="AssistantMessage" data-testid="assistant-message" data-turn-key="c-turn-1-hub-reply" data-is-streaming="false" id="c-assistant-fa">
+                  <h2 class="sr-only" data-find-omitted="" id="c-sr-heading">Assistant said:</h2>
+                  <div class="font-claude-response"><div data-cds="Prose">
+                    <div class="standard-markdown" id="c-markdown-fa">
                 <h2 id="c-h-fa">TypeScript چیست و چه مزیتی دارد؟</h2>
                 <p id="c-p-en-start" class="whitespace-normal break-words">TypeScript یک زبان برنامه‌نویسی است که روی JavaScript ساخته شده.</p>
                 <p id="c-p-inline" class="whitespace-normal break-words">برای نصب از <code id="c-inline-code">npm install typescript</code> استفاده کنید؛ مستندات در <a id="c-link-url" href="https://www.typescriptlang.org/docs/">https://www.typescriptlang.org/docs/</a> است.</p>
@@ -64,26 +132,43 @@
                 <blockquote id="c-quote-fa" class="border-s-2">
                   <p id="c-quote-fa-p">Types خطاها را پیش از اجرا نشان می‌دهند.</p>
                 </blockquote>
-                <pre id="c-code-block"><code id="c-code">let count: number = 0; // شمارنده
-count += 1;</code></pre>
+                <div data-not-prose="" id="c-code-frame">
+                  <div class="code-group" role="group" aria-label="Code" dir="ltr" id="c-code-group">
+                    <div class="head"><span id="c-code-label">typescript</span><button id="c-code-copy" type="button">Copy</button></div>
+                    <div class="code-scroll"><pre class="code-block__code" id="c-code-block"><code id="c-code"><span class="kw" id="c-code-keyword">let</span> count: number = 0; // شمارنده
+count += 1;</code></pre></div>
+                  </div>
+                </div>
                 <p id="c-p-math" class="whitespace-normal break-words">رابطهٔ <span class="katex" id="c-math">a^2 + b^2 = c^2</span> را به یاد دارید.</p>
-                <div class="md-table-scroll">
+                <div class="md-table-scroll" id="c-table-scroll">
                   <table id="c-table-fa">
                     <thead><tr><th id="c-th-fa">نوع</th><th>توضیح</th></tr></thead>
                     <tbody><tr><td>string</td><td>رشتهٔ متنی</td></tr></tbody>
                   </table>
                 </div>
+                    </div>
+                  </div></div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div data-testid="user-message" id="c-user-rich">
-            <p id="c-user-rich-p" class="whitespace-pre-wrap">Now answer in English, please.</p>
-          </div>
+            <div data-testid="transcript-row" data-index="2" data-perf-row="human">
+              <div role="article" aria-setsize="4" aria-posinset="3">
+                <div data-cds="UserMessage" data-turn-key="c-turn-2">
+                  <div class="bubble" id="c-user-rich-bubble"><div class="clip">
+                    <div data-testid="user-message" id="c-user-rich">
+                      <p id="c-user-rich-p" class="whitespace-pre-wrap" dir="ltr">Now answer in <code id="c-user-code">English</code>, please.</p>
+                    </div>
+                  </div></div>
+                </div>
+              </div>
+            </div>
 
-          <div data-testid="assistant-message" data-is-streaming="false" id="c-assistant-en">
-            <div class="font-claude-response">
-              <div class="standard-markdown">
+            <div data-testid="transcript-row" data-index="3" data-perf-row="assistant" data-last-message="true">
+              <div role="article" aria-setsize="4" aria-posinset="4">
+                <div data-cds="AssistantMessage" data-testid="assistant-message" data-turn-key="c-turn-3-hub-reply" data-is-streaming="false" id="c-assistant-en">
+                  <div class="font-claude-response"><div data-cds="Prose">
+                    <div class="standard-markdown" id="c-markdown-en">
                 <p id="c-p-en" class="whitespace-normal break-words">TypeScript adds static types to JavaScript.</p>
                 <ul id="c-ul-en" class="list-disc ps-7">
                   <li id="c-li-en-1" class="whitespace-normal break-words">Errors are found earlier.</li>
@@ -92,14 +177,18 @@ count += 1;</code></pre>
                 <blockquote id="c-quote-en" class="border-s-2">
                   <p>Types are documentation that the compiler checks.</p>
                 </blockquote>
+                    </div>
+                  </div></div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Page text that is not part of any message. -->
-        <div id="c-ui">
-          <p id="c-ui-p">Claude می‌تواند اشتباه کند. لطفاً پاسخ‌ها را بررسی کنید.</p>
+          </div>
+
+          <!-- Page text that is not part of any message. -->
+          <div id="c-ui">
+            <p id="c-ui-p">Claude می‌تواند اشتباه کند. لطفاً پاسخ‌ها را بررسی کنید.</p>
+          </div>
         </div>
 
         <fieldset id="c-composer">

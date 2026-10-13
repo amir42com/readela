@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-popup-final-design.json",
+  "recordDate": "2026-10-13",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "title": "Readela 0.3.0: the popup as the owner approved it — aligned rows, a palette that follows Appearance, Help, and each message beside what it is about",
+    "authorizingDecisions": ["DEC-143", "DEC-142", "DEC-136"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-13 to implement the popup design the owner approved, from the design package the owner supplied (a preview page, pictures of its states, and its wording), with the owner's amendments in that instruction: the order Appearance, Direction, Font, Text size, Line spacing, Bookmark; the visible name Direction with the accessible name Text direction; Save place as the first bookmark action; the corrected sentence \"Save your place in this conversation.\"; a footer of Reset settings, By Amir42 and the version only; bookmark messages under the bookmark's buttons and settings messages with the reading settings; the total and the shortcuts as secondary information under the actions. It authorizes commits and their plain push without a check after each step, local test builds and the evidence the repository's workflow requires. It does not authorize a change of the typography, of how reading settings or bookmarks work or are stored, of permissions, of the supported sites or of the version number; a new feature; merging pull request 9, marking it ready, a tag, a release, a store submission or a change to Personal OS.",
+    "relationToDecisions": "DEC-143 says the first bookmark action is Save and that the popup shows the combined total only. The instruction is the owner's later word on both: the action reads Save place, and a line under the buttons says what holds for this conversation. Recording that as a Decision is the owner's to do in Personal OS and is named in the handoff; it is due before the Integration Gate, not before this work."
+  },
+  "baseCommit": "91392bf585aad83276bedd4a159d21ca7cbe6048",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-246-readela-0.3.0-popup-and-unloaded-history.json",
+    "reused": false,
+    "reason": "That assertion covered a correction of spacing in which no control was added, removed or hidden, and is not edited. This is a separately bounded piece of work: the popup's layout, wording and palette change."
+  },
+  "designReference": {
+    "what": "The owner's design package final-design.rar, kept outside the repository: preferred.html and its pictures, readela-final-review.html, final-ux-copy.md and .json, render-checks.json.",
+    "use": "Appearance and wording only. The preview's own script, which imitates the extension, is not used; the popup keeps its code and its contracts with the page and with storage."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "src/ui/popup.html, src/ui/popup.css and src/ui/popup.js: each reading setting as a row, its name at the start and its choices at the end; the order and the names of the instruction; a selected choice shown by its fill, its border and its weight, at the size of the others; the popup's colours following Appearance (Original: the browser's light or dark scheme; Paper; Night), from the palettes the popup and the reading themes already have, with no setting of its own; Help, closed until opened, with the approved text; the bookmark as a row with its messages under its buttons and the total and shortcuts under those; a place for what a change of settings or Reset has to say, with the reading settings; a footer of three things; the approved wording, with the corrected sentence.",
+      "src/browser/shortcut.js only for the names the popup shows beside the keys.",
+      "Unit and end-to-end tests for what changes, and a look at the rendered popup in Chrome and Firefox.",
+      "Documentation and dated evidence made necessary by the above, local Chrome and Firefox builds for the owner's review, and an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "The content script, its stylesheet, the background component, the manifest and the fonts: what runs in a conversation does not change.",
+      "How direction, font, size and spacing are applied; how a bookmark is saved, found, returned to or stored, and its limit of 1000; the commands and how keys are assigned.",
+      "A setting for the popup's own colours, an icon in the popup, a change to the extension's icon, a new permission, a new supported site, code workspaces.",
+      "A new state or result from the page or from storage: the popup says what it is told today, in other words and in another place.",
+      "A repeat of the hour-long memory comparison, unless a change here affects what it measured.",
+      "The owner's browser profile, a signed-in site and real conversation content.",
+      "Merging pull request 9, marking it ready, a tag, a release, a store submission, store images and copy (ENT-243, paused), any write to Personal OS.",
+      "Capabilities, Exceptions, the dev-standards pin and the repository ruleset."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No. The project is in continuous work.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-13.",
+      "protocolChanged": "No. Revision v1.23; the canonical page was last edited on 2026-10-06.",
+      "architectureOrTrustBoundaryChanged": "No. One page of the extension's own changes its markup, style and wording. It reads and writes the same preferences, asks the page the same five questions and stores nothing new. The change is undone by reverting its commits.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable. No parent Preflight is being worked under; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-13",
+    "branch": "feat/ent-240-readela-0.3.0 at 91392bf585aad83276bedd4a159d21ca7cbe6048 locally and on the remote; clean worktree and index; no stash, one worktree.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, head 91392bf, check verify succeeded.",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree.",
+    "managerialState": "Protocol v1.23, the Project (Active, Next item ENT-246), ENT-246 (Active) and DEC-143 (Accepted) were read on 2026-10-13. The Project and ENT-246 were last edited before the design was approved and do not mention it; nothing in them forbids it. Where the instruction differs from DEC-143, see work.relationToDecisions.",
+    "designPackage": "Found on this machine with every file the instruction names; its extracted folder lists the same files as the archive."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "The popup is how every setting is reached. The risks are a control that can no longer be operated or read, a message that claims what did not happen, and a palette with too little contrast. Each is checked in both browsers: radio and switch semantics and keyboard order, the contrast of every text in each palette, and the wording against what the page and storage report."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-13",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit within scope.inScope, their plain push to that branch, and an update of the description of draft pull request 9. It does not cover merging, marking the pull request ready, a tag or any publication.",
+      "basis": [
+        "The owner instruction of 2026-10-13 covers this scope and the push to the existing pull-request branch.",
+        "Protocol, Project state, ENT-246 and DEC-143 were read on 2026-10-13; the one difference is named and is the owner's own later instruction.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "No full-preflight trigger fired.",
+        "This record is the first commit of the step."
+      ]
+    },
+    "integration": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; the integration gate of the fifth ENT-246 record stays not yet evaluated. It will need the owner's direction on the popup recorded as a Decision."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: a file that runs in a conversation, the manifest or a stored form would have to change.",
+    "The popup would need a state or a result the page or storage does not report today, a permission, or a setting of its own.",
+    "A check would need the owner's browser profile, a signed-in site or real conversation content.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before the step is closed."
+  ]
+}

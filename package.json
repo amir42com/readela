@@ -1,6 +1,6 @@
 {
   "name": "readela",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "description": "Browser extension that makes multilingual text easier to read within the original page.",
   "author": "Amir",
@@ -16,10 +16,11 @@
     "source-package": "node scripts/source-package.mjs",
     "store-images": "node scripts/store-images.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "test": "node --test \"test/core/*.test.mjs\" \"test/page/*.test.mjs\"",
+    "test": "node --test \"test/core/*.test.mjs\" \"test/page/*.test.mjs\" \"test/browser/*.test.mjs\"",
     "test:e2e": "node test/e2e/run.mjs",
     "test:e2e:chrome": "node test/e2e/run.mjs --browser chrome",
     "test:e2e:firefox": "node test/e2e/run.mjs --browser firefox",
+    "perf": "node test/perf/run.mjs",
     "browsers:firefox": "node test/e2e/install-firefox.mjs"
   },
   "devDependencies": {

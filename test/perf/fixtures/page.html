@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en-US" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Readela measuring page</title>
+    <link rel="icon" href="data:," />
+    <!--
+      A synthetic page for measuring what Readela costs. It contains no real
+      conversation. It is served for chatgpt.com and for claude.ai and builds
+      the structure the adapter of that host expects, sized after what was
+      counted on the sites on 2026-10-11 (about 440 nodes for a turn, 23 to 28
+      conversation rows in the sidebar).
+
+      The address says how much to build:
+        ?turns=12     turns in the conversation (60 for a long one)
+        &rows=28      conversation rows in the sidebar (300 for a heavy one)
+        &lang=mixed   en or fa for text in one language only
+        &em=1         0 for no emphasis, so nothing is set in italics
+
+      On window, for the measuring script:
+        perfStream(ms, every)    a reply is written word by word for `ms`
+        perfChurn(ms, every)     the sidebar replaces some of its rows
+        perfNavigate(number)     another conversation is shown, without a page load
+        perfType(ms, every)      characters are typed into the composer
+        perfScroll(ms)           the conversation is scrolled up and down
+        perfReady                true once the page is built
+    -->
+    <style>
+      html, body { height: 100%; }
+      body { margin: 0; font: 16px/1.7 system-ui, sans-serif; color: #111; background: #fff; overflow: hidden; }
+      @media (prefers-color-scheme: dark) { body { color: #eee; background: #212121; } }
+      .layout { display: flex; height: 100%; }
+      nav, aside { width: 260px; flex: none; display: flex; flex-direction: column; }
+      .list { flex: 1; min-height: 0; overflow: hidden auto; margin: 0 4px; padding: 0 4px; }
+      .row { position: relative; border-radius: 8px; padding: 6px 6px 6px 10px; }
+      .claude .row { padding: 0; }
+      .row-link { display: flex; align-items: center; height: 20px; color: inherit; text-decoration: none; font-size: 14px; }
+      .claude .row-link { height: 32px; padding: 2px; box-sizing: border-box; }
+      .claude .row-link span { padding-left: 4px; }
+      .row-link span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .page { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; max-width: 820px; }
+      main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .scroll { flex: 1; min-height: 0; overflow: hidden auto; }
+      .chatgpt .scroll { display: flex; flex-direction: column-reverse; }
+      .content { flex: none; padding: 16px 48px; }
+      .claude .scroll { padding-top: 64px; }
+      .bar { position: sticky; top: 0; z-index: 2; height: 44px; background: inherit; background-color: #fff; border-bottom: 1px solid #8884; }
+      .header { position: absolute; z-index: 11; top: 0; left: 0; right: 0; height: 48px; pointer-events: none; background: #fff; }
+      @media (prefers-color-scheme: dark) { .bar, .header { background-color: #212121; } }
+      .turn { margin-bottom: 24px; }
+      .bubble { margin: 0 0 12px auto; max-width: 70%; padding: 8px 14px; background: #8882; border-radius: 18px; width: fit-content; }
+      p, h3, ul, ol, blockquote, table { margin: 0 0 12px; }
+      blockquote { padding-left: 12px; border-left: 3px solid #8888; }
+      table { border-collapse: collapse; }
+      th, td { border: 1px solid #8886; padding: 4px 8px; }
+      code, .mono { font-family: ui-monospace, Consolas, monospace; }
+      p code, li code, td code { padding: 1px 4px; border: 1px solid #8885; border-radius: 4px; background: #8882; }
+      [data-markdown-copy="inline-code"] { padding: 1px 6px; border-radius: 6px; background: rgb(128 128 128 / 0.12); font-family: ui-monospace, Consolas, monospace; font-size: 0.92em; }
+      .capsule { margin: 0 0 12px; border-radius: 12px; background: #1e1e1e; color: #ddd; overflow: hidden; }
+      .capsule .head { padding: 6px 12px; font-size: 12px; }
+      .capsule pre, .capsule .code { margin: 0; padding: 0 12px 12px; white-space: pre; overflow: auto; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+      .composer { flex: none; margin: 8px 48px 16px; padding: 10px 14px; border: 1px solid #8886; border-radius: 16px; min-height: 24px; }
+    </style>
+  </head>
+  <body>
+    <div class="layout" id="layout"></div>
+    <script>
+      (() => {
+        const claude = location.hostname === "claude.ai";
+        const query = new URLSearchParams(location.search);
+        const TURNS = Number(query.get("turns") ?? 12);
+        const ROWS = Number(query.get("rows") ?? 28);
+        document.body.className = claude ? "claude" : "chatgpt";
+
+        const element = (name, attributes = {}, ...children) => {
+          const node = document.createElement(name);
+          for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+          for (const child of children) node.append(child);
+          return node;
+        };
+        const LANGUAGE = query.get("lang") ?? "mixed";
+        const EMPHASIS = query.get("em") !== "0";
+        const PERSIAN = "این پاسخ دربارهٔ ساختار برنامه و نحوهٔ استفاده از ابزارها توضیح می‌دهد و چند نکتهٔ مهم را یادآوری می‌کند";
+        const ENGLISH = "This answer explains how the application is structured and how its tools are meant to be used in practice";
+        const FA = LANGUAGE === "en" ? ENGLISH : PERSIAN;
+        const EN = LANGUAGE === "fa" ? PERSIAN : ENGLISH;
+        const TOKENS = ["main", "3.1.8", "serialize()", "npm run check", "ACCEPT", "FIX_REQUIRED", "useMemo", "deps"];
+        const words = (text, from, count) => {
+          const all = text.split(" ");
+          return Array.from({ length: count }, (_, index) => all[(from + index) % all.length]).join(" ");
+        };
+        const token = (text) =>
+          claude ? element("code", {}, text) : element("span", { "data-markdown-copy": "inline-code", dir: "ltr" }, text);
+        // A paragraph of mixed text with inline code, emphasis and a link.
+        const paragraph = (seed, persian) => {
+          const p = element("p", claude ? {} : { dir: "auto" });
+          const base = persian ? FA : EN;
+          p.append(
+            `${words(base, seed, 9)} `,
+            token(TOKENS[seed % TOKENS.length]),
+            ` ${words(persian ? EN : base, seed + 3, 5)} `,
+            element("strong", {}, words(base, seed + 5, 3)),
+            ` ${words(base, seed + 7, 8)} `,
+            element("a", { href: `https://example.org/${seed}` }, words(base, seed + 2, 2)),
+            ` ${words(base, seed + 11, 10)} `,
+            EMPHASIS ? element("em", {}, words(base, seed + 1, 2)) : words(base, seed + 1, 2),
+            ` ${words(base, seed + 13, 9)}.`,
+          );
+          return p;
+        };
+        const capsule = (seed) => {
+          const code = `function step${seed}(value) {\n  return value.map((item) => item * ${seed});\n}\n`;
+          if (claude) {
+            return element(
+              "div",
+              { "data-not-prose": "" },
+              element("div", { role: "group", class: "capsule" }, element("div", { class: "head" }, "javascript"), element("pre", {}, element("code", {}, code))),
+            );
+          }
+          return element(
+            "div",
+            {},
+            element("div", { "data-markdown-copy": "code-block", class: "capsule" }, element("div", { class: "head" }, "javascript"), element("div", { class: "code", dir: "ltr" }, element("code", {}, code))),
+          );
+        };
+        const table = (seed) => {
+          const row = (cell, index) => element("tr", {}, ...Array.from({ length: 4 }, (_, column) => element(cell, {}, column === 2 ? token(TOKENS[(seed + index) % TOKENS.length]) : words(index % 2 ? FA : EN, seed + index + column, 3))));
+          const body = element("table", {}, element("thead", {}, row("th", 0)), element("tbody", {}, row("td", 1), row("td", 2), row("td", 3)));
+          return claude ? element("div", { class: "table-frame" }, body) : element("div", { "data-markdown-table": "", "data-wide-block": "" }, element("div", { style: "overflow: auto" }, element("div", {}, body)));
+        };
+        // The text of one reply: about forty blocks, as a long real answer has.
+        const prose = (conversation, turn) => {
+          const seed = conversation * 97 + turn * 13;
+          const root = claude ? element("div", { class: "standard-markdown" }) : element("div", { "data-markdown-text-style": "assistant-message", dir: "auto" });
+          for (let section = 0; section < 3; section += 1) {
+            const s = seed + section * 5;
+            root.append(
+              element("h3", {}, words(section % 2 ? FA : EN, s, 5)),
+              paragraph(s, section % 2 === 0),
+              paragraph(s + 1, section % 2 === 1),
+              element("ul", {}, ...Array.from({ length: 4 }, (_, index) => element("li", {}, `${words(index % 2 ? FA : EN, s + index, 7)} `, token(TOKENS[(s + index) % TOKENS.length])))),
+              paragraph(s + 2, true),
+              section === 0 ? capsule(s) : section === 1 ? table(s) : element("blockquote", {}, paragraph(s + 3, false)),
+              paragraph(s + 4, false),
+            );
+          }
+          return root;
+        };
+        const turnOf = (conversation, turn) => {
+          const key = `perf-${conversation}-turn-${turn}`;
+          if (claude) {
+            return element(
+              "div",
+              { "data-testid": "transcript-row", "data-index": String(turn), class: "turn" },
+              element("div", { "data-turn-key": `${key}-user` }, element("div", { class: "bubble" }, element("div", { "data-testid": "user-message" }, element("p", {}, words(turn % 2 ? FA : EN, turn, 9))))),
+              element("div", { "data-testid": "assistant-message", "data-turn-key": `${key}-reply` }, prose(conversation, turn)),
+            );
+          }
+          return element(
+            "div",
+            { class: "turn", "data-turn-key": key },
+            element("div", { "data-content-search-unit-key": `${key}:0:user` }, element("div", { class: "bubble", "data-user-message-bubble": "true" }, element("div", {}, element("div", { dir: "auto" }, words(turn % 2 ? FA : EN, turn, 9))))),
+            element("div", { "data-content-search-unit-key": `${key}:2:assistant` }, prose(conversation, turn)),
+          );
+        };
+
+        // The path a conversation is shown at, and the address its row carries.
+        const pathOf = (conversation) => (claude ? `/chat/perf-conversation-${conversation}` : `/c/perf-conversation-${conversation}`);
+        const rowAddress = (conversation) =>
+          claude && conversation % 7 !== 0 ? `/cowork/cse_01PerfSession${String(conversation).padStart(8, "0")}` : pathOf(conversation);
+        const rowOf = (conversation) => {
+          const title = element("span", {}, `Conversation ${conversation}`);
+          if (claude) {
+            return element(
+              "div",
+              { "data-row-key": `chat:${conversation}`, "data-multiselect-row": "", "data-perf-row": String(conversation) },
+              element("div", { class: "row", "data-row": "" }, element("a", { class: "row-link", "data-row-main-button": "", href: rowAddress(conversation), draggable: "false" }, title)),
+            );
+          }
+          return element(
+            "div",
+            { role: "listitem", "data-perf-row": String(conversation) },
+            element("div", { class: "row", role: "group" }, element("a", { class: "row-link", "data-interactive-row-link": "true", href: rowAddress(conversation), draggable: "false" }, title)),
+          );
+        };
+
+        const list = element("div", { class: "list", id: "perf-rows", role: "list" });
+        const sidebar = element(claude ? "aside" : "nav", { "aria-label": "Chat history" }, element("p", { style: "margin: 12px" }, "Conversations"), list);
+        const content = element("div", { class: "content", id: "perf-content" });
+        const scroller = element(
+          "div",
+          claude ? { class: "scroll", id: "perf-scroller", "data-autoscroll-container": "true" } : { class: "scroll", id: "perf-scroller", "data-app-action-timeline-scroll": "", role: "region", tabindex: "0" },
+          claude ? content : element("div", { style: "flex: none" }, element("div", { class: "bar", role: "toolbar" }), content),
+        );
+        const composer = element("div", { class: "composer ProseMirror", contenteditable: "true", role: "textbox", id: "perf-composer" }, element("p", {}, ""));
+        const main = element("main", { id: "perf-main" }, scroller, element("form", { id: "perf-form" }, composer));
+        const page = element("div", { class: "page", "data-testid": "chat-column" }, ...(claude ? [element("div", { class: "header", "data-testid": "chat-header" })] : []), main);
+        document.querySelector("#layout").append(sidebar, page);
+
+        let first = 0; // the first conversation the sidebar lists
+        let shown = Number((location.pathname.match(/perf-conversation-(\d+)/) ?? [0, 0])[1]);
+        const mark = () => {
+          for (const link of list.querySelectorAll("a")) {
+            const current = link.getAttribute("href") === rowAddress(shown);
+            link.toggleAttribute("aria-current", current);
+            if (current) link.setAttribute("aria-current", "page");
+          }
+        };
+        const show = (conversation) => {
+          shown = conversation;
+          content.replaceChildren(...Array.from({ length: TURNS }, (_, turn) => turnOf(conversation, turn)));
+          mark();
+        };
+        for (let index = 0; index < ROWS; index += 1) list.append(rowOf(index));
+        show(shown);
+
+        const every = (ms, period, step) =>
+          new Promise((resolve) => {
+            const began = performance.now();
+            const timer = setInterval(() => {
+              if (performance.now() - began >= ms) {
+                clearInterval(timer);
+                resolve();
+                return;
+              }
+              step();
+            }, period);
+          });
+
+        // A reply is written the way a site streams one: words appended to
+        // the last block, a new block now and then.
+        window.perfStream = (ms = 10000, period = 30) => {
+          const root = claude ? element("div", { class: "progressive-markdown standard-markdown" }) : element("div", { "data-markdown-text-style": "assistant-message", dir: "auto" });
+          const key = `perf-${shown}-turn-stream-${Date.now()}`;
+          const turn = claude
+            ? element("div", { "data-testid": "transcript-row", "data-index": String(TURNS), class: "turn" }, element("div", { "data-testid": "assistant-message", "data-turn-key": `${key}-reply`, "data-is-streaming": "true" }, root))
+            : element("div", { class: "turn", "data-turn-key": key }, element("div", { "data-content-search-unit-key": `${key}:2:assistant` }, root));
+          content.append(turn);
+          let block = null;
+          let count = 0;
+          return every(ms, period, () => {
+            count += 1;
+            if (block === null || count % 45 === 0) {
+              block = count % 135 === 0 ? element("li", {}) : element("p", claude ? {} : { dir: "auto" });
+              if (block.localName === "li") root.append(element("ul", {}, block));
+              else root.append(block);
+              block.append("");
+            }
+            const word = `${words(count % 4 === 0 ? EN : FA, count, 1)} `;
+            if (count % 20 === 0) block.append(token(TOKENS[count % TOKENS.length]), " ");
+            else block.lastChild.nodeType === 3 ? block.lastChild.appendData(word) : block.append(word);
+            scroller.scrollTop = claude ? scroller.scrollHeight : 0;
+          });
+        };
+
+        // The sidebar replaces rows as it is scrolled: some leave, others come.
+        window.perfChurn = (ms = 10000, period = 250) =>
+          every(ms, period, () => {
+            for (let index = 0; index < 10; index += 1) {
+              list.firstElementChild.remove();
+              list.append(rowOf(first + ROWS + index));
+            }
+            first += 10;
+            mark();
+          });
+
+        // Another conversation is shown without a page load.
+        window.perfNavigate = (conversation) => {
+          history.pushState({}, "", `${pathOf(conversation)}${location.search}`);
+          show(conversation);
+        };
+
+        // Characters are typed into the composer.
+        window.perfType = (ms = 10000, period = 80) => {
+          const text = composer.firstElementChild;
+          text.append("");
+          return every(ms, period, () => text.lastChild.appendData("a"));
+        };
+
+        // The conversation is scrolled from one end to the other and back.
+        window.perfScroll = (ms = 6000) => {
+          const range = scroller.scrollHeight - scroller.clientHeight;
+          const began = performance.now();
+          return new Promise((resolve) => {
+            const frame = () => {
+              const elapsed = performance.now() - began;
+              if (elapsed >= ms) return resolve();
+              const part = Math.abs(((elapsed / ms) * 2) % 2 - 1); // 1 -> 0 -> 1
+              scroller.scrollTop = claude ? range * part : -range * (1 - part);
+              requestAnimationFrame(frame);
+            };
+            requestAnimationFrame(frame);
+          });
+        };
+
+        window.perfPath = pathOf;
+        window.perfReady = true;
+      })();
+    </script>
+  </body>
+</html>
