@@ -374,7 +374,7 @@ package.
     npm ci
     npm run package
 
-  Requires Node.js 22.15 or newer with its bundled npm, on any operating system. npm ci installs exactly the versions in package-lock.json. The build uses esbuild 0.28.2 and nothing else; the other two development dependencies (puppeteer-core, @puppeteer/browsers) drive browsers in the tests and take no part in the build. The output is not minified.
+  Requires Node.js 22.15 or newer with its bundled npm. The build was verified on Windows 11 with Node.js 22.23.1 and gave the same bytes with Node.js 20.20.2; no step is specific to an operating system. npm ci installs exactly the versions in package-lock.json. The build uses esbuild 0.28.2 and nothing else; the other two development dependencies (puppeteer-core, @puppeteer/browsers) drive browsers in the tests and take no part in the build. The output is not minified.
 
   Result: dist/firefox/ (18 files) is the content of the submitted package, and dist/packages/readela-0.3.0-firefox.zip is the archive. The archive is written with sorted entries and a fixed timestamp, so the same files give the same bytes; if the archive bytes differ in another environment, the extracted files are what to compare. The fonts under fonts/ are copied unchanged from src/fonts/, where README.md records their upstream sources, versions and SHA-256 digests.
   ```
