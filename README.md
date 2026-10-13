@@ -92,6 +92,9 @@ The minimum browser versions declared in the manifests (Chrome 121, Firefox
 dated evidence, newest first; a later file supersedes an earlier one where
 they differ:
 
+- [docs/evidence/2026-10-13-readela-0.3.0-release.md](docs/evidence/2026-10-13-readela-0.3.0-release.md)
+  (the release: the privacy wording, the integration, the packages of the
+  frozen commit and what each store reported)
 - [docs/evidence/2026-10-13-readela-0.3.0-release-preparation.md](docs/evidence/2026-10-13-readela-0.3.0-release-preparation.md)
   (the store images, the documents and the candidate packages)
 - [docs/evidence/2026-10-13-readela-0.3.0-popup-polish.md](docs/evidence/2026-10-13-readela-0.3.0-popup-polish.md)
