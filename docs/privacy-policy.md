@@ -1,7 +1,7 @@
 # Readela privacy policy
 
 **Readela by Amir42** — browser extension for Chrome and Firefox.
-This policy applies from version 0.2.0 and was last changed on 2026-10-10 to
+This policy applies from version 0.2.0 and was last changed on 2026-10-13 to
 describe version 0.3.0. Where a statement applies only from version 0.3.0, it
 says so. Its history is visible in the public repository, and the technical
 controls behind it are in
@@ -50,10 +50,10 @@ the extension.
 - **Your settings:** whether Readela is on, the direction mode, and your font,
   text size and line spacing choices; from version 0.3.0 also the reading
   appearance. The same settings apply on both supported sites.
-- **Your bookmarks (from version 0.3.0):** only when you choose Save (in
-  the popup, or with the shortcut you gave the command), Readela saves where
-  you stopped in that conversation, at most 1000 bookmarks and one per
-  conversation. At that number Readela tells you and bookmarks no further
+- **Your bookmarks (from version 0.3.0):** only when you choose Save place or
+  Update (in the popup, or with the shortcut you gave the command), Readela
+  saves where you stopped in that conversation, at most 1000 bookmarks and one
+  per conversation. At that number Readela tells you and bookmarks no further
   conversation until you remove one; it never removes a bookmark by itself. A
   bookmark does not contain the
   text of the paragraph, the title or the address of the conversation. It contains
@@ -98,9 +98,13 @@ available to those two sites so their pages can display them; this is not a
 permission and gives the sites no information about you. Also from version
 0.3.0 Readela declares three commands (save the bookmark, return to it,
 remove it), none of which has a keyboard shortcut unless you give it one in
-your browser; a small background part of the extension passes a command to
-the page and does nothing else. The current manifest
-and source code are public, so these statements can be checked.
+your browser. A small background part of the extension passes such a command
+to the page, and it is the one place that writes your bookmarks to the
+browser's storage on your device, one change at a time, so that two tabs
+cannot overwrite one another. It does nothing else: it makes no network
+request, runs only when a command or a change arrives, and keeps nothing of
+its own. The current manifest and source code are public, so these statements
+can be checked.
 
 ## Store disclosures
 

@@ -80,16 +80,29 @@ on Windows 11:
 | What a page costs: idle, streaming, typing, navigating, a long run (Chrome, traced; Firefox, by process) | measured on a synthetic conversation sized after the site | the same |
 | Real signed-in conversation | page structure read four times, without the text, to shape the adapters and the checks; the 0.3.0 extension was not run there by the automated checks | the same |
 
-The owner reported manually testing earlier builds on real ChatGPT and Claude
-conversations and finding them working correctly. Those are reports, not part
-of the automated evidence, and they predate 0.3.0.
+The owner reported installing builds of 0.3.0 in their own Chrome and using
+them on real ChatGPT and Claude conversations: the popup, the shortcuts they
+assigned and everyday bookmarking worked as intended. Those are reports, not
+part of the automated evidence. Return in a very old conversation whose
+earlier part the site had not loaded yet was checked on the synthetic pages
+only.
 
 The minimum browser versions declared in the manifests (Chrome 121, Firefox
 140) have not been exercised. The exact cases, method and limits are in the
-dated evidence:
+dated evidence, newest first; a later file supersedes an earlier one where
+they differ:
 
+- [docs/evidence/2026-10-13-readela-0.3.0-release-preparation.md](docs/evidence/2026-10-13-readela-0.3.0-release-preparation.md)
+  (the store images, the documents and the candidate packages)
+- [docs/evidence/2026-10-13-readela-0.3.0-popup-polish.md](docs/evidence/2026-10-13-readela-0.3.0-popup-polish.md)
+- [docs/evidence/2026-10-13-readela-0.3.0-popup-final-design.md](docs/evidence/2026-10-13-readela-0.3.0-popup-final-design.md)
+- [docs/evidence/2026-10-13-readela-0.3.0-popup-and-unloaded-history.md](docs/evidence/2026-10-13-readela-0.3.0-popup-and-unloaded-history.md)
+- [docs/evidence/2026-10-13-readela-0.3.0-correction-5.md](docs/evidence/2026-10-13-readela-0.3.0-correction-5.md)
+  (the fifth correction, the fonts and the hour-long memory comparison)
+- [docs/evidence/2026-10-12-readela-0.3.0-performance-baseline.md](docs/evidence/2026-10-12-readela-0.3.0-performance-baseline.md)
+- [docs/evidence/2026-10-11-readela-0.3.0-correction-4.md](docs/evidence/2026-10-11-readela-0.3.0-correction-4.md)
 - [docs/evidence/2026-10-11-readela-0.3.0-correction-3.md](docs/evidence/2026-10-11-readela-0.3.0-correction-3.md)
-  (the third correction and the performance measurements; it supersedes the earlier ones where they differ)
+  (the third correction and the first performance measurements)
 - [docs/evidence/2026-10-10-readela-0.3.0-correction-2.md](docs/evidence/2026-10-10-readela-0.3.0-correction-2.md)
 - [docs/evidence/2026-10-10-readela-0.3.0-correction.md](docs/evidence/2026-10-10-readela-0.3.0-correction.md)
 - [docs/evidence/2026-10-10-readela-0.3.0-implementation.md](docs/evidence/2026-10-10-readela-0.3.0-implementation.md)
@@ -299,8 +312,12 @@ npm run package   # dist/chrome, dist/firefox and dist/packages/*.zip
   identical.
 - `npm run source-package` writes `dist/packages/readela-<version>-source.zip`,
   the tracked tree of the current commit, for the Firefox Add-ons source
-  review. `npm run store-images` regenerates `docs/store-images/` from the
-  built extension and the synthetic test conversations.
+  review. Its bytes name the commit, so the same tree at another commit gives
+  another archive with the same files.
+- `npm run store-images` regenerates `docs/store-images/` from the built
+  extension and the synthetic pages written for the listing
+  (`scripts/lib/store-pages.mjs`); what the images are and are not is in
+  [docs/store-listing.md](docs/store-listing.md).
 
 Layout: `src/core` (portable rules), `src/page` (page integration and one
 adapter per site), `src/browser` (extension APIs), `src/ui` (popup). See

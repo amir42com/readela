@@ -53,7 +53,7 @@ Firefox builds come from one shared codebase.
 5. **Text size and line spacing:** Original or one of three bounded choices
    each.
 6. **Text direction:** Original, Auto, RTL or LTR.
-7. **Bookmark.** Save (Update once one exists), Return and Remove, one
+7. **Bookmark.** Save place (Update once one exists), Return and Remove, one
    bookmark per conversation; how many conversations have one; a bookmark
    beside those conversations in the site's own list; and a command for each
    of the three actions, which has a keyboard shortcut only if the reader
@@ -135,7 +135,7 @@ direction and alignment of blocks whose text calls for it.
   is 1.5, 1.75 or 2.0.
 - **Bookmark.** One per conversation, in the text of a response. The code and
   the technical documents call it the saved place.
-  - *Saving.* Save saves the readable paragraph that holds a selection
+  - *Saving.* Save place saves the readable paragraph that holds a selection
     in view. Without a selection it saves the first readable paragraph of a
     response that begins clearly in the reading area, below whatever the site
     keeps over the top of the conversation, so the reader sees the whole of
@@ -243,8 +243,8 @@ numbers, never readable text, a title or an address. These are matching
 information kept on the device, not anonymisation or encryption. It requests
 access to `chatgpt.com` and `claude.ai` and to extension storage, and
 nothing else. Three font files are packaged with the extension and made
-available to those two sites. One command is declared to the browser, with
-no key, and a background component that passes it to the page and is the one writer of the stored bookmarks (DEC-144). Details and the reason for each entry are
+available to those two sites. Three commands are declared to the browser, with
+no key, and a background component that passes them to the page and is the one writer of the stored bookmarks (DEC-144). Details and the reason for each entry are
 in [privacy-and-permissions.md](privacy-and-permissions.md).
 
 ## Distribution

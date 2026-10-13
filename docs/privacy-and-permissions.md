@@ -106,11 +106,13 @@ the popup from the extension's own storage, not from a page.
   read the browser's extension storage on the device could test a guess
   against it, which matters for short, guessable text and for identifiers they
   already know.
-- **How the places are written:** each save and clear reads the stored object,
-  changes one conversation's entry, writes it and reads it back. A tab never
-  writes back a copy it read earlier, so a place saved in another tab is not
-  lost; and nothing is shown or reported as saved or cleared before the
-  browser has stored it. A lookup that fails never removes a place.
+- **How the places are written:** by the background component, and by nothing
+  else. A page asks it for a change; each save and clear reads the stored
+  object, changes one conversation's entry, writes it and reads it back, one
+  change after another. A copy read earlier is never written back, so a place
+  saved in another tab is not lost; and nothing is shown or reported as saved
+  or cleared before the browser has stored it. A lookup that fails never
+  removes a place.
 - **Sent anywhere:** nothing. The extension has no backend and makes no
   network request.
 
