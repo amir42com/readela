@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-243-readela-0.3.0-release.json",
+  "recordDate": "2026-10-13",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-243",
+    "relatedWorkUnits": ["ENT-246"],
+    "title": "Readela 0.3.0: the release — a correction to the privacy wording, integration of pull request 9, the packages of the frozen commit, the tag and the release, and publication on Firefox Add-ons",
+    "authorizingDecisions": ["DEC-143", "DEC-144", "DEC-142", "DEC-116", "DEC-115"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-13 for the release, and the sections of that day in DEC-143, ENT-243 and ENT-246 that record it. The owner approved the final 0.3.0 extension and popup, the five store screenshots and the public positioning. It authorizes: correcting privacy wording that could be read as a statement about the two sites rather than about the extension; marking pull request 9 ready and merging it into main once the integration Gate passes; building the packages and the source archive from the frozen commit on main; a v0.3.0 tag and a release on that commit; submitting version 0.3.0 to the existing Firefox add-on readela (readela@amir42.com), which publishes it, once the publication Gate passes; bringing that add-on's product page (summary, description, privacy policy, screenshots and captions) to 0.3.0 after the version is public; and a hand-off for the Chrome Web Store. It does not authorize: a change of what the extension does, requests, reads or stores, of its fonts, its features or its version number; an upload, a submission or any change of the live listing on the Chrome Web Store; a new store entry; entering credentials, accepting an agreement or completing a verification on the owner's behalf; or a write to Personal OS."
+  },
+  "baseCommit": "1ece5ee6805f406913844eac0e3d60c5f6979e75",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-243-readela-0.3.0-store-presentation.json",
+    "reused": false,
+    "reason": "That record, and the full records for the code (ent-240-readela-0.3.0-reading-comfort.json, ent-246-readela-0.3.0-correction-5.json and the three popup records), place merging, the tag, the release and every submission out of scope. The release is that work, separately bounded and separately authorized, so it carries its own assertion, as the 0.2.1 release did. Those records stay the records for what they cover and are not edited; the integration Gate they left not yet evaluated is evaluated under this one."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "docs/privacy-policy.md, docs/store-listing.md, README.md and docs/privacy-and-permissions.md: sentences about what is transmitted, reworded so that they speak of the extension and say that the two sites keep communicating with their own servers. No statement of fact about the extension changes.",
+      "Dated evidence under docs/evidence/, an accurate description of pull request 9, marking it ready and merging it into main with the repository's merge method.",
+      "From the frozen commit on main, in clean clones: the Chrome and Firefox packages, the source archive, their digests, a comparison with the candidate packages, and the checks of the release (verifier, unit tests, package contents, Mozilla's linter).",
+      "An annotated tag v0.3.0 on the frozen commit and a release that carries the three archives and their digests.",
+      "Firefox Add-ons, the existing add-on readela: a new version from the frozen Firefox package with the source archive, release notes and notes to the reviewer; after the version is public, the product page from docs/store-listing.md.",
+      "A hand-off for the owner's manual update of the Chrome Web Store item, and evidence kept outside the repository under the project's evidence convention."
+    ],
+    "outOfScope": [
+      "Everything that is packaged: what runs in a page, the popup, the background component, the manifest, the commands, permissions, match patterns, web-accessible resources, stored forms, the fonts, the icons, and the version number.",
+      "The store images and the approved positioning of the copy, other than the privacy sentences named above.",
+      "The Chrome Web Store: no upload, no submission, no change of the listing or of a privacy field.",
+      "A new add-on or store entry, Firefox for Android, a new feature, a dependency change, a new build, packaging or release process.",
+      "A repeat of the hour-long memory comparison, unless this work shows a regression that calls for it.",
+      "Credentials, agreements and verifications of a provider, which stay the owner's.",
+      "Changes to declared Capabilities or Exceptions, to the dev-standards pin and to the repository ruleset, and any write to Personal OS."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No. The project is in continuous work.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-13.",
+      "protocolChanged": "No. Revision v1.23; the canonical page was last edited on 2026-10-06.",
+      "architectureOrTrustBoundaryChanged": "No, by this work. What 0.3.0 adds to the extension (the background component, the commands, the packaged fonts) was assessed by the full records for the code. This work changes sentences in documents and nothing that is packaged. Publication goes to the same Firefox add-on, under the same publisher account, with the same permissions and the same data-collection declaration as 0.2.1.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable. No parent Preflight is being worked under; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-13",
+    "branch": "feat/ent-240-readela-0.3.0 at 1ece5ee6805f406913844eac0e3d60c5f6979e75 locally and on the remote; clean worktree and index.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 on the remote (version 0.2.1); it is the merge base of the branch, which is 37 commits ahead and none behind.",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, mergeable, head 1ece5ee, check verify succeeded on the push and on the pull request; no comment and no review.",
+    "repositoryRuleset": "ENT-197 main protection, id 24401132, active: pull request required, required check verify with the branch up to date, no deletion, no non-fast-forward.",
+    "tagsAndReleases": "v0.2.0 on 95d80e8 and v0.2.1 on df634ff, each with a release; no v0.3.0 tag.",
+    "publicListings": "Firefox Add-ons, read from the public API on 2026-10-13: add-on readela public, current version 0.2.1. The Chrome Web Store is not read by this work.",
+    "managerialState": "Protocol v1.23, the Project (Active, Next item ENT-243), ENT-243 (Active), ENT-246 (Active until integration) and DEC-143 (Accepted) were read on 2026-10-13. Each records the owner's authorization of the integration and of the Firefox publication, and that the Chrome Web Store stays the owner's manual step."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "A published store version can only be superseded, so the exact-artifact discipline of the earlier releases is kept: every submitted file is built from one frozen commit on main and bound to it by SHA-256, the publication Gate names the artifact it assessed, and the product page is changed only after the version it describes is public."
+  },
+  "ordering": "This assertion committed first; the wording and the dated evidence after it; integration Gate bound to the exact head and a green verify; merge; that merge commit frozen; packages and source archive built from clean clones and hashed; tag and release on the frozen commit; publication Gate for Firefox Add-ons bound to the artifact, the validation result and the live listing; submission; verification of what the provider shows; the product page once 0.3.0 is public; close-out evidence.",
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-13",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit within scope.inScope, their plain push to that branch, an update of the description of pull request 9 and marking it ready. It does not cover the merge, the tag, the release or any submission.",
+      "basis": [
+        "The owner instruction of 2026-10-13 and DEC-143 (Accepted, with its section on integration and Firefox publication) cover this scope.",
+        "Protocol v1.23, the Project state, ENT-243, ENT-246 and DEC-143 were read on 2026-10-13 and agree with the instruction.",
+        "Repository, remote, ruleset and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the work."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Immediately before the merge of pull request 9, bound to its exact head, a green verify on that head, main unchanged since the merge base and the ruleset active without a bypass. It also stands for the integration Gate the records for the code left not yet evaluated, whose further conditions are the owner's acceptance of the review on the real sites, the owner's decision on the fonts and the owner's disposition of the memory evidence. Recorded in dated evidence under docs/evidence/."
+    },
+    "publicationFirefoxAmo": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Immediately before Submit Version, bound to the frozen commit on main, the digests of the Firefox package and of the source archive built from it, the result of the provider's validation of the uploaded package, the signed-in developer session of the existing add-on and the live listing. Recorded in dated evidence."
+    },
+    "publicationChromeWebStore": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope. The owner updates the existing item by hand; this work prepares the package of the frozen commit and the hand-off and touches nothing in that store."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: a packaged file, a permission, a match pattern, a web-accessible resource, a stored form, a command or the version number would have to change.",
+    "A statement about privacy or permissions can be made true only by changing the extension.",
+    "The packages of the frozen commit differ from the candidate packages in a packaged file that this work does not explain.",
+    "The provider asks for something the authorization does not cover: a credential, an agreement, a verification, a new permission prompt for readers or a change of the add-on's identity.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit before the merge.",
+    "Project Operating Protocol semantics materially change before the work is closed."
+  ]
+}
