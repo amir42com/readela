@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Readela",
   "short_name": "Readela",
-  "description": "Comfortable reading on ChatGPT and Claude: automatic text direction, warm Paper and Night colours, clear fonts and a reading mark.",
+  "description": "Comfortable reading on ChatGPT and Claude: warm Paper and Night colours, a clear font, automatic text direction and a bookmark.",
   "homepage_url": "https://amir42.com",
   "icons": {
     "16": "icons/icon-16.png",
