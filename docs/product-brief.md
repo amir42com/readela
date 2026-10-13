@@ -159,10 +159,11 @@ direction and alignment of blocks whose text calls for it.
     page (see the open point at the end).
     Readela ships no default key and listens for none in the page: a key it
     chose could already be the reader's, a site's or an assistive tool's.
-  - *The total.* Under the bookmark's buttons and its message the popup
-    shows the number of conversations that have one, on both sites together,
-    for example "7 total", with the keys the browser holds for the commands.
-    It follows what the browser has stored. The first button reads Save place
+  - *The total.* At the end of the line under the bookmark's buttons the
+    popup shows the number of conversations that have one, on both sites
+    together, for example "7 total". It follows what the browser has stored.
+    The keys the browser holds for the commands are listed apart from it,
+    under the name Shortcuts. The first button reads Save place
     where this conversation has no bookmark, with Return and Remove
     unavailable, and Update where it has one, with both available.
   - *In the site's list.* A conversation that has a bookmark gets a small

@@ -79,8 +79,14 @@ body {
   font: 13px/18px system-ui, "Segoe UI", sans-serif;
 }
 
+/* The room at the sides and between a name and its choices is measured from
+   the width the content really has. When the popup scrolls, as it does with
+   Help open, a scrollbar takes 15 pixels or so from that width, which a
+   rule written for the popup's own width cannot see; the rows then give up
+   a little air and stay as they are: 14 pixels at the sides in 360, 12 in
+   345 and less. */
 main {
-  padding: 10px 14px 8px;
+  padding: 10px clamp(12px, calc(13.333% - 34px), 14px) 8px;
 }
 
 header {
@@ -249,10 +255,12 @@ fieldset {
 .group,
 .place-row {
   display: grid;
-  /* The name takes the room its words need, also when the text is enlarged. */
-  grid-template-columns: max(82px, 6.31em) minmax(0, 1fr);
+  /* The name's column: 82 pixels in the popup's own width, down to 76 in
+     the room a scrollbar leaves, and never less than its longest name needs,
+     also when the text is enlarged. */
+  grid-template-columns: max(clamp(76px, calc(54.55% - 99.1px), 82px), 5.85em) minmax(0, 1fr);
   align-items: center;
-  column-gap: 7px;
+  column-gap: clamp(6px, calc(9.09% - 23.18px), 7px);
 }
 
 .group {
@@ -271,10 +279,10 @@ fieldset {
   grid-area: 1 / 2;
 }
 
+/* The choices of a row share its width evenly, and none is ever narrower
+   than its longest word: a word in a choice does not break. */
 .segments {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  display: flex;
   gap: 3px;
   min-width: 0;
 }
@@ -282,7 +290,7 @@ fieldset {
 .segments label {
   position: relative;
   display: grid;
-  min-width: 0;
+  flex: 1 1 0;
   min-height: 32px;
   padding: 5px 2px;
   place-items: center;
@@ -302,11 +310,6 @@ fieldset {
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
-}
-
-.segments span {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 /* Selected: a fill and a border of its own and heavier words, at the size of
@@ -395,21 +398,19 @@ button:disabled {
 }
 
 .actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 4px;
   min-width: 0;
 }
 
 .actions button {
-  min-width: 0;
+  flex: 1 1 0;
   min-height: 32px;
   padding: 5px 3px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--background);
   font-weight: 600;
-  overflow-wrap: anywhere;
 }
 
 .actions button.primary {
@@ -425,36 +426,83 @@ button:disabled {
   color: var(--muted);
 }
 
-/* Room for two lines, so that most of what is said moves nothing. */
-#place-note {
+/* Under the buttons: what there is to say, and at the end of its line the
+   number of conversations that have a bookmark. Room for two lines, so that
+   most of what is said moves nothing. */
+.place-said {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   min-height: 32px;
   margin: 2px 0 3px;
 }
 
-.facts {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 6px;
-  min-height: 24px;
+.place-said > .said {
+  flex: 1;
+  min-width: 0;
+}
+
+.total {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* The shortcuts, a part of their own: its name with the way to the browser's
+   settings beside it, and under it each assigned key as a pair, the action
+   in one column and its key in the other. */
+.shortcuts {
   color: var(--muted);
   font-size: 12px;
   line-height: 16px;
 }
 
-.fact {
-  min-width: 0;
-  padding: 4px 0;
+.shortcuts-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.shortcuts-head h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 16px;
+}
+
+#shortcut-state:empty {
+  display: none;
+}
+
+.shortcuts-head .quiet {
+  margin-inline-start: auto;
+}
+
+#shortcut-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 16px;
+  margin: 0 0 5px;
+}
+
+#shortcut-list[hidden] {
+  display: none;
+}
+
+#shortcut-list dt,
+#shortcut-list dd {
+  margin: 0;
+}
+
+/* A key is shown as the browser gives it, whole; it breaks only where it
+   would otherwise not fit at all. */
+#shortcut-list dd {
   overflow-wrap: anywhere;
-}
-
-#shortcut-state {
-  white-space: pre-line;
-}
-
-#place-total:not(:empty) ~ #shortcut-state:not([hidden])::before {
-  content: " · ";
-  white-space: pre;
 }
 
 /* A quiet button for something done rarely. */
@@ -512,35 +560,30 @@ footer {
   outline-offset: 2px;
 }
 
-/* In less room than the popup asks for, the rows keep their shape with a
-   little less air; in very little, a name stands over its choices. */
-
-@media (max-width: 340px) {
-  main {
-    padding-inline: 12px;
-  }
-
-  .group,
-  .place-row {
-    grid-template-columns: max(76px, 5.85em) minmax(0, 1fr);
-    column-gap: 6px;
-  }
-
-  .segments label,
-  .actions button {
-    padding-inline: 1px;
-    font-size: 12px;
-  }
-
-  .facts {
+/* Where the words of a row do not fit beside one another (the text much
+   enlarged, or very little room) the choices go on to a second line whole;
+   nothing is made smaller and no word breaks. Four choices then stand two
+   by two, not three and one: each asks for half the row as soon as the row
+   is narrower than the four words of the widest row need, measured in the
+   text's own size so that it follows the text. Not in a room narrower than
+   any popup is given; see below. */
+@media (min-width: 120px) {
+  .segments,
+  .actions {
     flex-wrap: wrap;
+  }
+
+  .segments:has(> label:nth-child(4)) > label {
+    flex-basis: calc((11.3em + 34px - 100%) * 999);
+    max-width: calc(50% - 1.5px);
   }
 }
 
-/* A name over its choices makes the popup tall. That layout is not for a
-   room narrower than any popup is given: a browser that sizes the popup to
-   its content starts from such a room, and a tall layout there makes it
-   leave space for a scrollbar that the popup, once sized, does not need. */
+/* In very little room, a name stands over its choices. That makes the popup
+   tall, as do choices on a second line, so neither is for a room narrower
+   than any popup is given: a browser that sizes the popup to its content
+   starts from such a room, and a tall layout there makes it leave space for
+   a scrollbar that the popup, once sized, does not need. */
 @media (min-width: 120px) and (max-width: 290px) {
   .group,
   .place-row {
@@ -556,16 +599,6 @@ footer {
     margin-bottom: 4px;
   }
 
-  .segments {
-    grid-auto-flow: row;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .segments label,
-  .actions button {
-    font-size: 13px;
-  }
-
   .intro > .note {
     padding-inline-end: 0;
   }
@@ -577,8 +610,12 @@ footer {
 }
 
 @media (min-width: 120px) and (max-width: 220px) {
-  .actions {
-    grid-template-columns: 1fr;
+  .actions button {
+    flex-basis: 100%;
+  }
+
+  .place-said {
+    flex-wrap: wrap;
   }
 }
 

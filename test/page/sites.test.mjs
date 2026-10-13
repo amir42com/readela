@@ -248,6 +248,40 @@ test("the popup is five rows of settings in the approved order, Help closed, and
   assert.doesNotMatch(styles, /text-overflow|line-clamp/);
 });
 
+test("under the bookmark's buttons: the message with the total beside it, then the shortcuts as pairs in two columns; no word of a choice can break", () => {
+  const html = source("ui/popup.html");
+  const script = source("ui/popup.js");
+  const styles = source("ui/popup.css");
+  // The total stands with the message, and is no part of the shortcuts.
+  assert.match(
+    html,
+    /<div class="place-said">\s*<p class="said" id="place-note"[^>]*><\/p>\s*<p class="total"><span id="place-total" aria-hidden="true"><\/span><span class="hidden" id="place-total-name"><\/span><\/p>\s*<\/div>/,
+  );
+  const shortcuts = html.slice(html.indexOf('<div class="shortcuts"'), html.indexOf("</section>"));
+  assert.doesNotMatch(shortcuts, /place-total/);
+  // The shortcuts: a name, a short state, the way to the browser's settings beside them, and under them a list of pairs.
+  assert.match(shortcuts, /<h3 id="shortcuts-title">Shortcuts<\/h3>\s*<span id="shortcut-state"><\/span>\s*<button type="button" id="shortcut-set" class="quiet"/);
+  assert.match(shortcuts, /<dl id="shortcut-list" aria-labelledby="shortcuts-title" hidden><\/dl>/);
+  // Nothing where the browser tells nothing; two words where no key is assigned; a key exactly as the browser gives it.
+  assert.match(script, /shortcuts\.hidden = commands === null;/);
+  assert.match(script, /shortcutState\.textContent = set\.length === 0 \? "Not set" : "";/);
+  assert.match(script, /keys\.textContent = command\.keys;/);
+  assert.doesNotMatch(script, /Shortcuts:|\.join\("\\n"\)/);
+  assert.match(styles, /#shortcut-list \{\s*display: grid;\s*grid-template-columns: max-content minmax\(0, 1fr\);/);
+  // Choices and actions share a row evenly and are never narrower than a word: nothing lets a word break.
+  assert.match(styles, /\.segments \{\s*display: flex;/);
+  assert.match(styles, /\.segments label \{[^}]*\bflex: 1 1 0;/);
+  assert.match(styles, /\.actions button \{\s*flex: 1 1 0;/);
+  assert.doesNotMatch(styles.slice(styles.indexOf(".segments {"), styles.indexOf("/* Something to say")), /overflow-wrap|word-break|hyphens/);
+  // The rows are sized from the width the content really has, which a scrollbar makes less than the popup's own.
+  assert.match(styles, /main \{\s*padding: 10px clamp\(12px, calc\(13\.333% - 34px\), 14px\) 8px;/);
+  // Every rule for little room is kept from the narrow room a browser starts sizing a popup in.
+  assert.doesNotMatch(styles, /@media \(max-width/);
+  assert.equal(styles.match(/@media \(min-width: 120px\)/g).length, 3);
+  assert.match(styles, /@media \(min-width: 120px\) \{\s*\.segments,\s*\.actions \{\s*flex-wrap: wrap;/);
+  assert.doesNotMatch(styles, /\n\.(?:segments|actions) \{[^}]*flex-wrap/);
+});
+
 test("the web-accessible resources are the packaged fonts and nothing else, for the supported hosts only", () => {
   const fonts = [...new Set(BUNDLED_FONTS.map((font) => font.file))];
   assert.deepEqual(fonts, ["fonts/Vazirmatn-NL-wght.woff2", "fonts/InterVariable.woff2", "fonts/InterVariable-Italic.woff2"]);

@@ -94,10 +94,17 @@
             <button type="button" id="place-clear" aria-label="Remove bookmark">Remove</button>
           </div>
         </div>
-        <p class="said" id="place-note" role="status" aria-live="polite" aria-atomic="true"></p>
-        <div class="facts">
-          <p class="fact"><span id="place-total" aria-hidden="true"></span><span class="hidden" id="place-total-name"></span><span id="shortcut-state" hidden></span></p>
-          <button type="button" id="shortcut-set" class="quiet" title="Opens your browser’s extension shortcut settings. The browser assigns and manages shortcuts." hidden></button>
+        <div class="place-said">
+          <p class="said" id="place-note" role="status" aria-live="polite" aria-atomic="true"></p>
+          <p class="total"><span id="place-total" aria-hidden="true"></span><span class="hidden" id="place-total-name"></span></p>
+        </div>
+        <div class="shortcuts" id="shortcuts" hidden>
+          <div class="shortcuts-head">
+            <h3 id="shortcuts-title">Shortcuts</h3>
+            <span id="shortcut-state"></span>
+            <button type="button" id="shortcut-set" class="quiet" title="Opens your browser’s extension shortcut settings. The browser assigns and manages shortcuts."></button>
+          </div>
+          <dl id="shortcut-list" aria-labelledby="shortcuts-title" hidden></dl>
         </div>
       </section>
 

@@ -506,11 +506,25 @@ where this conversation has none and Update where it has one; Return and
 Remove are available only then. Under the buttons one line says what holds
 for this conversation, until an action has something of its own to say; a
 result that means the action did not do what was asked is shown as a
-warning, with a sign before the words and a colour of its own. Under that,
-as secondary information, are the number of conversations that have a
-bookmark, on both sites together and read from what is stored, and the keys
-the browser holds for the three commands, with a control that opens the
-browser's shortcut settings.
+warning, with a sign before the words and a colour of its own. At the end
+of that line, as secondary information, is the number of conversations that
+have a bookmark, on both sites together and read from what is stored. Under
+it the shortcuts are a part of their own: its name, beside it the control
+that opens the browser's shortcut settings, and each key the browser holds
+as a pair in two columns, the action and its key exactly as the browser
+gives it; "Not set" where none is assigned, and nothing at all where the
+browser reports nothing.
+
+The rows are sized from the width the content really has. A popup that
+scrolls, as it does with Help open, loses a scrollbar's width, which a rule
+written for the popup's own width does not see; the rows then give up a
+little room at the sides and keep their shape. A choice is never narrower
+than its word, so no word breaks; where the text is much enlarged or the
+room very small, choices go on to a second line whole, four of them two by
+two. The rules for little room do not apply in a room narrower than 120
+pixels: a browser that sizes a popup to its content starts from such a
+room, and a tall layout there makes it open the popup wider than its
+content.
 
 What a change of settings or Reset has to say is said under the settings
 rows: nothing where a change was stored, that the settings were reset, or

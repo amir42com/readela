@@ -77,8 +77,10 @@ const status = document.getElementById("status");
 const placeNote = document.getElementById("place-note");
 const placeTotal = document.getElementById("place-total");
 const placeTotalName = document.getElementById("place-total-name");
+const shortcuts = document.getElementById("shortcuts");
 const shortcutState = document.getElementById("shortcut-state");
 const shortcutSet = document.getElementById("shortcut-set");
+const shortcutList = document.getElementById("shortcut-list");
 const placeButtons = {
   set: document.getElementById("place-save"),
   go: document.getElementById("place-return"),
@@ -154,17 +156,27 @@ function renderPlace() {
 }
 
 // The keys the browser holds for the three bookmark commands. The browser
-// assigns and checks them; the popup only says what they are and opens the
-// way there. Where the browser tells nothing, nothing is said.
+// assigns and checks them; the popup only says what they are, exactly as the
+// browser gives them, and opens the way there. Each assigned key is a pair:
+// the action, and its key. Where none is assigned that is said in two words,
+// and where the browser tells nothing, nothing is shown.
 async function renderShortcut() {
   const commands = await assignedShortcuts();
-  shortcutState.hidden = commands === null;
-  shortcutSet.hidden = commands === null;
+  shortcuts.hidden = commands === null;
   if (commands === null) return;
   const set = commands.filter((command) => command.keys !== "");
-  shortcutState.textContent =
-    set.length === 0 ? "Shortcuts: not set" : ["Shortcuts:", ...set.map((command) => `${command.label}: ${command.keys}`)].join("\n");
+  shortcutState.textContent = set.length === 0 ? "Not set" : "";
   shortcutSet.textContent = set.length === 0 ? "Set shortcuts" : "Change shortcuts";
+  shortcutList.hidden = set.length === 0;
+  shortcutList.replaceChildren(
+    ...set.flatMap((command) => {
+      const action = document.createElement("dt");
+      action.textContent = command.label;
+      const keys = document.createElement("dd");
+      keys.textContent = command.keys;
+      return [action, keys];
+    }),
+  );
 }
 
 // A change of settings is shown at once and said nothing about when it is

@@ -2268,14 +2268,28 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 
     // The popup says what the browser holds, and opens the browser's own settings.
     const shortcutLine = () =>
-      popup.evaluate(() => ({
-        shown: !document.querySelector("#shortcut-set").hidden,
-        state: document.querySelector("#shortcut-state").textContent,
-        action: document.querySelector("#shortcut-set").textContent,
-      }));
+      popup.evaluate(() => {
+        const at = (selector) => [...new Set([...document.querySelectorAll(selector)].map((cell) => Math.round(cell.getBoundingClientRect().left)))];
+        const middle = (selector) => (document.querySelector(selector).getBoundingClientRect().top + document.querySelector(selector).getBoundingClientRect().bottom) / 2;
+        return {
+          shown: !document.querySelector("#shortcuts").hidden,
+          heading: document.querySelector("#shortcuts-title").textContent,
+          state: document.querySelector("#shortcut-state").textContent,
+          action: document.querySelector("#shortcut-set").textContent,
+          // The way to the browser's settings stands beside the name of the part.
+          beside: Math.abs(middle("#shortcuts-title") - middle("#shortcut-set")) < 3,
+          // Each assigned key is a pair: the action, and its key as the browser gives it.
+          pairs: [...document.querySelectorAll("#shortcut-list dt")].map((action) => [action.textContent, action.nextElementSibling.textContent]),
+          // Two columns: every action begins at one place, every key at another, further on.
+          columns: at("#shortcut-list dt").length <= 1 && at("#shortcut-list dd").length <= 1 && (at("#shortcut-list dd")[0] ?? 1) > (at("#shortcut-list dt")[0] ?? 0),
+          // The total is no part of it: it stands with what the bookmark says.
+          total: document.querySelector("#shortcuts").contains(document.querySelector("#place-total")) ? "among the shortcuts" : "apart",
+        };
+      });
+    const NO_KEYS = { shown: true, heading: "Shortcuts", state: "Not set", action: "Set shortcuts", beside: true, pairs: [], columns: true, total: "apart" };
     await loadPopup(popup, popupAddress);
-    await popup.waitForFunction(() => !document.querySelector("#shortcut-set").hidden, { polling: 200 });
-    assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: not set", action: "Set shortcuts" });
+    await popup.waitForFunction(() => !document.querySelector("#shortcuts").hidden, { polling: 200 });
+    assert.deepEqual(await shortcutLine(), NO_KEYS);
     if (name === "firefox") {
       // The browser assigns the key and refuses what it does not allow.
       const refused = await popup.evaluate(async () => {
@@ -2289,17 +2303,32 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       assert.equal(refused, true, "a single letter is the browser's to refuse");
       await popup.evaluate(() => browser.commands.update({ name: "bookmark", shortcut: "Alt+Shift+9" }));
       await loadPopup(popup, popupAddress);
-      await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent !== "", { polling: 200 });
-      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts:\nSave place / Update: Alt+Shift+9", action: "Change shortcuts" });
+      await popup.waitForFunction(() => document.querySelectorAll("#shortcut-list dt").length === 1, { polling: 200 });
+      assert.deepEqual(await shortcutLine(), { ...NO_KEYS, state: "", action: "Change shortcuts", pairs: [["Save place / Update", "Alt+Shift+9"]] });
       await popup.evaluate(() => browser.commands.update({ name: "bookmark-return", shortcut: "Alt+Shift+8" }));
       await loadPopup(popup, popupAddress);
-      await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent.includes("Return"), { polling: 200 });
-      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts:\nSave place / Update: Alt+Shift+9\nReturn: Alt+Shift+8", action: "Change shortcuts" });
+      await popup.waitForFunction(() => document.querySelectorAll("#shortcut-list dt").length === 2, { polling: 200 });
+      assert.deepEqual(await shortcutLine(), {
+        ...NO_KEYS,
+        state: "",
+        action: "Change shortcuts",
+        pairs: [["Save place / Update", "Alt+Shift+9"], ["Return", "Alt+Shift+8"]],
+      });
+      await popup.evaluate(() => browser.commands.update({ name: "bookmark-remove", shortcut: "Alt+Shift+7" }));
+      await loadPopup(popup, popupAddress);
+      await popup.waitForFunction(() => document.querySelectorAll("#shortcut-list dt").length === 3, { polling: 200 });
+      assert.deepEqual(await shortcutLine(), {
+        ...NO_KEYS,
+        state: "",
+        action: "Change shortcuts",
+        pairs: [["Save place / Update", "Alt+Shift+9"], ["Return", "Alt+Shift+8"], ["Remove", "Alt+Shift+7"]],
+      });
+      await popup.evaluate(() => browser.commands.reset("bookmark-remove"));
       await popup.evaluate(() => browser.commands.reset("bookmark-return"));
       await popup.evaluate(() => browser.commands.reset("bookmark"));
       await loadPopup(popup, popupAddress);
       await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent !== "", { polling: 200 });
-      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: not set", action: "Set shortcuts" });
+      assert.deepEqual(await shortcutLine(), NO_KEYS);
     }
     {
       const settings = name === "chrome" ? "chrome://extensions/shortcuts" : "about:addons";
@@ -4156,12 +4185,27 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
             const oneSize = Math.max(...widths) - Math.min(...widths) < 0.5 && boxes.every((box) => Math.round(box.height) === 32);
             return name.height < 20 && choices.left >= name.right - 1 && Math.abs((name.top + name.bottom) / 2 - (choices.top + choices.bottom) / 2) < 6 && oneSize;
           }),
+          // A choice or an action whose words stand on more lines than they have words: a word was broken.
+          broken: [...document.querySelectorAll(".segments label, .actions button")]
+            .filter((element) => {
+              const range = document.createRange();
+              range.selectNodeContents(element.querySelector("span") ?? element);
+              return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size > element.textContent.trim().split(/\s+/).length;
+            })
+            .map((element) => element.textContent.trim()),
+          // The total of bookmarks: at the end of the line the bookmark's message begins, and no part of the shortcuts.
+          total: {
+            text: document.querySelector("#place-total").textContent,
+            name: document.querySelector("#place-total-name").textContent,
+            withMessage: Math.abs(box(".total").top - box("#place-note").top) < 3 && box(".total").left >= box("#place-note").right - 1,
+            apart: !document.querySelector("#shortcuts").contains(document.querySelector("#place-total")),
+          },
           theme: document.documentElement.getAttribute("data-theme"),
           background: getComputedStyle(document.body).backgroundColor,
           contrast: Object.fromEntries(
             Object.entries({
               name: "legend", note: "#state-note", help: "#help-summary", choice: ".segments label:not(:has(input:checked)) span", chosen: ".segments label:has(input:checked) span",
-              action: "#place-clear", primary: ".actions button.primary", said: "#place-note", status: "#status", facts: ".fact", reset: "#reset", about: ".about",
+              action: "#place-clear", primary: ".actions button.primary", said: "#place-note", status: "#status", total: ".total", shortcuts: "#shortcuts-title", keys: "#shortcut-state", way: "#shortcut-set", reset: "#reset", about: ".about",
             })
               .map(([key, selector]) => [key, contrast(selector)])
               .filter(([, value]) => value !== null && value < 4.5),
@@ -4200,6 +4244,10 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       assert.deepEqual({ width: facts.width, theme: facts.theme, background: facts.background }, { width: 360, theme, background }, theme);
       whole(facts, 480, `${theme}, every choice made`);
       assert.deepEqual(facts.rows, [true, true, true, true, true, true], `${theme}: six aligned rows, a selected choice the size of the others`);
+      assert.deepEqual(facts.broken, [], theme);
+      assert.match(facts.total.text, /^\d+ total$/);
+      assert.match(facts.total.name, /^\d+ bookmarked conversations in total$/);
+      assert.deepEqual({ withMessage: facts.total.withMessage, apart: facts.total.apart }, { withMessage: true, apart: true }, `${theme}: the total stands with the message`);
       assert.deepEqual({ status: facts.status.text, statusPlace: facts.statusPlace, placePlace: facts.placePlace }, { status: "", statusPlace: true, placePlace: true }, theme);
       footerOnly(facts, theme);
       await ui.screenshot({ path: path.join(results, `${name}-popup-${theme}.png`) });
@@ -4296,6 +4344,21 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       return facts;
     });
     assert.deepEqual(help, { open: true, paragraphs: 7, taller: true, auto: true, reached: true });
+    // A popup that scrolls has a scrollbar, and the scrollbar takes its width
+    // from the content: 15 pixels in Chrome, a little more elsewhere. In that
+    // room the rows are as they were: every choice whole on one line, four
+    // in a row, each row's choices of one width.
+    for (const room of [345, 343]) {
+      await ui.setViewport({ width: room, height: 600 });
+      const beside = await measure();
+      assert.deepEqual(
+        { width: beside.width, broken: beside.broken, rows: beside.rows, sideways: beside.sideways, cut: beside.cut, outside: beside.outside },
+        { width: room, broken: [], rows: [true, true, true, true, true, true], sideways: false, cut: [], outside: [] },
+        `Help open, ${room} pixels beside a scrollbar`,
+      );
+    }
+    await ui.screenshot({ path: path.join(results, `${name}-popup-help-beside-scrollbar.png`) });
+    await ui.setViewport({ width: 800, height: 600 });
     await ui.$eval("#help-summary", (element) => element.click());
     assert.equal(await ui.$eval("#help", (element) => element.open), false);
 
@@ -4345,7 +4408,17 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
         };
       });
       await opened.screenshot({ path: path.join(results, `${name}-popup-opened.png`) });
+      // With Help open it scrolls, and no word of a choice breaks for it.
+      await opened.$eval("#help-summary", (element) => element.click());
+      await sleep(400);
+      const helped = await opened.evaluate(() => ({
+        open: document.querySelector("#help").open,
+        scrolls: document.documentElement.scrollHeight > innerHeight,
+        tallest: Math.max(...[...document.querySelectorAll(".segments label")].map((choice) => Math.round(choice.getBoundingClientRect().height))),
+        fourInARow: [...document.querySelectorAll(".segments")].filter((row) => row.children.length === 4).every((row) => new Set([...row.children].map((choice) => Math.round(choice.getBoundingClientRect().top))).size === 1),
+      }));
       await opened.close().catch(() => {});
+      assert.deepEqual(helped, { open: true, scrolls: true, tallest: 32, fourInARow: true }, "Help open in the popup the browser opened");
       // No strip beside the content for a scrollbar that is not there.
       assert.deepEqual({ room: facts.room, content: facts.content, scrolls: facts.scrolls, footerInView: facts.footerInView }, { room: 360, content: 360, scrolls: false, footerInView: true });
       assert.ok(facts.height <= 480, `the opened popup is ${facts.height} pixels tall`);
