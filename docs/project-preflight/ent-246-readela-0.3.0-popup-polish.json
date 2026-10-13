@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-popup-polish.json",
+  "recordDate": "2026-10-13",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "title": "Readela 0.3.0: two corrections to the approved popup — the bookmark total apart from the shortcuts, and no broken word in a choice when Help is open",
+    "authorizingDecisions": ["DEC-143", "DEC-142", "DEC-136"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-13, after the owner installed the build of b190ac4 in Chrome and found the popup and what it does to work. It authorizes two corrections with their focused verification, commits and plain push: the total of bookmarks shown apart from the shortcuts, with the shortcuts as a small part of their own (a heading with the way to the browser's settings beside it, the assigned keys in two columns, a short state where none is assigned, nothing where the browser tells nothing); and a layout in which opening Help, which makes the popup scroll and so narrower by a scrollbar, breaks no ordinary word in a choice. It asks that the real toolbar popup of Chrome be checked and that the empty strip corrected in b190ac4 not come back. It does not authorize a change of the layout's design, the palettes, the reading or bookmark behaviour, the commands or their keys, permissions, supported sites or the version number; a new feature; merging, a tag, a release, a store submission or a change to Personal OS."
+  },
+  "baseCommit": "73d3a91c23d119f498fdcd5ba367fc4cca380fcc",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-246-readela-0.3.0-popup-final-design.json",
+    "reused": true,
+    "statement": "The parent covers the popup's markup, style and wording, its tests, documents, evidence and builds, and this work stays inside that: the same three files of the popup and the tests. None of its invalidators fired: no file that runs in a conversation, no manifest and no stored form changes; the popup needs no new state, result, permission or setting; no check needs the owner's profile or a signed-in site; Capabilities, Exceptions and the baseline are as recorded; HEAD descends from its baseCommit; the Protocol is at the same revision."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "src/ui/popup.html, src/ui/popup.css and src/ui/popup.js: under the bookmark's buttons, the message as it is with the total beside it as secondary information; the shortcuts as a part of their own, with its name, the control that opens the browser's settings beside the name, the assigned keys as pairs of action and key in two aligned columns, the words Not set where none is assigned, and nothing where the browser reports nothing.",
+      "The same stylesheet: choices that never break inside a word; in the room a scrollbar leaves, the rows keep their shape with a little less air; where the text is much enlarged or the room very narrow, four choices stand two by two instead of breaking or shrinking.",
+      "Unit and end-to-end tests for what changes, among them the popup as Chrome itself opens it, with Help closed and open; pictures and measurements before and after.",
+      "Dated evidence made necessary by the above, local Chrome and Firefox builds for the owner's review, and an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "The order and names of the rows, the palettes, the header, Help's text, the footer, the bookmark's buttons and its messages.",
+      "The commands, their names in the manifest, how keys are assigned, permissions.",
+      "Everything that runs in a conversation; how bookmarks are saved, found and stored; the fonts; supported sites; the version number.",
+      "A wider popup, unless measurements show that nothing smaller keeps a word whole.",
+      "A repeat of the hour-long memory comparison.",
+      "Merging pull request 9, marking it ready, a tag, a release, a store submission, any write to Personal OS."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8; the verifier passed on baseCommit on 2026-10-13.",
+      "protocolChanged": "No. Revision v1.23; the canonical page was last edited on 2026-10-06.",
+      "architectureOrTrustBoundaryChanged": "No. Where two pieces of information stand in one page of the extension's own, and how its rows share their width.",
+      "scopeExpandedBeyondCurrentPreflight": "No. Inside the parent's scope; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-13",
+    "branch": "feat/ent-240-readela-0.3.0 at 73d3a91c23d119f498fdcd5ba367fc4cca380fcc locally and on the remote; clean worktree and index; no stash, one worktree.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, head 73d3a91, check verify succeeded.",
+    "managerialState": "The Project (Active, Next item ENT-246), ENT-246 (Active) and DEC-143 (Accepted) stand as they were read earlier on 2026-10-13; none was edited since. Recording the popup's wording as a Decision is still the owner's to do, as the parent says."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "The risk named in the instruction is the one this work is held to: a rule for less room that makes Chrome open the popup wider than its content. The popup is opened as Chrome opens it, closed and with Help open, and measured."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-13",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit within scope.inScope, their plain push to that branch, and an update of the description of draft pull request 9. It does not cover merging, marking the pull request ready, a tag or any publication.",
+      "basis": [
+        "The owner instruction of 2026-10-13 covers this scope and the push to the existing pull-request branch.",
+        "The parent record is valid for this work and none of its invalidators fired.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "This record is the first commit of the step."
+      ]
+    },
+    "integration": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; the integration gate of the fifth ENT-246 record stays not yet evaluated."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: a file outside the popup and its tests would have to change, or the popup would have to become wider without a measurement that calls for it.",
+    "A command, a key, a permission or a stored form would have to change.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before the step is closed."
+  ]
+}
