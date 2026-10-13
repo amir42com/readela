@@ -83,20 +83,20 @@
           <button type="button" id="place-clear" aria-label="Remove bookmark">Remove</button>
         </div>
         <p class="hint" id="place-guide">Marks your reading position in this conversation.</p>
+        <p class="note" id="place-note" role="status" aria-live="polite"></p>
         <p class="shortcut" id="shortcut" hidden>
           <span id="shortcut-state"></span>
           <button type="button" id="shortcut-set" class="quiet" title="Opens your browser's own shortcut settings."></button>
         </p>
-        <p class="note" id="place-note" role="status" aria-live="polite"></p>
       </section>
 
       <footer>
         <button type="button" id="reset" class="secondary">Reset settings</button>
-        <p class="note" id="status" role="status" aria-live="polite"></p>
         <p class="about">
           <span>By <a id="publisher" href="https://amir42.com" target="_blank" rel="noopener noreferrer">Amir42</a></span>
           <span>Version <span id="version"></span></span>
         </p>
+        <p class="note" id="status" role="status" aria-live="polite"></p>
       </footer>
     </main>
     <script src="popup.js"></script>

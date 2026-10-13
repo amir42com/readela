@@ -1505,6 +1505,10 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     );
     assert.equal(await state(), "Save · 0 total");
     assert.equal(await popup.$eval("#place-note", (element) => element.textContent), "", "nothing is claimed before anything is saved");
+    // One line under the buttons at a time: what the section is for, until there is something to say.
+    const lines = () =>
+      popup.evaluate(() => ["#place-guide", "#place-note"].map((selector) => getComputedStyle(document.querySelector(selector)).display !== "none"));
+    assert.deepEqual(await lines(), [true, false]);
 
     await select("p-en");
     await placeButton("save");
@@ -1512,6 +1516,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNote(SAVED);
     assert.deepEqual(await buttons(), { save: "Update", saveOff: false, returnOff: false, clearOff: false });
     assert.equal(await state(), "Update · 1 total");
+    assert.deepEqual(await lines(), [false, true], "what was done is said in place of the helper line");
 
     const shown = await bar("p-en");
     assert.equal(shown.width, 5, "a bar, not a hairline");
@@ -2658,6 +2663,98 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       window.readelaSettleAlways = false;
     });
 
+    await placeButton("clear");
+    await waitForNote("Bookmark removed.");
+    await page.goto(FIXTURE_URL, { waitUntil: "load" });
+    await waitForMark(page, "#p-en-start", "rtl");
+    await loadPopup(popup, popupAddress);
+    await waitForState("Save · 0 total");
+  });
+
+  await step("ChatGPT, long conversation opened at its end: earlier turns that load unevenly are waited for and the place reached; a load that comes too late, and a look-alike of a turn that is gone, end in not found with the conversation where it was", async () => {
+    // The reader saves the closing line of turn 7; the same sentence ends every reply.
+    await openLong();
+    await waitForState("Save · 0 total");
+    await showTurn(6);
+    await select("lt-same-6");
+    await placeButton("save");
+    await waitForPlace(page, "lt-same-6");
+    await waitForNote(SAVED);
+    await page.evaluate(() => getSelection().removeAllRanges());
+
+    // Later the conversation is opened again: at its end, on its last five
+    // turns, the place thirty turns above what is loaded.
+    const reopen = async (prepare, value) => {
+      await page.goto("about:blank");
+      await page.goto(CHATGPT_LONG_URL, { waitUntil: "load" });
+      await page.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
+      assert.deepEqual([await loadedFrom(), await scrollTop(page, LT), await places(page)], [35, 0, []]);
+      await page.evaluate(prepare, value);
+      await loadPopup(popup, popupAddress);
+      await waitForState("Update · 1 total");
+    };
+    const untouched = async (what) => {
+      assert.deepEqual(await places(page), [], `${what}: no reply is marked`);
+      assert.equal(await page.evaluate(() => document.querySelector("[data-readela-flash]")), null, `${what}: nothing is pointed at`);
+      assert.equal(await scrollTop(page, LT), 0, `${what}: the conversation is at its end, where the reader was`);
+      assert.equal((await storedMarks()).items.length, 1, `${what}: the bookmark is kept`);
+      assert.equal(await state(), "Update · 1 total");
+    };
+
+    // 1. Six loads are needed, and they come unevenly, two of them slowly.
+    await reopen((delays) => {
+      window.readelaLoadDelays = delays;
+    }, [150, 1400, 300, 2000, 200, 900]);
+    await placeButton("return");
+    await waitForNote("Returned to your bookmark.", 40000);
+    assert.deepEqual(await places(page), ["lt-same-6:exact"], "the same sentence in the other replies is not marked");
+    assert.equal(await inView("lt-same-6", page, LT), true, "the place is clearly in view below the bar");
+    assert.ok((await page.evaluate(() => window.readelaLoads)) >= 6, "every load on the way was waited for");
+    await sleep(800);
+    assert.equal(await inView("lt-same-6", page, LT), true, "and it is still there a moment later");
+
+    // 2. The second load takes longer than a search waits for one. Return
+    // says the place was not found and puts the conversation back; when the
+    // load does come, nothing moves. What it brought stays, and the next
+    // Return goes on from there.
+    await reopen((delays) => {
+      window.readelaLoadDelays = delays;
+    }, [200, 5000]);
+    await placeButton("return");
+    await waitForNote("Your bookmark was not found. It is still saved.", 40000);
+    await untouched("a load that has not come");
+    assert.equal(await page.evaluate(() => window.readelaLoads), 1, "the slow load was still under way when the search ended");
+    await page.waitForFunction(() => window.readelaLoads === 2, { polling: 100, timeout: 10000 });
+    await sleep(700);
+    await untouched("after the load came");
+    await placeButton("return");
+    await waitForNote("Returned to your bookmark.", 40000);
+    assert.deepEqual(await places(page), ["lt-same-6:exact"]);
+    assert.equal(await inView("lt-same-6", page, LT), true);
+
+    // 3. The turn the place was saved in is gone: the site shows the same
+    // words under another key. Everything is loaded and looked at, down to
+    // the first turn, and the look-alike is not taken for the place.
+    await reopen((turn) => {
+      window.readelaAgain = turn;
+      window.readelaLoadDelay = 60;
+    }, 6);
+    await placeButton("return");
+    await waitForNote("Your bookmark was not found. It is still saved.", 45000);
+    await untouched("a look-alike");
+    assert.equal(await loadedFrom(), 0, "the whole conversation was loaded on the way");
+    await showTurn(6);
+    assert.equal(await page.$eval("#lt-same-6", (element) => element.closest("[data-turn-key]").getAttribute("data-turn-key")), "lt-turn-6-again");
+    assert.deepEqual(await places(page), [], "the look-alike is in the document and is not marked");
+
+    await page.evaluate(() => {
+      window.readelaAgain = undefined;
+    });
+    await page.goto("about:blank");
+    await page.goto(CHATGPT_LONG_URL, { waitUntil: "load" });
+    await page.waitForFunction(() => document.querySelector("[data-readela-dir]") !== null, { polling: 200 });
+    await loadPopup(popup, popupAddress);
+    await waitForState("Update · 1 total");
     await placeButton("clear");
     await waitForNote("Bookmark removed.");
     await page.goto(FIXTURE_URL, { waitUntil: "load" });
@@ -3950,6 +4047,100 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     }
     // The popup asked for nothing outside the extension, opening or in use.
     assert.deepEqual(popupRequests.filter((url) => !EXTENSION_FILE.test(url) && !url.startsWith("data:")), []);
+    await front(page);
+  });
+
+  await step("popup: at its own width it is shown whole, footer included, in the room a browser gives a popup, with every choice made and with a message; narrower, it wraps and nothing is cut off", async () => {
+    await front(ui);
+    // A browser gives a popup at most 800 by 600. At a zoom of 125% that is
+    // 480 of the page's own pixels in height, and the popup still fits.
+    await ui.setViewport({ width: 800, height: 600 });
+    const before = await picked(ui);
+    const pick = async (choices) => {
+      for (const [group, value] of Object.entries(choices)) {
+        await ui.$eval(`input[name="${group}"][value="${value}"]`, (element) => element.click());
+      }
+      await ui.waitForFunction(
+        (wanted) => Object.entries(wanted).every(([group, value]) => document.querySelector(`input[name="${group}"]:checked`)?.value === value),
+        { polling: 100 },
+        choices,
+      );
+    };
+    const measure = () =>
+      ui.evaluate(() => {
+        const main = document.querySelector("main").getBoundingClientRect();
+        const within = (selector) => {
+          const rect = document.querySelector(selector).getBoundingClientRect();
+          return rect.height > 0 && rect.top >= 0 && rect.bottom <= innerHeight;
+        };
+        const parts = [...document.querySelectorAll("main *")].filter((element) => !element.matches("input, .hidden") && element.getClientRects().length > 0);
+        return {
+          width: Math.round(document.body.getBoundingClientRect().width),
+          height: Math.ceil(main.height),
+          scrolls: document.documentElement.scrollHeight > innerHeight,
+          sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          footer: within("#reset") && within("#publisher") && within("#version"),
+          // Wider than its own box, or reaching past the popup's edge: cut off, or over its neighbour.
+          cut: parts.filter((element) => getComputedStyle(element).display !== "inline" && element.scrollWidth > element.clientWidth + 1).map((element) => element.id || element.tagName),
+          outside: parts.filter((element) => element.getBoundingClientRect().right > main.right + 0.5 || element.getBoundingClientRect().left < main.left - 0.5).map((element) => element.id || element.tagName),
+          // The line about a choice stands beside the name of its group, not under the choices.
+          hints: [...document.querySelectorAll(".group")]
+            .filter((group) => group.querySelector(".hint")?.textContent)
+            .map((group) => {
+              const legend = group.querySelector("legend").getBoundingClientRect();
+              const hint = group.querySelector(".hint").getBoundingClientRect();
+              return hint.top < legend.bottom && hint.left >= legend.right && hint.bottom <= group.querySelector(".segments").getBoundingClientRect().top + 1;
+            }),
+          controls: {
+            segment: Math.round(document.querySelector(".segments").getBoundingClientRect().height),
+            action: Math.round(document.querySelector("#place-save").getBoundingClientRect().height),
+            reset: Math.round(document.querySelector("#reset").getBoundingClientRect().height),
+          },
+        };
+      });
+    const whole = (facts, limit, what) => {
+      assert.ok(facts.height <= limit, `${what}: ${facts.height} pixels tall`);
+      assert.deepEqual(
+        { scrolls: facts.scrolls, sideways: facts.sideways, footer: facts.footer, cut: facts.cut, outside: facts.outside },
+        { scrolls: false, sideways: false, footer: true, cut: [], outside: [] },
+        what,
+      );
+    };
+
+    // Every choice made: three of the groups say a line about theirs.
+    await pick({ theme: "night", font: "sans", size: "125", spacing: "1.75", direction: "auto" });
+    const chosen = await measure();
+    assert.equal(chosen.width, 360);
+    whole(chosen, 480, "every choice made");
+    assert.deepEqual(chosen.hints, [true, true, true]);
+    // The controls are the size they were: nothing was made smaller to fit.
+    assert.deepEqual(chosen.controls, { segment: 32, action: 30, reset: 30 });
+    await ui.screenshot({ path: path.join(results, `${name}-popup-whole.png`) });
+
+    // With what Reset says under it, and the longest thing the bookmark can
+    // say. The second is put there as text: no page is asked for it here.
+    await ui.$eval("#reset", (element) => element.click());
+    await ui.waitForFunction(() => document.querySelector("#status").textContent !== "", { polling: 100 });
+    await pick({ theme: "night", font: "sans", size: "125", spacing: "1.75", direction: "rtl" });
+    await ui.evaluate(() => {
+      document.querySelector("#place-note").textContent = "This paragraph cannot be told apart from an identical one beside it. Choose another.";
+      document.querySelector("#place-guide").hidden = true;
+    });
+    whole(await measure(), 560, "with the longest messages");
+
+    // In less room than it asks for, the lines wrap; nothing is cut off and nothing scrolls sideways.
+    await ui.setViewport({ width: 320, height: 600 });
+    const narrow = await measure();
+    assert.deepEqual(
+      { width: narrow.width, sideways: narrow.sideways, cut: narrow.cut, outside: narrow.outside },
+      { width: 320, sideways: false, cut: [], outside: [] },
+      "in 320 pixels",
+    );
+
+    if (input) await loadPopup(popup, popupAddress);
+    else await ui.evaluate(() => { document.querySelector("#place-note").textContent = ""; document.querySelector("#place-guide").hidden = false; });
+    await pick({ theme: before.theme, font: before.font, size: before.size, spacing: before.spacing, direction: before.direction });
+    await ui.setViewport({ width: 320, height: 640 });
     await front(page);
   });
 

@@ -191,6 +191,12 @@ test("the popup calls the feature Bookmark, shows the total only, and keeps its 
   assert.match(html, /id="place-return" aria-label="Return to bookmark">Return<\/button>/);
   assert.match(html, /id="place-clear" aria-label="Remove bookmark">Remove<\/button>/);
   assert.match(html, /<p class="hint" id="place-guide">Marks your reading position in this conversation\.<\/p>/);
+  // It gives way to what there is to say, so the section never grows by a line for a message.
+  assert.match(script, /placeGuide\.hidden = placeNote\.textContent !== "";/);
+  // The popup takes the width it is laid out for, never more than it is given, and scrolls only where it must.
+  const styles = source("ui/popup.css");
+  assert.match(styles, /body \{[^}]*\bwidth: 360px;[^}]*\bmax-width: 100%;/);
+  assert.match(styles, /html \{\s*overflow-y: auto;\s*\}/);
   // Nothing says in words whether this conversation is bookmarked, and the
   // earlier name of the feature is gone from what the reader sees.
   const visible = `${html}\n${script}`;

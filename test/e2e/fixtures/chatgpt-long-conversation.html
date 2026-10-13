@@ -25,7 +25,13 @@
 
       Knobs for the tests, on window:
         readelaLoadDelay    milliseconds before earlier turns are loaded
+        readelaLoadDelays   a list of such delays, one taken for each load in
+                            turn; when it is used up, readelaLoadDelay again
+        readelaLoads        how many loads have happened
         readelaLoadBatch    how many earlier turns are loaded at a time
+        readelaAgain        the number of a turn (from 0) that is no longer
+                            the turn it was: the same words, under another
+                            key, as when the site has written a reply again
         readelaNeverLoad    true: earlier turns are never loaded
         readelaMountDelay   milliseconds before turns near the viewport appear
         readelaSettleShift  pixels: a moment after the scrolling has stopped the
@@ -100,7 +106,7 @@
         function turn(index) {
           const number = index + 1;
           const frame = element("div", { class: "turn-frame", style: `height: ${HEIGHT}px`, "data-lt-turn": String(index) });
-          const outer = element("div", { class: "turn", "data-turn-key": `lt-turn-${index}` });
+          const outer = element("div", { class: "turn", "data-turn-key": window.readelaAgain === index ? `lt-turn-${index}-again` : `lt-turn-${index}` });
           const inner = element("div", { "data-content-search-turn-key": `fallback-turn-${index - first}` });
           const user = element("div", { class: "user-row", "data-content-search-unit-key": `fallback-turn-${index - first}:0:user` });
           const bubble = element("div", { "data-user-message-bubble": "true" });
@@ -150,11 +156,13 @@
           // The beginning of what is loaded is in view: load what came before.
           if (offset() < 80 && first > 0 && !loading && !window.readelaNeverLoad) {
             loading = true;
+            const delays = window.readelaLoadDelays;
             setTimeout(() => {
               loading = false;
               first = Math.max(0, first - (window.readelaLoadBatch ?? BATCH));
+              window.readelaLoads += 1;
               render();
-            }, window.readelaLoadDelay ?? 250);
+            }, (Array.isArray(delays) && delays.length > 0 ? delays.shift() : window.readelaLoadDelay) ?? 250);
           }
         }
 
@@ -188,6 +196,7 @@
           }, window.readelaSettleDelay ?? 250);
         });
 
+        window.readelaLoads = 0;
         window.readelaTurns = () => [...list.children].map((node) => Number(node.getAttribute("data-lt-turn")));
         window.readelaLoadedFrom = () => first;
         render();

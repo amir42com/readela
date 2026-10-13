@@ -140,9 +140,10 @@ direction and alignment of blocks whose text calls for it.
     Nothing is guessed about where the reader is looking. Elements kept only
     for screen readers, controls and the reader's own messages are never
     saved. The popup says only "Marks your reading position in this
-    conversation."; the rest is in the button's tooltip. A paragraph that
-    cannot be told from an identical one beside it is not saved, and the
-    popup says so.
+    conversation."; the rest is in the button's tooltip. That line gives way
+    to what an action reports, so the section says one thing at a time. A
+    paragraph that cannot be told from an identical one beside it is not
+    saved, and the popup says so.
   - *The commands.* Readela declares three commands to the browser, to save
     or update, to return and to remove, with no key. The reader may give each
     a key in the browser's own shortcut settings, which the popup opens; the
@@ -278,7 +279,10 @@ builds, on both supported sites:
    and keeps changes the page itself made in the meantime.
 6. Text content and selection are unchanged; the composer is untouched.
 7. The popup is operable by keyboard with a visible focus indicator and meets
-   text contrast in light and dark themes.
+   text contrast in light and dark themes. At the browser's ordinary zoom it
+   is shown whole, footer included, without scrolling, also with every choice
+   made and a message shown; where there is less room, or the text is much
+   enlarged, it scrolls and nothing is cut off.
 8. The extension makes no network request and stores only the preferences and
    the bookmarks.
 9. Paper and Night colour the text of responses only, hold primary reading text

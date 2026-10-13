@@ -70,6 +70,7 @@ const stateNote = document.getElementById("state-note");
 const settings = document.getElementById("settings");
 const status = document.getElementById("status");
 const placeNote = document.getElementById("place-note");
+const placeGuide = document.getElementById("place-guide");
 const placeTotal = document.getElementById("place-total");
 const shortcut = document.getElementById("shortcut");
 const shortcutState = document.getElementById("shortcut-state");
@@ -119,6 +120,8 @@ function renderPlace(message) {
   placeButtons.go.disabled = !(usable && saved);
   placeButtons.clear.disabled = !(usable && saved);
   placeNote.textContent = message ?? PLACE_NOTES[state] ?? "";
+  // One line at a time: what the section is for, or what there is to say now.
+  placeGuide.hidden = placeNote.textContent !== "";
   // The count is of what the browser has stored, never of what was asked for.
   placeTotal.textContent = total === null ? "" : `${total} total`;
 }
