@@ -1,24 +1,61 @@
+/* The popup's colours follow the Appearance that is chosen. Original, the
+   state without the attribute, is the browser's own light or dark scheme;
+   Paper and Night are theirs whatever the browser is set to. */
 :root {
   color-scheme: light dark;
+  --background: #ffffff;
+  --surface: #f2f3f5;
+  --text: #242629;
+  --muted: #565d65;
+  --border: #828a94;
+  --rule: #dde0e4;
+  --selected: #343b43;
+  --selected-text: #ffffff;
+  --accent: #1d4f8a;
+  --warning: #b24a14;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --background: #202124;
+    --surface: #2d3035;
+    --text: #f1f3f5;
+    --muted: #bbc2cb;
+    --border: #8b95a2;
+    --rule: #484d55;
+    --selected: #e3e8ee;
+    --selected-text: #202124;
+    --accent: #9cc7f5;
+    --warning: #f2914a;
+  }
+}
+
+:root[data-theme="paper"] {
+  color-scheme: light;
   --background: #fbf8f2;
   --surface: #f1ece2;
   --text: #211d18;
   --muted: #5a5246;
   --border: #857b6c;
+  --rule: #d7cfc1;
+  --selected: #302b24;
+  --selected-text: #fffaf1;
   --accent: #1d4f8a;
-  --radius: 8px;
-  --radius-inner: 6px;
+  --warning: #b24a14;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1f1d1a;
-    --surface: #2b2824;
-    --text: #efe9dd;
-    --muted: #bdb4a5;
-    --border: #948b7c;
-    --accent: #9cc7f5;
-  }
+:root[data-theme="night"] {
+  color-scheme: dark;
+  --background: #1f1d1a;
+  --surface: #2b2824;
+  --text: #efe9dd;
+  --muted: #bdb4a5;
+  --border: #948b7c;
+  --rule: #4f4940;
+  --selected: #e7dfd1;
+  --selected-text: #211d18;
+  --accent: #9cc7f5;
+  --warning: #f2914a;
 }
 
 * {
@@ -26,8 +63,9 @@
 }
 
 /* The popup is laid out to be shown whole, footer included, in the room a
-   browser gives a popup at its ordinary zoom. Where there is less room, or
-   the text is much enlarged, the content scrolls; nothing is clipped. */
+   browser gives a popup at its ordinary zoom. Where there is less room, the
+   text is much enlarged, Help is open or a message is long, the content
+   scrolls; nothing is clipped and no height is fixed. */
 html {
   overflow-y: auto;
 }
@@ -38,40 +76,48 @@ body {
   max-width: 100%;
   background: var(--background);
   color: var(--text);
-  font: 13px/1.4 system-ui, "Segoe UI", sans-serif;
+  font: 13px/18px system-ui, "Segoe UI", sans-serif;
 }
 
 main {
-  display: grid;
-  gap: 5px;
-  padding: 7px 16px 8px;
+  padding: 10px 14px 8px;
 }
 
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  min-height: 32px;
 }
 
 h1 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 650;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 30px;
+  letter-spacing: -0.6px;
 }
 
 h2,
 legend {
+  min-width: 0;
   margin: 0;
   padding: 0;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 17px;
+  overflow-wrap: anywhere;
 }
 
 p {
   margin: 0;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
 }
 
 .hidden {
@@ -88,7 +134,8 @@ p {
 .switch {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  min-height: 32px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -96,11 +143,12 @@ p {
 .switch input {
   appearance: none;
   position: relative;
-  width: 42px;
-  height: 24px;
+  flex: none;
+  width: 38px;
+  height: 23px;
   margin: 0;
-  border: 2px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   background: var(--surface);
   cursor: pointer;
 }
@@ -110,23 +158,86 @@ p {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: var(--border);
+  background: var(--muted);
 }
 
 .switch input:checked {
-  border-color: var(--text);
-  background: var(--text);
+  border-color: var(--selected);
+  background: var(--selected);
 }
 
 .switch input:checked::before {
-  left: 21px;
-  background: var(--background);
+  left: 18px;
+  background: var(--selected-text);
 }
 
-/* Settings */
+/* Under the name: what holds for every setting, and Help beside it. Help is
+   closed until it is opened; open, it reads on under the line, and the popup
+   grows and scrolls as it must. */
+
+.intro {
+  position: relative;
+  margin: 5px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.intro > .note {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 32px;
+  padding-inline-end: 64px;
+}
+
+.help > summary {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  list-style: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.help > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The arrow of a thing that opens, drawn so that it is no part of the words. */
+.help > summary::before {
+  content: "";
+  border-block: 4px solid transparent;
+  border-inline-start: 6px solid currentColor;
+}
+
+.help[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.help-body {
+  padding: 8px 0 4px;
+}
+
+.help-body p + p {
+  margin-top: 8px;
+}
+
+.help-body strong {
+  display: block;
+  color: var(--text);
+}
+
+/* Settings: each a row, its name at the start and its choices at the end. */
 
 fieldset {
   min-width: 0;
@@ -135,92 +246,95 @@ fieldset {
   border: 0;
 }
 
-.settings {
+.group,
+.place-row {
   display: grid;
-  gap: 4px;
+  /* The name takes the room its words need, also when the text is enlarged. */
+  grid-template-columns: max(82px, 6.31em) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 7px;
 }
 
-/* A group is its name, the choices under it and, beside the name, one line
-   about the choice that is selected. */
 .group {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: baseline;
-  column-gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
 }
 
-/* A legend that floats is laid out as an ordinary box, so it can share its
-   row with the line beside it. It still names the group. */
+/* A legend that floats is laid out as an ordinary box, so it can stand in
+   the row beside the choices. It still names the group. */
 .group > legend {
   float: left;
   grid-area: 1 / 1;
 }
 
-.group > .hint {
-  grid-area: 1 / 2;
-  text-align: end;
-}
-
 .group > .segments {
-  grid-area: 2 / 1 / 3 / -1;
+  grid-area: 1 / 2;
 }
 
 .segments {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  min-width: 0;
 }
 
 .segments label {
   position: relative;
   display: grid;
-  min-height: 24px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 2px;
   place-items: center;
-  border: 1px solid transparent;
-  border-radius: var(--radius-inner);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  text-align: center;
   cursor: pointer;
 }
 
-/* The radio covers its segment, so its focus ring is the segment's. */
+/* The radio covers its choice, so its focus ring is the choice's. */
 .segments input {
   appearance: none;
   position: absolute;
   inset: -1px;
   margin: 0;
-  border-radius: var(--radius-inner);
+  border-radius: 6px;
   background: transparent;
   cursor: pointer;
 }
 
 .segments span {
-  padding: 3px 6px;
-  text-align: center;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-/* Selected: a raised segment with an outline of its own and heavier text, so
-   the choice does not rest on colour. Focus is a separate, thicker ring in
-   the accent colour around whichever segment has the keyboard. */
+/* Selected: a fill and a border of its own and heavier words, at the size of
+   the others, so the choice does not rest on colour. Focus is a separate
+   ring in the accent colour around whichever choice has the keyboard. */
 .segments label:has(input:checked) {
-  border-color: var(--text);
-  background: var(--background);
-  font-weight: 650;
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-text);
+  font-weight: 700;
+}
+
+.segments label:has(input:focus-visible) {
+  z-index: 1;
 }
 
 /* Off: the choices stay readable and the selected one stays marked. */
 .settings:disabled .segments label {
+  border-style: dashed;
+  background: var(--surface);
   color: var(--muted);
   cursor: default;
 }
 
 .settings:disabled .segments label:has(input:checked) {
-  border-color: var(--border);
-  border-style: dashed;
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-weight: 700;
 }
 
 .settings:disabled .segments input,
@@ -228,122 +342,168 @@ button:disabled {
   cursor: default;
 }
 
-/* Saved place and footer */
+/* Something to say, beside what it is about: under the settings about a
+   change of settings, under the bookmark's buttons about the bookmark. */
 
-.place,
-footer {
-  display: grid;
-  gap: 4px;
-  padding-top: 5px;
-  border-top: 1px solid var(--border);
-}
-
-/* The footer is one row: the rarely used button, and who made this and which
-   version it is. What the button did is said on a line of its own under it. */
-footer {
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  column-gap: 12px;
-}
-
-footer > .note {
-  grid-column: 1 / -1;
-}
-
-.place-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.state {
+.said {
   color: var(--muted);
   font-size: 12px;
-  text-align: end;
+  line-height: 16px;
+  overflow-wrap: anywhere;
 }
 
-/* The shortcut the browser holds for the bookmark command, and the way to its settings. */
-.shortcut {
+/* What did not happen: a sign before the words, and a colour of their own. */
+.said[data-kind="warning"] {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 12px;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--warning);
 }
 
-.shortcut[hidden] {
+.said[data-kind="warning"]::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background:
+    linear-gradient(currentColor, currentColor) center 2.5px / 1.5px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) center 8.5px / 1.5px 1.5px no-repeat;
+}
+
+/* Nothing to say about the settings is the ordinary state: no room is kept. */
+#status {
+  margin-top: 6px;
+}
+
+#status:empty {
   display: none;
 }
 
-button.quiet {
-  min-height: 0;
-  padding: 1px 4px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+/* Bookmark: a row like the settings, then what there is to say, then what is
+   known besides. */
+
+.place {
+  margin-top: 5px;
+  padding-top: 2px;
+}
+
+.place-row {
+  padding: 5px 0 4px;
 }
 
 .actions {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  min-width: 0;
 }
 
-button {
-  min-height: 30px;
-  padding: 4px 10px;
+.actions button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 3px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
+  border-radius: 6px;
+  background: var(--background);
   font-weight: 600;
-  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.actions button.primary {
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-text);
+}
+
+.actions button:disabled {
+  border-color: var(--border);
+  border-style: dashed;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+/* Room for two lines, so that most of what is said moves nothing. */
+#place-note {
+  min-height: 32px;
+  margin: 2px 0 3px;
+}
+
+.facts {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.fact {
+  min-width: 0;
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+#shortcut-state {
+  white-space: pre-line;
+}
+
+#place-total:not(:empty) ~ #shortcut-state:not([hidden])::before {
+  content: " · ";
+  white-space: pre;
 }
 
 /* A quiet button for something done rarely. */
-button.secondary {
-  justify-self: start;
-  background: transparent;
-  font-weight: 500;
-}
-
-button:disabled {
-  border-style: dashed;
-  background: transparent;
-  color: var(--muted);
-}
-
-.note,
-.hint,
-.about {
+button.quiet {
+  flex: none;
+  min-height: 24px;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
   color: var(--muted);
   font-size: 12px;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.note:empty,
-.hint:empty {
-  display: none;
+/* The footer: the rarely used button, and who made this and which version it
+   is. Nothing is ever said here. */
+
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 6px;
+  min-height: 24px;
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .about {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 2px 12px;
+}
+
+.about > span + span:not([hidden])::before {
+  content: " · ";
+  white-space: pre;
 }
 
 .about a {
   color: inherit;
-  font-weight: 600;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
   border-radius: 3px;
 }
 
@@ -352,8 +512,74 @@ button:disabled {
   outline-offset: 2px;
 }
 
-.segments input:focus-visible {
-  outline-offset: 0;
+/* In less room than the popup asks for, the rows keep their shape with a
+   little less air; in very little, a name stands over its choices. */
+
+@media (max-width: 340px) {
+  main {
+    padding-inline: 12px;
+  }
+
+  .group,
+  .place-row {
+    grid-template-columns: max(76px, 5.85em) minmax(0, 1fr);
+    column-gap: 6px;
+  }
+
+  .segments label,
+  .actions button {
+    padding-inline: 1px;
+    font-size: 12px;
+  }
+
+  .facts {
+    flex-wrap: wrap;
+  }
+}
+
+/* A name over its choices makes the popup tall. That layout is not for a
+   room narrower than any popup is given: a browser that sizes the popup to
+   its content starts from such a room, and a tall layout there makes it
+   leave space for a scrollbar that the popup, once sized, does not need. */
+@media (min-width: 120px) and (max-width: 290px) {
+  .group,
+  .place-row {
+    display: block;
+  }
+
+  .group > legend {
+    float: none;
+    margin-bottom: 4px;
+  }
+
+  .place-row h2 {
+    margin-bottom: 4px;
+  }
+
+  .segments {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .segments label,
+  .actions button {
+    font-size: 13px;
+  }
+
+  .intro > .note {
+    padding-inline-end: 0;
+  }
+
+  .help > summary {
+    position: static;
+    height: 24px;
+  }
+}
+
+@media (min-width: 120px) and (max-width: 220px) {
+  .actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (forced-colors: active) {
@@ -373,6 +599,10 @@ button:disabled {
   .switch input:checked {
     forced-color-adjust: none;
     background: Highlight;
+    border-color: Highlight;
+  }
+
+  .actions button.primary:not(:disabled) {
     border-color: Highlight;
   }
 

@@ -704,7 +704,7 @@ async function checkTheme({ name, ui, page, scheme, emulate, report, choose }) {
     return {
       heading: pair("h1"),
       note: pair("#state-note"),
-      hint: pair("#place-guide"),
+      hint: pair("#place-note"),
       legend: pair(".group legend"),
       segment: pair(".segments label:not(:has(input:checked)) span"),
       selected: pair(".segments label:has(input:checked) span"),
@@ -1311,7 +1311,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     });
     assert.equal(
       await popup.$eval("#status", (element) => element.textContent),
-      "Settings were reset. Your bookmarks are kept.",
+      "Settings reset. Bookmarks kept.",
     );
   });
 
@@ -1498,17 +1498,19 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     popupAddress = `${popupUrl}?tab=${tab}`;
     await loadPopup(popup, popupAddress);
     await popup.waitForFunction(() => !document.querySelector("#place-save").disabled, { polling: 200 });
-    assert.deepEqual(await buttons(), { save: "Save", saveOff: false, returnOff: true, clearOff: true });
-    assert.equal(
-      await popup.$eval("#place-guide", (element) => element.textContent),
-      "Marks your reading position in this conversation.",
-    );
-    assert.equal(await state(), "Save · 0 total");
-    assert.equal(await popup.$eval("#place-note", (element) => element.textContent), "", "nothing is claimed before anything is saved");
-    // One line under the buttons at a time: what the section is for, until there is something to say.
-    const lines = () =>
-      popup.evaluate(() => ["#place-guide", "#place-note"].map((selector) => getComputedStyle(document.querySelector(selector)).display !== "none"));
-    assert.deepEqual(await lines(), [true, false]);
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
+    assert.equal(await state(), "Save place · 0 total");
+    // Under the buttons: what holds for this conversation, until an action has something to say. Nothing is claimed before anything is saved.
+    const said = () =>
+      popup.evaluate(() => {
+        const note = document.querySelector("#place-note");
+        const buttons = document.querySelector(".actions").getBoundingClientRect();
+        const footer = document.querySelector("footer").getBoundingClientRect();
+        const box = note.getBoundingClientRect();
+        return { text: note.textContent, warning: note.dataset.kind === "warning", underButtons: box.top >= buttons.bottom && box.bottom <= footer.top };
+      });
+    assert.deepEqual(await said(), { text: "Save your place in this conversation.", warning: false, underButtons: true });
+    assert.deepEqual(await popup.evaluate(() => [...document.querySelectorAll(".actions button.primary")].map((button) => button.textContent)), ["Save place"]);
 
     await select("p-en");
     await placeButton("save");
@@ -1516,7 +1518,12 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNote(SAVED);
     assert.deepEqual(await buttons(), { save: "Update", saveOff: false, returnOff: false, clearOff: false });
     assert.equal(await state(), "Update · 1 total");
-    assert.deepEqual(await lines(), [false, true], "what was done is said in place of the helper line");
+    assert.deepEqual(await said(), { text: "Bookmark saved.", warning: false, underButtons: true }, "what was done is said under the buttons");
+    assert.deepEqual(await popup.evaluate(() => [...document.querySelectorAll(".actions button.primary")].map((button) => button.textContent)), ["Return"]);
+    // Opened again, the popup says what holds for the conversation now.
+    await loadPopup(popup, popupAddress);
+    await waitForState("Update · 1 total");
+    assert.equal((await said()).text, "A bookmark is saved in this conversation.");
 
     const shown = await bar("p-en");
     assert.equal(shown.width, 5, "a bar, not a hairline");
@@ -1608,7 +1615,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     const before = await storedMarks();
     await select("p-same-2");
     await placeButton("save");
-    await waitForNote("This paragraph cannot be told apart from an identical one beside it.");
+    await waitForNote("This paragraph matches another one. Choose a different paragraph.");
     assert.deepEqual(await storedMarks(), before);
     assert.deepEqual(await places(page), ["p-inline:exact"]);
     assert.deepEqual(await buttons(), { save: "Update", saveOff: false, returnOff: false, clearOff: false });
@@ -1714,13 +1721,13 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-2"));
     await waitForNoPlace(page);
     await loadPopup(popup, popupAddress);
-    await popup.waitForFunction(() => document.querySelector("#place-save").textContent === "Save", { polling: 200 });
-    assert.deepEqual(await buttons(), { save: "Save", saveOff: false, returnOff: true, clearOff: true });
+    await popup.waitForFunction(() => document.querySelector("#place-save").textContent === "Save place", { polling: 200 });
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
     // A page that shows no conversation cannot hold one.
     await page.evaluate(() => history.pushState({}, "", "/"));
     await loadPopup(popup, popupAddress);
-    await waitForNote("Open a conversation to bookmark it.");
-    assert.deepEqual(await buttons(), { save: "Save", saveOff: true, returnOff: true, clearOff: true });
+    await waitForNote("Open a conversation to use bookmarks.");
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: true, returnOff: true, clearOff: true });
 
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
     await waitForPlace(page, "p-twin-again");
@@ -1740,7 +1747,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.match((await bar("p-twin-again")).image, /repeating-linear-gradient/, "an approximate place has a broken bar");
     await scrollTo("start");
     await placeButton("return");
-    await waitForNote("Returned close to your bookmark. Its paragraph has changed.");
+    await waitForNote("Returned near your bookmark. The paragraph has changed.");
     assert.equal(await inView("p-twin-again"), true);
 
     // A neighbour changes too: nothing is left to trust.
@@ -1838,7 +1845,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNote("Bookmark removed.");
     assert.deepEqual(await footprint(page), { marked: 0, customProperties: 0 });
     assert.deepEqual((await storedMarks()).items, []);
-    assert.deepEqual(await buttons(), { save: "Save", saveOff: false, returnOff: true, clearOff: true });
+    assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
     // Nothing is left to keep current, so new content is not read at all.
     await page.evaluate(() => {
       const paragraph = document.createElement("p");
@@ -1869,12 +1876,13 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       try {
         await select("p-en");
         await placeButton("save");
-        await waitForNote("The bookmark could not be saved. Nothing was changed.");
+        await waitForNote("Could not confirm the bookmark was saved.");
+        assert.equal(await popup.$eval("#place-note", (element) => element.dataset.kind), "warning");
         assert.deepEqual(await places(page), [], "no place is shown for a save that did not happen");
-        assert.equal(await state(), "Save · 0 total", "nor counted");
+        assert.equal(await state(), "Save place · 0 total", "nor counted");
         assert.deepEqual(await page.evaluate(() => document.querySelectorAll("[data-readela-saved]").length), 0, "nor marked in the sidebar");
         assert.deepEqual((await storedMarks()).items, []);
-        assert.deepEqual(await buttons(), { save: "Save", saveOff: false, returnOff: true, clearOff: true });
+        assert.deepEqual(await buttons(), { save: "Save place", saveOff: false, returnOff: true, clearOff: true });
       } finally {
         await popup.evaluate(async () => {
           const extension = globalThis.browser ?? globalThis.chrome;
@@ -1949,7 +1957,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // Another conversation, listed in the sidebar under its project route.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-2"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 1 total");
+    await waitForState("Save place · 1 total");
     await select("p-en");
     await placeButton("save");
     await waitForNote(SAVED);
@@ -1988,7 +1996,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await extension.storage.local.set({ "readela.marks": marks });
     });
     await rowsAre(["row-late", "row-this"]);
-    await waitForState("Save · 1 total");
+    await waitForState("Save place · 1 total");
     await waitForNoPlace(page);
 
     // Off hides every bookmark and keeps what is stored; on brings them back.
@@ -2005,7 +2013,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await placeButton("clear");
     await waitForNote("Bookmark removed.");
     await rowsAre([]);
-    assert.equal(await state(), "Save · 0 total");
+    assert.equal(await state(), "Save place · 0 total");
   });
 
   await step("a thousand conversations can have a place; at the limit a new one is refused, none is dropped, and the popup says so", async () => {
@@ -2019,7 +2027,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await extension.storage.local.set({ "readela.marks": { version: 2, items } });
     });
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 999 total");
+    await waitForState("Save place · 999 total");
 
     // 999 saved: this conversation is the thousandth.
     await select("p-en");
@@ -2038,16 +2046,31 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // Another conversation is refused, and nothing is given up for it.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-3"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 1000 total");
+    await waitForState("Save place · 1000 total");
     const full = await storedMarks();
     await select("p-en");
     await placeButton("save");
-    await waitForNote("All 1000 bookmarks are in use. Remove one to bookmark this conversation.");
+    await waitForNote("All 1000 bookmarks are in use. Open a bookmarked conversation and remove its bookmark to save a new one.");
+    // Said under the bookmark's buttons, as a warning: a sign before the words, not a colour alone.
+    assert.deepEqual(
+      await popup.evaluate(() => {
+        const note = document.querySelector("#place-note");
+        const sign = getComputedStyle(note, "::before");
+        const box = note.getBoundingClientRect();
+        return {
+          warning: note.dataset.kind === "warning",
+          sign: sign.content !== "none" && parseFloat(sign.width) > 0,
+          underButtons: box.top >= document.querySelector(".actions").getBoundingClientRect().bottom && box.bottom <= document.querySelector("footer").getBoundingClientRect().top,
+          settings: document.querySelector("#status").textContent,
+        };
+      }),
+      { warning: true, sign: true, underButtons: true, settings: "" },
+    );
     assert.deepEqual(await storedMarks(), full, "every place is as it was");
     assert.equal(full.items[0].k, hex(1), "the oldest place is still there");
     assert.deepEqual(await places(page), [], "nothing is shown for a place that was not saved");
     assert.equal(await page.$eval("#row-other", (element) => element.hasAttribute("data-readela-saved")), false);
-    assert.equal(await state(), "Save · 1000 total");
+    assert.equal(await state(), "Save place · 1000 total");
 
     // Clearing one place makes room for one.
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture"));
@@ -2055,10 +2078,10 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForState("Update · 1000 total");
     await placeButton("clear");
     await waitForNote("Bookmark removed.");
-    assert.equal(await state(), "Save · 999 total");
+    assert.equal(await state(), "Save place · 999 total");
     await page.evaluate(() => history.pushState({}, "", "/c/readela-fixture-3"));
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 999 total");
+    await waitForState("Save place · 999 total");
     await select("p-en");
     await placeButton("save");
     await waitForNote(SAVED);
@@ -2074,7 +2097,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       getSelection().removeAllRanges();
     });
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
     await waitForNoPlace(page);
   });
 
@@ -2176,7 +2199,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     assert.equal((await storedMarks()).items.length, 0);
     await front(page);
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
   });
 
   await step("the browser's own command bookmarks or updates exactly as the popup does; it has no key until the reader gives it one, and the page listens for none", async () => {
@@ -2246,13 +2269,13 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     // The popup says what the browser holds, and opens the browser's own settings.
     const shortcutLine = () =>
       popup.evaluate(() => ({
-        shown: !document.querySelector("#shortcut").hidden,
+        shown: !document.querySelector("#shortcut-set").hidden,
         state: document.querySelector("#shortcut-state").textContent,
         action: document.querySelector("#shortcut-set").textContent,
       }));
     await loadPopup(popup, popupAddress);
-    await popup.waitForFunction(() => !document.querySelector("#shortcut").hidden, { polling: 200 });
-    assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: Not set", action: "Set shortcuts" });
+    await popup.waitForFunction(() => !document.querySelector("#shortcut-set").hidden, { polling: 200 });
+    assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: not set", action: "Set shortcuts" });
     if (name === "firefox") {
       // The browser assigns the key and refuses what it does not allow.
       const refused = await popup.evaluate(async () => {
@@ -2267,16 +2290,16 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       await popup.evaluate(() => browser.commands.update({ name: "bookmark", shortcut: "Alt+Shift+9" }));
       await loadPopup(popup, popupAddress);
       await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent !== "", { polling: 200 });
-      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: Save Alt+Shift+9", action: "Change" });
+      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts:\nSave place / Update: Alt+Shift+9", action: "Change shortcuts" });
       await popup.evaluate(() => browser.commands.update({ name: "bookmark-return", shortcut: "Alt+Shift+8" }));
       await loadPopup(popup, popupAddress);
       await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent.includes("Return"), { polling: 200 });
-      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: Save Alt+Shift+9, Return Alt+Shift+8", action: "Change" });
+      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts:\nSave place / Update: Alt+Shift+9\nReturn: Alt+Shift+8", action: "Change shortcuts" });
       await popup.evaluate(() => browser.commands.reset("bookmark-return"));
       await popup.evaluate(() => browser.commands.reset("bookmark"));
       await loadPopup(popup, popupAddress);
       await popup.waitForFunction(() => document.querySelector("#shortcut-state").textContent !== "", { polling: 200 });
-      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: Not set", action: "Set shortcuts" });
+      assert.deepEqual(await shortcutLine(), { shown: true, state: "Shortcuts: not set", action: "Set shortcuts" });
     }
     {
       const settings = name === "chrome" ? "chrome://extensions/shortcuts" : "about:addons";
@@ -2291,7 +2314,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       assert.ok(opened !== null, `the browser's shortcut settings (${settings}) were opened`);
       await opened.close().catch(() => {});
       await front(popup);
-      assert.equal(await popup.$eval("#place-note", (element) => element.textContent), "", "nothing is said when the settings opened");
+      // Nothing is said about shortcuts when the settings opened: the line still says what holds for the conversation.
+      assert.match(
+        await popup.$eval("#place-note", (element) => element.textContent),
+        /^(Save your place in this conversation\.|A bookmark is saved in this conversation\.)$/,
+      );
     }
 
     await front(page);
@@ -2330,7 +2357,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNoPlace(page);
     assert.equal((await storedMarks()).items.length, 0);
     assert.equal(await page.$eval("#row-this", (element) => element.hasAttribute("data-readela-saved")), false);
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
     // With nothing bookmarked, Return and Remove by command do nothing.
     const before = await scrollTop();
     await give(tab, "bookmark-return");
@@ -2487,7 +2514,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 
   await step("ChatGPT, long conversation: a place far above is found from the end, where the site first has to load what came before", async () => {
     await openLong();
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
     // It opens at its end, on its last five turns; a positive scrollTop does nothing here.
     assert.deepEqual(
       await page.$eval(LT, (element) => {
@@ -2571,7 +2598,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNote("Looking for your bookmark");
     await page.mouse.move(700, 300);
     await page.mouse.wheel({ deltaY: -200 });
-    await waitForNote("Return was stopped. Your bookmark is still saved.", 20000);
+    await waitForNote("Return stopped. Your bookmark is still saved.", 20000);
     const where = await scrollTop(page, LT);
     await sleep(900);
     assert.equal(await scrollTop(page, LT), where, "nothing moves the conversation after the reader took over");
@@ -2668,13 +2695,13 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await page.goto(FIXTURE_URL, { waitUntil: "load" });
     await waitForMark(page, "#p-en-start", "rtl");
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
   });
 
   await step("ChatGPT, long conversation opened at its end: earlier turns that load unevenly are waited for and the place reached; a load that comes too late, and a look-alike of a turn that is gone, end in not found with the conversation where it was", async () => {
     // The reader saves the closing line of turn 7; the same sentence ends every reply.
     await openLong();
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
     await showTurn(6);
     await select("lt-same-6");
     await placeButton("save");
@@ -2760,7 +2787,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await page.goto(FIXTURE_URL, { waitUntil: "load" });
     await waitForMark(page, "#p-en-start", "rtl");
     await loadPopup(popup, popupAddress);
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
   });
 
   // Where real input cannot reach the extension page, these two checks run on
@@ -2782,11 +2809,11 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
         const style = getComputedStyle(element);
         return { id: element.id || element.name, outline: `${style.outlineStyle} ${parseFloat(style.outlineWidth)}` };
       });
-    // Reading settings come first, direction last among them. Save place is
-    // reachable when the popup acts on a conversation; the two buttons that
+    // Help, then the reading settings in the order of their rows. Save place
+    // is reachable when the popup acts on a conversation; the two buttons that
     // need a saved place are disabled and skipped. The publisher's link is last.
     const order = [
-      "enabled", "theme", "font", "size", "spacing", "direction", ...(input ? ["place-save", "shortcut-set"] : []), "reset", "publisher",
+      "enabled", "help-summary", "theme", "direction", "font", "size", "spacing", ...(input ? ["place-save", "shortcut-set"] : []), "reset", "publisher",
     ];
     for (const expected of order) {
       await ui.keyboard.press("Tab");
@@ -3578,7 +3605,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       });
     const claudePopup = `${popupUrl}?tab=${await tabOf("Claude")}`;
     await loadPopup(popup, claudePopup);
-    await waitForState("Save · 0 total");
+    await waitForState("Save place · 0 total");
     assert.deepEqual(await marked(), [], "nothing is bookmarked, nothing is marked");
     // The row of this conversation does not name it: /cowork/cse_… for /chat/….
     assert.deepEqual(
@@ -3671,7 +3698,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await claude.evaluate(() => history.pushState({}, "", "/chat/readela-fixture-9"));
     await shown("c-row-other");
     await loadPopup(popup, claudePopup);
-    await waitForState("Save · 1 total");
+    await waitForState("Save place · 1 total");
     await rowsAre(["c-row-this"], "check 4");
     await select("c-quote-fa-p", claude);
     await placeButton("save", claude);
@@ -3684,7 +3711,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await claude.evaluate(() => history.pushState({}, "", "/chat/readela-fixture-7"));
     await shown("c-row-plain");
     await loadPopup(popup, claudePopup);
-    await waitForState("Save · 2 total");
+    await waitForState("Save place · 2 total");
     await select("c-quote-fa-p", claude);
     await placeButton("save", claude);
     await waitForNote("Bookmark saved.");
@@ -3696,7 +3723,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await placeButton("clear", claude);
     await waitForNote("Bookmark removed.");
     await rowsAre(["c-row-other", "c-row-this"], "check 7");
-    assert.equal(await state(), "Save · 2 total");
+    assert.equal(await state(), "Save place · 2 total");
 
     // Back in the first conversation. Its place as an earlier build stored
     // it, without the row: the row is learned from the site's own mark on the
@@ -3764,7 +3791,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await placeButton("clear", claude);
     await waitForNote("Bookmark removed.");
     await rowsAre([], "check 15");
-    assert.equal(await state(), "Save · 0 total");
+    assert.equal(await state(), "Save place · 0 total");
     assert.deepEqual((await storedMarks()).items, []);
   });
 
@@ -3832,7 +3859,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await waitForNote("Looking for your bookmark");
     await claude.mouse.move(700, 300);
     await claude.mouse.wheel({ deltaY: 160 });
-    await waitForNote("Return was stopped. Your bookmark is still saved.", 20000);
+    await waitForNote("Return stopped. Your bookmark is still saved.", 20000);
     const where = await scrollTop(claude, LONG);
     await sleep(900);
     assert.equal(await scrollTop(claude, LONG), where, "nothing moves the conversation after the reader took over");
@@ -3843,7 +3870,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await placeButton("return", claude);
     await waitForNote("Looking for your bookmark");
     await claude.evaluate(() => history.pushState({}, "", "/chat/readela-another-conversation"));
-    await waitForNote("Return was stopped. Your bookmark is still saved.", 20000);
+    await waitForNote("Return stopped. Your bookmark is still saved.", 20000);
     assert.deepEqual(await places(claude), []);
     await claude.evaluate(() => history.pushState({}, "", "/chat/readela-long-fixture"));
     assert.equal((await storedMarks()).items.length, 1);
@@ -3910,24 +3937,42 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       const text = (element) => element.textContent.trim().replace(/\s+/g, " ");
       const link = document.querySelector("#publisher");
       const reset = getComputedStyle(document.querySelector("#reset"));
+      // What a reader sees of an element: its words without what is kept for screen readers only.
+      const seen = (element) => {
+        const copy = element.cloneNode(true);
+        for (const hidden of copy.querySelectorAll(".hidden")) hidden.remove();
+        return text(copy);
+      };
+      // What a screen reader is given: its words without what is hidden from it.
+      const named = (element) => {
+        const copy = element.cloneNode(true);
+        for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+        return text(copy);
+      };
       return {
-        order: [...document.querySelectorAll("main h1, #settings .group > legend, main h2, #reset, .about")].map(text),
+        order: [...document.querySelectorAll("main h1, #settings .group > legend, main h2, #reset, .about")].map(seen),
+        names: [...document.querySelectorAll("#settings .group > legend")].map(named),
         direction: [...document.querySelectorAll('input[name="direction"]')].map((radio) => radio.value),
         link: { text: text(link), href: link.href, target: link.target, rel: link.rel, tab: link.tabIndex },
         linksInPopup: document.querySelectorAll("a").length,
         reset: { border: `${reset.borderTopStyle} ${parseFloat(reset.borderTopWidth)}`, underline: reset.textDecorationLine },
         scrolls: getComputedStyle(document.documentElement).overflowY,
+        icons: document.querySelectorAll("main img, main svg").length,
+        help: document.querySelector("#help").open,
       };
     });
     assert.match(layout.order.at(-1), /^By Amir42 Version \d+\.\d+\.\d+$/);
     assert.deepEqual(layout.order.slice(0, -1), [
-      "Readela", "Appearance", "Font", "Text size", "Line spacing", "Text direction", "Bookmark", "Reset settings",
+      "Readela", "Appearance", "Direction", "Font", "Text size", "Line spacing", "Bookmark", "Reset settings",
     ]);
+    // The row a reader sees as Direction is Text direction to a screen reader.
+    assert.deepEqual(layout.names, ["Appearance", "Text direction", "Font", "Text size", "Line spacing"]);
     assert.deepEqual(layout.direction, ["page", "auto", "rtl", "ltr"]);
     assert.deepEqual(layout.link, { text: "Amir42", href: "https://amir42.com/", target: "_blank", rel: "noopener noreferrer", tab: 0 });
     assert.equal(layout.linksInPopup, 1);
-    assert.deepEqual(layout.reset, { border: "solid 1", underline: "none" }, "Reset is a quiet outlined button");
+    assert.deepEqual(layout.reset, { border: "none 0", underline: "underline" }, "Reset is a quiet button, told from words by its line");
     assert.equal(layout.scrolls, "auto");
+    assert.deepEqual({ icons: layout.icons, help: layout.help }, { icons: 0, help: false }, "no icon in the popup, and Help is closed until it is opened");
 
     // Selection, on a choice that does not have the keyboard.
     const segment = (selector) =>
@@ -3957,7 +4002,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
 
     // Focus, reached with the keyboard: a ring of its own in another colour,
     // on a choice that is selected as well. Selection looks the same with it.
-    await ui.focus("#enabled");
+    await ui.focus("#help-summary");
     await ui.keyboard.press("Tab");
     assert.equal(await ui.evaluate(() => document.activeElement.name), "theme");
     const focused = await segment('input[name="theme"]:checked');
@@ -4032,7 +4077,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
       assert.notEqual(forcedSelected.background, forcedPlain.background, "forced colours: selected fill");
       assert.notEqual(forcedSelected.colour, forcedPlain.colour, "forced colours: selected text");
       assert.ok(contrast(rgb(forcedSelected.colour), rgb(forcedSelected.background)) >= 4.5, "forced colours: selected text contrast");
-      await ui.focus("#enabled");
+      await ui.focus("#help-summary");
       await ui.keyboard.press("Tab");
       assert.equal(await ui.evaluate(() => document.activeElement.name), "theme");
       const forcedFocus = await segment('input[name="theme"]:checked');
@@ -4050,7 +4095,7 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     await front(page);
   });
 
-  await step("popup: at its own width it is shown whole, footer included, in the room a browser gives a popup, with every choice made and with a message; narrower, it wraps and nothing is cut off", async () => {
+  await step("popup: as approved — five aligned rows and the bookmark, shown whole at its own size; it wears the chosen appearance; each message stands beside what it is about and the footer says nothing; Help opens; narrower, it wraps and nothing is cut off", async () => {
     await front(ui);
     // A browser gives a popup at most 800 by 600. At a zoom of 125% that is
     // 480 of the page's own pixels in height, and the popup still fits.
@@ -4069,64 +4114,190 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     const measure = () =>
       ui.evaluate(() => {
         const main = document.querySelector("main").getBoundingClientRect();
-        const within = (selector) => {
-          const rect = document.querySelector(selector).getBoundingClientRect();
-          return rect.height > 0 && rect.top >= 0 && rect.bottom <= innerHeight;
+        const box = (selector) => document.querySelector(selector).getBoundingClientRect();
+        const within = (selector) => box(selector).height > 0 && box(selector).top >= 0 && box(selector).bottom <= innerHeight;
+        const parts = [...document.querySelectorAll("main *")].filter((element) => !element.matches("input, .hidden, .hidden *") && element.getClientRects().length > 0);
+        const luminance = (colour) => {
+          const [r, g, b] = colour.match(/[\d.]+/g).slice(0, 3).map((value) => {
+            const channel = Number(value) / 255;
+            return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
         };
-        const parts = [...document.querySelectorAll("main *")].filter((element) => !element.matches("input, .hidden") && element.getClientRects().length > 0);
+        const contrast = (selector) => {
+          const element = document.querySelector(selector);
+          if (!element || element.getClientRects().length === 0 || element.textContent.trim() === "") return null;
+          let background = "rgba(0, 0, 0, 0)";
+          for (let node = element; node && /rgba\(0, 0, 0, 0\)|transparent/.test(background); node = node.parentElement) background = getComputedStyle(node).backgroundColor;
+          const [first, second] = [luminance(getComputedStyle(element).color), luminance(background)].sort((a, b) => b - a);
+          return (first + 0.05) / (second + 0.05);
+        };
+        const said = (selector) => {
+          const element = document.querySelector(selector);
+          const sign = getComputedStyle(element, "::before");
+          return { text: element.textContent, warning: element.dataset.kind === "warning", sign: element.getClientRects().length > 0 && sign.content !== "none" && parseFloat(sign.width) > 0 };
+        };
         return {
           width: Math.round(document.body.getBoundingClientRect().width),
           height: Math.ceil(main.height),
           scrolls: document.documentElement.scrollHeight > innerHeight,
           sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          footer: within("#reset") && within("#publisher") && within("#version"),
+          footerInView: within("#reset") && within("#publisher") && within("#version"),
           // Wider than its own box, or reaching past the popup's edge: cut off, or over its neighbour.
           cut: parts.filter((element) => getComputedStyle(element).display !== "inline" && element.scrollWidth > element.clientWidth + 1).map((element) => element.id || element.tagName),
           outside: parts.filter((element) => element.getBoundingClientRect().right > main.right + 0.5 || element.getBoundingClientRect().left < main.left - 0.5).map((element) => element.id || element.tagName),
-          // The line about a choice stands beside the name of its group, not under the choices.
-          hints: [...document.querySelectorAll(".group")]
-            .filter((group) => group.querySelector(".hint")?.textContent)
-            .map((group) => {
-              const legend = group.querySelector("legend").getBoundingClientRect();
-              const hint = group.querySelector(".hint").getBoundingClientRect();
-              return hint.top < legend.bottom && hint.left >= legend.right && hint.bottom <= group.querySelector(".segments").getBoundingClientRect().top + 1;
-            }),
-          controls: {
-            segment: Math.round(document.querySelector(".segments").getBoundingClientRect().height),
-            action: Math.round(document.querySelector("#place-save").getBoundingClientRect().height),
-            reset: Math.round(document.querySelector("#reset").getBoundingClientRect().height),
-          },
+          // A row: its name on one line at the start, its choices at the end, on one level.
+          rows: [...document.querySelectorAll(".group, .place-row")].map((row) => {
+            const name = row.querySelector("legend, h2").getBoundingClientRect();
+            const choices = row.querySelector(".segments, .actions").getBoundingClientRect();
+            // The choices of a row are one size, the selected one included: to within the fraction of a pixel a browser lays a grid out by.
+            const boxes = [...row.querySelectorAll(".segments label, .actions button")].map((choice) => choice.getBoundingClientRect());
+            const widths = boxes.map((box) => box.width);
+            const oneSize = Math.max(...widths) - Math.min(...widths) < 0.5 && boxes.every((box) => Math.round(box.height) === 32);
+            return name.height < 20 && choices.left >= name.right - 1 && Math.abs((name.top + name.bottom) / 2 - (choices.top + choices.bottom) / 2) < 6 && oneSize;
+          }),
+          theme: document.documentElement.getAttribute("data-theme"),
+          background: getComputedStyle(document.body).backgroundColor,
+          contrast: Object.fromEntries(
+            Object.entries({
+              name: "legend", note: "#state-note", help: "#help-summary", choice: ".segments label:not(:has(input:checked)) span", chosen: ".segments label:has(input:checked) span",
+              action: "#place-clear", primary: ".actions button.primary", said: "#place-note", status: "#status", facts: ".fact", reset: "#reset", about: ".about",
+            })
+              .map(([key, selector]) => [key, contrast(selector)])
+              .filter(([, value]) => value !== null && value < 4.5),
+          ),
+          status: said("#status"),
+          place: said("#place-note"),
+          // Where each is said: about the settings between the rows and the bookmark, about the bookmark between its buttons and the footer.
+          statusPlace: box("#status").height === 0 || (box("#status").top >= box("#settings").bottom && box("#status").bottom <= box(".place").top),
+          placePlace: box("#place-note").top >= box(".actions").bottom && box("#place-note").bottom <= box("footer").top,
+          footer: [...document.querySelector("footer").children].map((child) => `${child.tagName.toLowerCase()}: ${child.textContent.trim().replace(/\s+/g, " ")}`),
+          footerLive: document.querySelectorAll("footer [role], footer [aria-live], footer .said").length,
+          afterFooter: document.querySelector("footer").nextElementSibling === null && document.querySelector("main").nextElementSibling?.tagName === "SCRIPT",
         };
       });
     const whole = (facts, limit, what) => {
       assert.ok(facts.height <= limit, `${what}: ${facts.height} pixels tall`);
       assert.deepEqual(
-        { scrolls: facts.scrolls, sideways: facts.sideways, footer: facts.footer, cut: facts.cut, outside: facts.outside },
-        { scrolls: false, sideways: false, footer: true, cut: [], outside: [] },
+        { scrolls: facts.scrolls, sideways: facts.sideways, footerInView: facts.footerInView, cut: facts.cut, outside: facts.outside, contrast: facts.contrast },
+        { scrolls: false, sideways: false, footerInView: true, cut: [], outside: [], contrast: {} },
         what,
       );
     };
+    const FOOTER = [/^button: Reset settings$/, /^p: By Amir42 Version \d+\.\d+\.\d+$/];
+    const footerOnly = (facts, what) => {
+      assert.equal(facts.footer.length, 2, what);
+      facts.footer.forEach((entry, index) => assert.match(entry, FOOTER[index], what));
+      assert.deepEqual({ live: facts.footerLive, last: facts.afterFooter }, { live: 0, last: true }, `${what}: nothing is said in the footer or under it`);
+    };
 
-    // Every choice made: three of the groups say a line about theirs.
-    await pick({ theme: "night", font: "sans", size: "125", spacing: "1.75", direction: "auto" });
-    const chosen = await measure();
-    assert.equal(chosen.width, 360);
-    whole(chosen, 480, "every choice made");
-    assert.deepEqual(chosen.hints, [true, true, true]);
-    // The controls are the size they were: nothing was made smaller to fit.
-    assert.deepEqual(chosen.controls, { segment: 32, action: 30, reset: 30 });
-    await ui.screenshot({ path: path.join(results, `${name}-popup-whole.png`) });
+    // Every choice made. The popup wears Paper, Night, or for Original the
+    // browser's own scheme, as soon as the choice is made.
+    const PALETTES = { paper: "rgb(251, 248, 242)", night: "rgb(31, 29, 26)" };
+    for (const [theme, background] of Object.entries(PALETTES)) {
+      await pick({ theme, font: "sans", size: "125", spacing: "1.75", direction: "auto" });
+      const facts = await measure();
+      assert.deepEqual({ width: facts.width, theme: facts.theme, background: facts.background }, { width: 360, theme, background }, theme);
+      whole(facts, 480, `${theme}, every choice made`);
+      assert.deepEqual(facts.rows, [true, true, true, true, true, true], `${theme}: six aligned rows, a selected choice the size of the others`);
+      assert.deepEqual({ status: facts.status.text, statusPlace: facts.statusPlace, placePlace: facts.placePlace }, { status: "", statusPlace: true, placePlace: true }, theme);
+      footerOnly(facts, theme);
+      await ui.screenshot({ path: path.join(results, `${name}-popup-${theme}.png`) });
+    }
+    await pick({ theme: "page" });
+    const original = await measure();
+    assert.equal(original.theme, null, "Original: no palette of Readela's");
+    whole(original, 480, "Original");
+    if (input) {
+      // The browser's scheme decides, and only under Original.
+      for (const [scheme, background] of [["dark", "rgb(32, 33, 36)"], ["light", "rgb(255, 255, 255)"]]) {
+        await ui.emulateMediaFeatures([{ name: "prefers-color-scheme", value: scheme }]);
+        const facts = await measure();
+        assert.equal(facts.background, background, `Original in a ${scheme} browser`);
+        whole(facts, 480, `Original in a ${scheme} browser`);
+        await ui.screenshot({ path: path.join(results, `${name}-popup-original-${scheme}.png`) });
+        await pick({ theme: "night" });
+        assert.equal((await measure()).background, PALETTES.night, `Night in a ${scheme} browser`);
+        await pick({ theme: "paper" });
+        assert.equal((await measure()).background, PALETTES.paper, `Paper in a ${scheme} browser`);
+        await pick({ theme: "page" });
+      }
+      await ui.emulateMediaFeatures([]);
+    }
 
-    // With what Reset says under it, and the longest thing the bookmark can
-    // say. The second is put there as text: no page is asked for it here.
+    // What Reset did is said with the settings, not in the footer.
+    await pick({ theme: "paper", size: "125" });
     await ui.$eval("#reset", (element) => element.click());
     await ui.waitForFunction(() => document.querySelector("#status").textContent !== "", { polling: 100 });
-    await pick({ theme: "night", font: "sans", size: "125", spacing: "1.75", direction: "rtl" });
+    const reset = await measure();
+    assert.deepEqual(reset.status, { text: "Settings reset. Bookmarks kept.", warning: false, sign: false });
+    assert.deepEqual({ statusPlace: reset.statusPlace, theme: reset.theme }, { statusPlace: true, theme: null }, "the popup is back in the browser's own scheme");
+    footerOnly(reset, "after Reset");
+    whole(reset, 510, "after Reset");
+    // An ordinary change that is stored says nothing, and clears what was said.
+    await pick({ theme: "paper" });
+    await ui.waitForFunction(() => document.querySelector("#status").textContent === "", { polling: 100 });
+
+    // A change the browser does not store: said with the settings, as a
+    // warning with a sign of its own, and not claimed as done.
     await ui.evaluate(() => {
-      document.querySelector("#place-note").textContent = "This paragraph cannot be told apart from an identical one beside it. Choose another.";
-      document.querySelector("#place-guide").hidden = true;
+      const area = (globalThis.browser ?? globalThis.chrome).storage.local;
+      globalThis.readelaSet = area.set;
+      area.set = () => Promise.reject(new Error("refused"));
     });
-    whole(await measure(), 560, "with the longest messages");
+    const refusal = await ui.evaluate(() => {
+      const area = (globalThis.browser ?? globalThis.chrome).storage.local;
+      return area.set !== globalThis.readelaSet;
+    });
+    if (refusal) {
+      await ui.$eval('input[name="size"][value="140"]', (element) => element.click());
+      await ui.waitForFunction(() => document.querySelector("#status").textContent !== "", { polling: 100 });
+      const failed = await measure();
+      assert.deepEqual(failed.status, { text: "Could not save your changes.", warning: true, sign: true });
+      assert.equal(failed.statusPlace, true);
+      footerOnly(failed, "after a change that was not stored");
+      assert.deepEqual(failed.contrast, {}, "the warning is readable");
+      await ui.screenshot({ path: path.join(results, `${name}-popup-not-stored.png`) });
+      await ui.evaluate(() => {
+        (globalThis.browser ?? globalThis.chrome).storage.local.set = globalThis.readelaSet;
+      });
+      await pick({ size: "125" });
+      await ui.waitForFunction(() => document.querySelector("#status").textContent === "", { polling: 100 });
+      report.popupRefusedWrite = "a refused write of the settings was shown in the popup";
+    } else {
+      report.popupRefusedWrite = "not run: this browser does not let the test stand in for its storage";
+    }
+
+    // The longest thing the bookmark can say, put there as words: no page is
+    // asked for it here. It stands under the buttons, and the footer stays in view.
+    await ui.evaluate(() => {
+      const note = document.querySelector("#place-note");
+      globalThis.readelaNote = [note.textContent, note.dataset.kind];
+      note.textContent = "All 1000 bookmarks are in use. Open a bookmarked conversation and remove its bookmark to save a new one.";
+      note.dataset.kind = "warning";
+    });
+    const long = await measure();
+    assert.deepEqual({ sign: long.place.sign, placePlace: long.placePlace }, { sign: true, placePlace: true });
+    whole(long, 520, "with the longest message");
+    footerOnly(long, "with the longest message");
+    await ui.screenshot({ path: path.join(results, `${name}-popup-limit.png`) });
+
+    // Help: closed until it is opened; open, the popup is longer than the
+    // room and scrolls, and everything in it can still be reached.
+    await ui.$eval("#help-summary", (element) => element.click());
+    const help = await ui.evaluate(() => {
+      const scrolling = document.scrollingElement;
+      const facts = { open: document.querySelector("#help").open, paragraphs: document.querySelectorAll(".help-body p").length, taller: scrolling.scrollHeight > innerHeight };
+      facts.auto = /apply instantly/.test(document.querySelector("#state-note").textContent);
+      scrolling.scrollTop = scrolling.scrollHeight;
+      const last = document.querySelector("#publisher").getBoundingClientRect();
+      facts.reached = last.bottom <= innerHeight && last.top >= 0;
+      scrolling.scrollTop = 0;
+      return facts;
+    });
+    assert.deepEqual(help, { open: true, paragraphs: 7, taller: true, auto: true, reached: true });
+    await ui.$eval("#help-summary", (element) => element.click());
+    assert.equal(await ui.$eval("#help", (element) => element.open), false);
 
     // In less room than it asks for, the lines wrap; nothing is cut off and nothing scrolls sideways.
     await ui.setViewport({ width: 320, height: 600 });
@@ -4138,11 +4309,52 @@ async function runSuite(name, browser, popupUrl, input, schemes, report) {
     );
 
     if (input) await loadPopup(popup, popupAddress);
-    else await ui.evaluate(() => { document.querySelector("#place-note").textContent = ""; document.querySelector("#place-guide").hidden = false; });
+    else {
+      await ui.evaluate(() => {
+        const note = document.querySelector("#place-note");
+        [note.textContent] = globalThis.readelaNote;
+        if (globalThis.readelaNote[1]) note.dataset.kind = globalThis.readelaNote[1];
+        else delete note.dataset.kind;
+      });
+    }
     await pick({ theme: before.theme, font: before.font, size: before.size, spacing: before.spacing, direction: before.direction });
     await ui.setViewport({ width: 320, height: 640 });
     await front(page);
   });
+
+  // The popup as the browser itself opens it from the toolbar. Chrome lets
+  // the extension ask for that; Firefox opens it for the reader's own click
+  // only, so there the popup's files are judged as a page, above.
+  if (name === "chrome") {
+    await step("the popup the browser opens from the toolbar is as wide as its content and shows it whole, with nothing to scroll", async () => {
+      await front(page);
+      const worker = await (await browser.waitForTarget((target) => target.type() === "service_worker", { timeout: 10000 })).worker();
+      assert.equal(await worker.evaluate(() => chrome.action.openPopup().then(() => "opened", (error) => error.message)), "opened");
+      const target = await browser.waitForTarget((one) => one.type() === "page" && new URL(one.url()).pathname === "/popup/popup.html" && new URL(one.url()).search === "", { timeout: 10000 });
+      const opened = await target.asPage();
+      await opened.waitForFunction(() => document.querySelector('input[name="direction"]:checked') !== null && document.querySelector("#place-note").textContent !== "", { polling: 100 });
+      await sleep(400);
+      const facts = await opened.evaluate(() => {
+        const footer = document.querySelector("#publisher").getBoundingClientRect();
+        return {
+          room: innerWidth,
+          content: Math.round(document.body.getBoundingClientRect().width),
+          height: innerHeight,
+          scrolls: document.documentElement.scrollHeight > innerHeight || document.documentElement.scrollWidth > innerWidth,
+          footerInView: footer.top >= 0 && footer.bottom <= innerHeight,
+        };
+      });
+      await opened.screenshot({ path: path.join(results, `${name}-popup-opened.png`) });
+      await opened.close().catch(() => {});
+      // No strip beside the content for a scrollbar that is not there.
+      assert.deepEqual({ room: facts.room, content: facts.content, scrolls: facts.scrolls, footerInView: facts.footerInView }, { room: 360, content: 360, scrolls: false, footerInView: true });
+      assert.ok(facts.height <= 480, `the opened popup is ${facts.height} pixels tall`);
+      report.popupOpened = `${facts.room} by ${facts.height}, opened by the browser as a popup`;
+      await front(page);
+    });
+  } else {
+    report.popupOpened = "not run: this browser opens its popup for the reader's own click only";
+  }
 
   for (const scheme of schemes) {
     await step(`${scheme} theme: popup contrast and 320px fit; Paper and Night at 10:1 on the reading surface only`, () =>

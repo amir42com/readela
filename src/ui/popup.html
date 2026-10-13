@@ -16,28 +16,51 @@
           <input type="checkbox" role="switch" id="enabled" aria-label="Readela" aria-describedby="state-note" />
         </label>
       </header>
-      <p class="note" id="state-note">Original keeps that part as the site shows it.</p>
+
+      <div class="intro">
+        <p class="note" id="state-note"><span>Settings apply instantly.</span> <span>Original keeps the site’s setting.</span></p>
+        <details class="help" id="help">
+          <summary id="help-summary">Help</summary>
+          <div class="help-body">
+            <p><strong>Appearance</strong> Original leaves response colours unchanged; the popup follows your browser’s light or dark theme. Paper uses warm light colours, and Night uses dark colours, for both responses and the popup.</p>
+            <p><strong>Text direction</strong> Auto chooses text direction from the words in each paragraph. RTL means right-to-left; LTR means left-to-right. Code, mathematics and web addresses keep their own presentation.</p>
+            <p><strong>Font</strong> Readela Sans uses Inter for Latin and Vazirmatn for Persian and Arabic. Other scripts use your device’s fonts.</p>
+            <p><strong>Text size and line spacing</strong> 110%, 125% and 140% enlarge the site’s text size. Line spacing of 1.5, 1.75 or 2.0 sets the line height to that multiple of the text size.</p>
+            <p><strong>Bookmark</strong> One bookmark per conversation, stored on this device. Save place marks the first response paragraph in view, or the paragraph containing your selected text. Update replaces that conversation’s bookmark. Return goes to it; Remove deletes it. The total covers all bookmarked conversations.</p>
+            <p><strong>Shortcuts</strong> Shortcuts are optional and have no keys until you assign them in your browser’s extension shortcut settings. Save place / Update uses the same shortcut.</p>
+            <p><strong>Reset settings</strong> Reset restores Original for appearance, font, text size and line spacing, and Auto for text direction. It keeps Readela On or Off and keeps your bookmarks.</p>
+          </div>
+        </details>
+      </div>
 
       <fieldset id="settings" class="settings">
         <legend class="hidden">Reading settings</legend>
 
-        <fieldset class="group" aria-describedby="theme-hint">
+        <fieldset class="group">
           <legend>Appearance</legend>
           <div class="segments">
             <label><input type="radio" name="theme" value="page" /><span>Original</span></label>
             <label><input type="radio" name="theme" value="paper" /><span>Paper</span></label>
             <label><input type="radio" name="theme" value="night" /><span>Night</span></label>
           </div>
-          <p class="hint" id="theme-hint"></p>
         </fieldset>
 
-        <fieldset class="group" aria-describedby="font-hint">
+        <fieldset class="group">
+          <legend><span aria-hidden="true">Direction</span><span class="hidden">Text direction</span></legend>
+          <div class="segments">
+            <label><input type="radio" name="direction" value="page" /><span>Original</span></label>
+            <label><input type="radio" name="direction" value="auto" /><span>Auto</span></label>
+            <label><input type="radio" name="direction" value="rtl" aria-label="RTL, right-to-left" /><span>RTL</span></label>
+            <label><input type="radio" name="direction" value="ltr" aria-label="LTR, left-to-right" /><span>LTR</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
           <legend>Font</legend>
           <div class="segments">
             <label><input type="radio" name="font" value="page" /><span>Original</span></label>
             <label><input type="radio" name="font" value="sans" /><span>Readela Sans</span></label>
           </div>
-          <p class="hint" id="font-hint"></p>
         </fieldset>
 
         <fieldset class="group">
@@ -59,44 +82,31 @@
             <label><input type="radio" name="spacing" value="2.0" /><span>2.0</span></label>
           </div>
         </fieldset>
-
-        <fieldset class="group" aria-describedby="direction-hint">
-          <legend>Text direction</legend>
-          <div class="segments">
-            <label><input type="radio" name="direction" value="page" /><span>Original</span></label>
-            <label><input type="radio" name="direction" value="auto" /><span>Auto</span></label>
-            <label><input type="radio" name="direction" value="rtl" aria-label="RTL, right to left" /><span>RTL</span></label>
-            <label><input type="radio" name="direction" value="ltr" aria-label="LTR, left to right" /><span>LTR</span></label>
-          </div>
-          <p class="hint" id="direction-hint"></p>
-        </fieldset>
       </fieldset>
+      <p class="said" id="status" role="status" aria-live="polite" aria-atomic="true"></p>
 
       <section class="place" aria-labelledby="place-title">
-        <div class="place-head">
+        <div class="place-row">
           <h2 id="place-title">Bookmark</h2>
-          <p class="state" id="place-total"></p>
+          <div class="actions">
+            <button type="button" id="place-save" aria-label="Save place in this conversation" title="Saves the first response paragraph in view, or the paragraph containing your selected text.">Save place</button>
+            <button type="button" id="place-return" aria-label="Return to bookmark">Return</button>
+            <button type="button" id="place-clear" aria-label="Remove bookmark">Remove</button>
+          </div>
         </div>
-        <div class="actions">
-          <button type="button" id="place-save" aria-label="Save bookmark" aria-describedby="place-guide" title="Saves the first paragraph in view, or the paragraph you selected text in.">Save</button>
-          <button type="button" id="place-return" aria-label="Return to bookmark">Return</button>
-          <button type="button" id="place-clear" aria-label="Remove bookmark">Remove</button>
+        <p class="said" id="place-note" role="status" aria-live="polite" aria-atomic="true"></p>
+        <div class="facts">
+          <p class="fact"><span id="place-total" aria-hidden="true"></span><span class="hidden" id="place-total-name"></span><span id="shortcut-state" hidden></span></p>
+          <button type="button" id="shortcut-set" class="quiet" title="Opens your browser’s extension shortcut settings. The browser assigns and manages shortcuts." hidden></button>
         </div>
-        <p class="hint" id="place-guide">Marks your reading position in this conversation.</p>
-        <p class="note" id="place-note" role="status" aria-live="polite"></p>
-        <p class="shortcut" id="shortcut" hidden>
-          <span id="shortcut-state"></span>
-          <button type="button" id="shortcut-set" class="quiet" title="Opens your browser's own shortcut settings."></button>
-        </p>
       </section>
 
       <footer>
-        <button type="button" id="reset" class="secondary">Reset settings</button>
+        <button type="button" id="reset" class="quiet" title="Restores the default reading settings. Keeps Readela On or Off and keeps your bookmarks.">Reset settings</button>
         <p class="about">
           <span>By <a id="publisher" href="https://amir42.com" target="_blank" rel="noopener noreferrer">Amir42</a></span>
-          <span>Version <span id="version"></span></span>
+          <span id="version-line">Version <span id="version"></span></span>
         </p>
-        <p class="note" id="status" role="status" aria-live="polite"></p>
       </footer>
     </main>
     <script src="popup.js"></script>

@@ -485,22 +485,39 @@ though it may have been stored; the page then shows what is stored.
 
 ## UI (`src/ui/`)
 
-A popup of native controls: a switch, radio groups presented as segmented
-controls, buttons and one link. Reading settings come first (Appearance, Font,
-Text size, Line spacing, Text direction), then the bookmark, then Reset and
-the publisher and version. A selected choice is a raised segment with an
-outline and heavier text; the keyboard focus is a separate ring in the accent
-colour. The popup reads and writes the shared preferences and sends the
-saved-place requests. The section is headed Bookmark. Its first button reads
-Save where this conversation has none and Update where it has one, and
-Return and Remove are available only then, so the state is said by the
-buttons and not in words. Beside the heading is the number of conversations
-that have a bookmark, on both sites together, read from what is stored. One
-line says what a bookmark is, and one says which keys the browser holds for
-Save, Return and Remove, with a control that opens the browser's shortcut
-settings. Its link to the publisher's site is
-an ordinary link that opens a new tab; nothing is requested until it is
-followed.
+A popup of native controls: a switch, radio groups, buttons, one disclosure
+and one link. Each reading setting is a row, its name at the start and its
+choices at the end, in the order Appearance, Direction, Font, Text size, Line
+spacing; the row a reader sees as Direction is named Text direction to a
+screen reader. A selected choice has a fill and a border of its own and
+heavier text, at the size of the others; the keyboard focus is a separate
+ring in the accent colour. Under the name, one line says that settings apply
+at once and what Original means, and Help, closed until it is opened, says
+the rest. The popup reads and writes the shared preferences and sends the
+saved-place requests.
+
+The popup wears the appearance that is chosen: the Paper palette, the Night
+palette, or for Original the browser's own light or dark scheme. It is the
+one stored choice, read as it is; the popup has no setting of its own, and
+Off does not change it.
+
+The bookmark is a row like the others. Its first button reads Save place
+where this conversation has none and Update where it has one; Return and
+Remove are available only then. Under the buttons one line says what holds
+for this conversation, until an action has something of its own to say; a
+result that means the action did not do what was asked is shown as a
+warning, with a sign before the words and a colour of its own. Under that,
+as secondary information, are the number of conversations that have a
+bookmark, on both sites together and read from what is stored, and the keys
+the browser holds for the three commands, with a control that opens the
+browser's shortcut settings.
+
+What a change of settings or Reset has to say is said under the settings
+rows: nothing where a change was stored, that the settings were reset, or
+that a change could not be saved. The footer holds Reset settings, the
+publisher and the version, and is never a place for a message. The link to
+the publisher's site is an ordinary link that opens a new tab; nothing is
+requested until it is followed.
 
 ## Packaged fonts
 

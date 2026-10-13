@@ -42,8 +42,8 @@ built and loaded for development, as described below.
   a right-to-left sentence full of terms in Latin letters: when its own words
   stand first, or last and in between. Lists and tables are decided as a
   unit, so markers, indentation and column order agree with the text.
-- **Bookmark:** Save, Return and Remove, one bookmark per conversation,
-  kept on this device. Save takes the first paragraph of a response that
+- **Bookmark:** Save place, Return and Remove, one bookmark per conversation,
+  kept on this device. Save place takes the first paragraph of a response that
   begins in view, below the site's header, or the paragraph you selected text
   in. Return goes back to it, also when the site has not loaded that part of
   the conversation yet, and never to a look-alike paragraph somewhere else:
@@ -51,7 +51,7 @@ built and loaded for development, as described below.
   and the bookmark stays. The popup shows how many conversations have a
   bookmark, and each of them gets a small bookmark in the site's own list.
   Up to 1000 conversations can have one; none is ever removed to make room.
-- **Shortcuts, if you want them.** Save, Return and Remove are also
+- **Shortcuts, if you want them.** Save place, Return and Remove are also
   commands of the browser's. None has a key until you give it one in your
   browser's shortcut settings, which the popup opens. Readela ships no
   default key.
@@ -156,7 +156,7 @@ On each site:
    close and reopen the browser and do it again. Try it in a long
    conversation, from above and from below the place, and on a sentence that
    occurs more than once. Look for the bookmark beside the conversation in
-   the site's list, on both sites. Give Save, Return and Remove a key each
+   the site's list, on both sites. Give Save place, Return and Remove a key each
    in the browser's shortcut settings and use them without the popup.
 6. Switch Readela off: the page returns to the site's own presentation.
 7. Open another conversation: the new one is handled without a reload.
@@ -213,7 +213,7 @@ controls and how they are verified:
   replaced by the theme's colours for text, links and secondary text.
 - Text inside a card, a poll or another part of a response that the site lays
   out itself is not reading text to Readela: it is not given a direction, a
-  font or a size, and a bookmark cannot be put in it; Save takes the nearest
+  font or a size, and a bookmark cannot be put in it; Save place takes the nearest
   paragraph of the response's own text that begins in view.
 - A place can be saved in a response, not in your own message. It is found
   again only in the response it was saved in. If that response was

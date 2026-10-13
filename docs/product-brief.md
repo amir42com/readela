@@ -64,8 +64,12 @@ Firefox builds come from one shared codebase.
    with nothing to keep current, it does no work in a page; otherwise what it
    does follows what changed, not a clock.
 
-The popup presents them in this order: reading comes first, and direction is
-one reading setting among the others.
+The popup presents the reading settings as rows, a name with its choices
+beside it, in the order Appearance, Direction, Font, Text size, Line spacing,
+and the bookmark after them. It wears the appearance that is chosen: Paper,
+Night, or for Original the browser's own light or dark scheme. What each
+choice means is in Help, which is closed until it is opened; settings apply
+as they are chosen and there is nothing to save.
 
 ### Defaults
 
@@ -139,11 +143,12 @@ direction and alignment of blocks whose text calls for it.
     passed over, unless it fills the screen and nothing begins in view.
     Nothing is guessed about where the reader is looking. Elements kept only
     for screen readers, controls and the reader's own messages are never
-    saved. The popup says only "Marks your reading position in this
-    conversation."; the rest is in the button's tooltip. That line gives way
-    to what an action reports, so the section says one thing at a time. A
-    paragraph that cannot be told from an identical one beside it is not
-    saved, and the popup says so.
+    saved. Under the buttons the popup says what holds for this conversation
+    ("Save your place in this conversation." or "A bookmark is saved in this
+    conversation."), and in its place what an action did or could not do; a
+    result that did not do what was asked is shown as a warning. The rest is
+    in Help and in the button's tooltip. A paragraph that cannot be told from
+    an identical one is not saved, and the popup says so.
   - *The commands.* Readela declares three commands to the browser, to save
     or update, to return and to remove, with no key. The reader may give each
     a key in the browser's own shortcut settings, which the popup opens; the
@@ -154,11 +159,12 @@ direction and alignment of blocks whose text calls for it.
     page (see the open point at the end).
     Readela ships no default key and listens for none in the page: a key it
     chose could already be the reader's, a site's or an assistive tool's.
-  - *The total.* Beside the Bookmark heading the popup shows the number of
-    conversations that have one, on both sites together, for example
-    "7 total". It follows what the browser has stored. Whether this
-    conversation has one is said by the buttons: Bookmark with Return and
-    Remove unavailable, or Update with both available.
+  - *The total.* Under the bookmark's buttons and its message the popup
+    shows the number of conversations that have one, on both sites together,
+    for example "7 total", with the keys the browser holds for the commands.
+    It follows what the browser has stored. The first button reads Save place
+    where this conversation has no bookmark, with Return and Remove
+    unavailable, and Update where it has one, with both available.
   - *In the site's list.* A conversation that has a bookmark gets a small
     filled bookmark, about 8 by 14 pixels, at the start of its row in the
     site's own list of conversations, the same on both sites. It is drawn
@@ -343,7 +349,7 @@ builds, on both supported sites:
   bounded resource use is a requirement of release quality.
 - DEC-143, after the fourth review: whatever in a response is not text stays
   the site's as a whole and is never left hard to read under Paper; Auto
-  does not move the figures of a card; the first action is Save, then
+  does not move the figures of a card; the first action is Save place, then
   Update; Return and Remove have commands of their own; and memory that
   stays bounded over a long run is a release gate.
 

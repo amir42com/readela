@@ -11,7 +11,7 @@ import { api } from "./api.js";
  * and the word the popup shows for it.
  */
 export const COMMANDS = Object.freeze([
-  Object.freeze({ name: "bookmark", request: "quick", label: "Save" }),
+  Object.freeze({ name: "bookmark", request: "quick", label: "Save place / Update" }),
   Object.freeze({ name: "bookmark-return", request: "go", label: "Return" }),
   Object.freeze({ name: "bookmark-remove", request: "clear", label: "Remove" }),
 ]);

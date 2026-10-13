@@ -1,6 +1,10 @@
 // Popup controls. Settings are read from and written to the shared
 // preferences; the page reacts to the stored change. A bookmark belongs to
 // the conversation in the active tab, so those three buttons ask that page.
+//
+// Each thing the popup has to say is said beside what it is about: about the
+// bookmark under the bookmark's buttons, about the settings under the
+// settings. The footer says nothing.
 
 import { api } from "../browser/api.js";
 import { askPage } from "../browser/messages.js";
@@ -8,71 +12,71 @@ import { assignedShortcuts, openShortcutSettings } from "../browser/shortcut.js"
 import { loadPreferences, savePreferences, watchMarks } from "../browser/storage.js";
 import { MARK_LIMIT, resetPreferences } from "../core/index.js";
 
-const GROUPS = ["theme", "font", "size", "spacing", "direction"];
+const GROUPS = ["theme", "direction", "font", "size", "spacing"];
 
-// One plain sentence for the choice that is selected. Original needs none:
-// the line under the heading says what it means everywhere.
-const HINTS = {
-  theme: {
-    page: "",
-    paper: "Warm, light paper colours for responses.",
-    night: "Warm, dark colours for responses.",
-  },
-  font: {
-    page: "",
-    sans: "Inter for Latin, Vazirmatn for Persian and Arabic.",
-  },
-  direction: {
-    page: "",
-    auto: "Chosen for each paragraph from its words.",
-    rtl: "All text reads right-to-left.",
-    ltr: "All text reads left-to-right.",
-  },
+// Under the name: what holds for every setting, or that Readela is off.
+const STATE_NOTES = {
+  on: ["Settings apply instantly.", "Original keeps the site’s setting."],
+  off: ["Readela is off. Settings and bookmarks are kept."],
 };
 
-// What is known about the conversation in the tab. Whether it has a bookmark
-// is said by the buttons; the line beside the heading counts all of them.
+// What holds for the conversation in the tab, said under the buttons until an
+// action has something of its own to say.
 const PLACE_NOTES = {
-  unavailable: "Open a ChatGPT or Claude conversation to bookmark it.",
-  nowhere: "Open a conversation to bookmark it.",
+  unavailable: "Open a ChatGPT or Claude conversation to use bookmarks.",
+  nowhere: "Open a conversation to use bookmarks.",
   off: "Turn Readela on to use bookmarks.",
-  none: "",
-  saved: "",
+  none: "Save your place in this conversation.",
+  saved: "A bookmark is saved in this conversation.",
 };
 
-// What an action did. Each is said only when the page reports it as true.
+// What an action did. Each is said only when the page reports it as true. A
+// save that failed may still have been written before its answer was lost,
+// so it is not said that nothing changed.
 const PLACE_RESULTS = {
   set: {
     saved: "Bookmark saved.",
-    nothing: "No response paragraph is in view to bookmark.",
-    ambiguous: "This paragraph cannot be told apart from an identical one beside it. Choose another.",
-    failed: "The bookmark could not be saved. Nothing was changed.",
-    full: `All ${MARK_LIMIT} bookmarks are in use. Remove one to bookmark this conversation.`,
+    nothing: "No response paragraph is in view. Scroll to one or select text in one.",
+    ambiguous: "This paragraph matches another one. Choose a different paragraph.",
+    failed: "Could not confirm the bookmark was saved.",
+    full: `All ${MARK_LIMIT} bookmarks are in use. Open a bookmarked conversation and remove its bookmark to save a new one.`,
   },
   go: {
     arrived: "Returned to your bookmark.",
-    approximate: "Returned close to your bookmark. Its paragraph has changed.",
+    approximate: "Returned near your bookmark. The paragraph has changed.",
     unresolved: "Your bookmark was not found. It is still saved.",
-    stopped: "Return was stopped. Your bookmark is still saved.",
+    stopped: "Return stopped. Your bookmark is still saved.",
     failed: "Return did not finish. Your bookmark is still saved.",
   },
   clear: {
     none: "Bookmark removed.",
-    failed: "The bookmark could not be removed. It is still saved.",
+    // Which of the two is true is known only from what is saved afterwards.
+    failed: { saved: "Could not remove the bookmark. It is still saved.", other: "Could not confirm the bookmark was removed." },
   },
 };
 
+// The results that mean the action did not do what was asked. They are shown
+// as warnings: a sign before the words, and a colour of their own.
+const NOT_DONE = { set: ["nothing", "ambiguous", "failed", "full"], go: ["unresolved", "failed"], clear: ["failed"] };
+
 const BUSY_NOTES = { go: "Looking for your bookmark…" };
 
+const SETTINGS_NOTES = {
+  reset: "Settings reset. Bookmarks kept.",
+  failed: "Could not save your changes.",
+};
+
+const SHORTCUT_NOTE = "Open your browser’s extension shortcut settings to set or change shortcuts.";
+
+const root = document.documentElement;
 const enabled = document.getElementById("enabled");
 const enabledLabel = document.getElementById("enabled-label");
 const stateNote = document.getElementById("state-note");
 const settings = document.getElementById("settings");
 const status = document.getElementById("status");
 const placeNote = document.getElementById("place-note");
-const placeGuide = document.getElementById("place-guide");
 const placeTotal = document.getElementById("place-total");
-const shortcut = document.getElementById("shortcut");
+const placeTotalName = document.getElementById("place-total-name");
 const shortcutState = document.getElementById("shortcut-state");
 const shortcutSet = document.getElementById("shortcut-set");
 const placeButtons = {
@@ -85,6 +89,9 @@ const radios = Object.fromEntries(GROUPS.map((name) => [name, [...document.query
 let preferences;
 let place = "unavailable";
 let total = null; // conversations with a bookmark, on every supported site, from what is stored
+// What the last bookmark action has to say, until another replaces it; null
+// while there is only what holds for the conversation to say.
+let said = null;
 
 // Requests to the page are answered one at a time and in the order they were
 // made, so a slow first report can never overwrite the result of a later action.
@@ -95,59 +102,81 @@ const ask = (request) => {
   return answer;
 };
 
+// One line of words in its place, as plain words or as a warning.
+function say(element, text, warning = false) {
+  element.textContent = text;
+  if (warning) element.dataset.kind = "warning";
+  else delete element.dataset.kind;
+}
+
 function render() {
+  // The popup wears the appearance that is chosen: Paper, Night, or for
+  // Original whatever the browser itself is set to. Off does not change it.
+  if (preferences.theme === "page") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", preferences.theme);
+
   enabled.checked = preferences.enabled;
   enabledLabel.textContent = preferences.enabled ? "On" : "Off";
-  stateNote.textContent = preferences.enabled
-    ? "Original keeps that part as the site shows it."
-    : "Readela is off. Pages look exactly as the site shows them. Your settings and bookmarks are kept.";
+  stateNote.replaceChildren(
+    ...STATE_NOTES[preferences.enabled ? "on" : "off"].flatMap((line, index) => {
+      const part = document.createElement("span");
+      part.textContent = line;
+      return index === 0 ? [part] : [" ", part];
+    }),
+  );
   settings.disabled = !preferences.enabled;
   for (const name of GROUPS) {
     for (const radio of radios[name]) radio.checked = radio.value === preferences[name];
-    const hint = document.getElementById(`${name}-hint`);
-    if (hint) hint.textContent = HINTS[name][preferences[name]];
   }
   renderPlace();
 }
 
-function renderPlace(message) {
+function renderPlace() {
   const state = preferences.enabled ? place : place === "unavailable" ? "unavailable" : "off";
   const usable = state !== "unavailable" && state !== "off" && state !== "nowhere";
   const saved = state === "saved";
-  placeButtons.set.textContent = saved ? "Update" : "Save";
-  placeButtons.set.setAttribute("aria-label", saved ? "Update bookmark" : "Save bookmark");
+  placeButtons.set.textContent = saved ? "Update" : "Save place";
+  placeButtons.set.setAttribute("aria-label", saved ? "Update bookmark" : "Save place in this conversation");
+  placeButtons.set.title = saved
+    ? "Replaces this conversation’s bookmark with the first response paragraph in view, or the paragraph containing your selected text."
+    : "Saves the first response paragraph in view, or the paragraph containing your selected text.";
   placeButtons.set.disabled = !usable;
   placeButtons.go.disabled = !(usable && saved);
   placeButtons.clear.disabled = !(usable && saved);
-  placeNote.textContent = message ?? PLACE_NOTES[state] ?? "";
-  // One line at a time: what the section is for, or what there is to say now.
-  placeGuide.hidden = placeNote.textContent !== "";
+  // The action a reader most likely came for stands out: Return where there
+  // is a bookmark, Save place where there is none.
+  placeButtons.set.classList.toggle("primary", !saved);
+  placeButtons.go.classList.toggle("primary", saved);
+  say(placeNote, said?.text ?? PLACE_NOTES[state] ?? "", said?.warning ?? false);
   // The count is of what the browser has stored, never of what was asked for.
   placeTotal.textContent = total === null ? "" : `${total} total`;
+  placeTotalName.textContent = total === null ? "" : `${total} bookmarked conversations in total`;
 }
 
 // The keys the browser holds for the three bookmark commands. The browser
 // assigns and checks them; the popup only says what they are and opens the
-// way there.
+// way there. Where the browser tells nothing, nothing is said.
 async function renderShortcut() {
   const commands = await assignedShortcuts();
-  shortcut.hidden = commands === null;
+  shortcutState.hidden = commands === null;
+  shortcutSet.hidden = commands === null;
   if (commands === null) return;
   const set = commands.filter((command) => command.keys !== "");
-  shortcutState.textContent = `Shortcuts: ${set.length === 0 ? "Not set" : set.map((command) => `${command.label} ${command.keys}`).join(", ")}`;
-  shortcutSet.textContent = set.length === 0 ? "Set shortcuts" : "Change";
-  shortcutSet.title =
-    "Opens your browser's own shortcut settings, where Save, Return and Remove can each be given a key.";
+  shortcutState.textContent =
+    set.length === 0 ? "Shortcuts: not set" : ["Shortcuts:", ...set.map((command) => `${command.label}: ${command.keys}`)].join("\n");
+  shortcutSet.textContent = set.length === 0 ? "Set shortcuts" : "Change shortcuts";
 }
 
+// A change of settings is shown at once and said nothing about when it is
+// stored. Only a failure is said, and what Reset did.
 async function update(change, message = "") {
   preferences = { ...preferences, ...change };
   render();
   try {
     await savePreferences(preferences);
-    status.textContent = message;
+    say(status, message);
   } catch {
-    status.textContent = "The setting could not be saved.";
+    say(status, SETTINGS_NOTES.failed, true);
   }
 }
 
@@ -155,7 +184,17 @@ const known = (answer) => (answer in PLACE_NOTES ? answer : "unavailable");
 
 async function refreshPlace() {
   place = known((await ask("status")).status);
+  said = null;
   renderPlace();
+}
+
+// What an action has to say, from its answer and from what is saved now.
+function resultOf(request, answer, had) {
+  if (request === "set" && answer === "saved" && had) return { text: "Bookmark updated.", warning: false };
+  const result = PLACE_RESULTS[request][answer];
+  if (result === undefined) return null;
+  const text = typeof result === "string" ? result : result[place === "saved" ? "saved" : "other"];
+  return { text, warning: NOT_DONE[request].includes(answer) };
 }
 
 // Counts the reader's own saved-place actions, so a report asked for before
@@ -164,14 +203,17 @@ let acted = 0;
 
 async function act(request) {
   acted += 1;
-  if (request in BUSY_NOTES) renderPlace(BUSY_NOTES[request]);
+  if (request in BUSY_NOTES) {
+    said = { text: BUSY_NOTES[request], warning: false };
+    renderPlace();
+  }
   const had = place === "saved";
   const answer = (await ask(request)).status;
   // What the action did is said in its own words; what is saved now is asked
   // again, so the buttons never run ahead of the page.
-  const result = request === "set" && answer === "saved" && had ? "Bookmark updated." : PLACE_RESULTS[request][answer];
   place = known((await ask("status")).status);
-  renderPlace(result ?? PLACE_NOTES[place]);
+  said = resultOf(request, answer, had);
+  renderPlace();
   // A button that has just switched itself off hands the keyboard on.
   if (placeButtons[request].disabled && !placeButtons.set.disabled) placeButtons.set.focus();
 }
@@ -188,7 +230,7 @@ for (const name of GROUPS) {
   }
 }
 document.getElementById("reset").addEventListener("click", () => {
-  update(resetPreferences(preferences), "Settings were reset. Your bookmarks are kept.");
+  update(resetPreferences(preferences), SETTINGS_NOTES.reset);
 });
 for (const [request, button] of Object.entries(placeButtons)) {
   button.addEventListener("click", () => act(request));
@@ -196,11 +238,14 @@ for (const [request, button] of Object.entries(placeButtons)) {
 
 shortcutSet.addEventListener("click", async () => {
   if (!(await openShortcutSettings())) {
-    renderPlace("Set them in your browser's settings for extension shortcuts.");
+    said = { text: SHORTCUT_NOTE, warning: false };
+    renderPlace();
   }
 });
 
-document.getElementById("version").textContent = api.runtime.getManifest?.().version ?? "";
+const version = api.runtime.getManifest?.().version ?? "";
+document.getElementById("version").textContent = version;
+document.getElementById("version-line").hidden = version === "";
 renderShortcut();
 
 loadPreferences().then((stored) => {
@@ -214,6 +259,6 @@ loadPreferences().then((stored) => {
     const before = acted;
     const answer = known((await ask("status")).status);
     if (before === acted) place = answer;
-    renderPlace(placeNote.textContent);
+    renderPlace();
   });
 });

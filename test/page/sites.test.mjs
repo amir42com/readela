@@ -109,7 +109,7 @@ test("three commands, with no key of their own, and a background component of on
   assert.deepEqual(
     COMMANDS.map(({ name, request, label }) => [name, request, label]),
     [
-      ["bookmark", "quick", "Save"],
+      ["bookmark", "quick", "Save place / Update"],
       ["bookmark-return", "go", "Return"],
       ["bookmark-remove", "clear", "Remove"],
     ],
@@ -181,30 +181,71 @@ test("the page code creates no element and writes no markup", () => {
   }
 });
 
-test("the popup calls the feature Bookmark, shows the total only, and keeps its helper to one line", () => {
+test("the popup calls the feature Bookmark; the first action is Save place, then Update; what it says stands under its buttons", () => {
   const html = source("ui/popup.html");
   const script = source("ui/popup.js");
   assert.match(html, /<h2 id="place-title">Bookmark<\/h2>/);
-  // The first action is Save, and Update once this conversation has one.
-  assert.match(html, /id="place-save" aria-label="Save bookmark"[^>]*>Save<\/button>/);
-  assert.match(script, /saved \? "Update" : "Save"/);
+  assert.match(html, /id="place-save" aria-label="Save place in this conversation"[^>]*>Save place<\/button>/);
+  assert.match(script, /saved \? "Update" : "Save place"/);
   assert.match(html, /id="place-return" aria-label="Return to bookmark">Return<\/button>/);
   assert.match(html, /id="place-clear" aria-label="Remove bookmark">Remove<\/button>/);
-  assert.match(html, /<p class="hint" id="place-guide">Marks your reading position in this conversation\.<\/p>/);
-  // It gives way to what there is to say, so the section never grows by a line for a message.
-  assert.match(script, /placeGuide\.hidden = placeNote\.textContent !== "";/);
-  // The popup takes the width it is laid out for, never more than it is given, and scrolls only where it must.
-  const styles = source("ui/popup.css");
-  assert.match(styles, /body \{[^}]*\bwidth: 360px;[^}]*\bmax-width: 100%;/);
-  assert.match(styles, /html \{\s*overflow-y: auto;\s*\}/);
-  // Nothing says in words whether this conversation is bookmarked, and the
-  // earlier name of the feature is gone from what the reader sees.
+  // What holds for this conversation, in the sentence as the owner corrected it.
+  assert.match(script, /none: "Save your place in this conversation\."/);
+  assert.match(script, /saved: "A bookmark is saved in this conversation\."/);
+  assert.doesNotMatch(`${html}\n${script}`, /Save place your place/);
+  // At the limit the reader is told where a bookmark can be removed, not to press a button that is off.
+  assert.match(script, /All \$\{MARK_LIMIT\} bookmarks are in use\. Open a bookmarked conversation and remove its bookmark to save a new one\./);
+  // A failed save is not said to have changed nothing: its answer may be what was lost.
+  assert.match(script, /failed: "Could not confirm the bookmark was saved\."/);
+  // The earlier names of the feature are gone from what the reader sees, and no key is named.
   const visible = `${html}\n${script}`;
-  assert.doesNotMatch(visible, /Saved place|Save place|Saved here|Not saved here|Clear saved place|Bookmarked here|Not bookmarked|Alt\+Shift/);
+  assert.doesNotMatch(visible, /Saved place|Saved here|Not saved here|Clear saved place|Bookmarked here|Not bookmarked|Alt\+Shift/);
   assert.doesNotMatch(html, />\s*Clear\s*</);
   assert.match(script, /\`\$\{total\} total\`/);
   // The spacing choices the popup offers are the ones the preferences know.
   assert.deepEqual([...html.matchAll(/name="spacing" value="([^"]+)"/g)].map((match) => match[1]), ["page", "1.5", "1.75", "2.0"]);
+});
+
+test("the popup is five rows of settings in the approved order, Help closed, and a footer that says nothing", () => {
+  const html = source("ui/popup.html");
+  const script = source("ui/popup.js");
+  const styles = source("ui/popup.css");
+  // The rows, by the setting each one changes, and the names a reader sees.
+  assert.deepEqual([...html.matchAll(/<fieldset class="group">\s*<legend>(.*?)<\/legend>[\s\S]*?name="(\w+)"/g)].map((match) => [match[2], match[1]]), [
+    ["theme", "Appearance"],
+    ["direction", '<span aria-hidden="true">Direction</span><span class="hidden">Text direction</span>'],
+    ["font", "Font"],
+    ["size", "Text size"],
+    ["spacing", "Line spacing"],
+  ]);
+  assert.match(html, /aria-label="RTL, right-to-left"/);
+  assert.match(html, /aria-label="LTR, left-to-right"/);
+  // No line under a choice any more: what a choice means is in Help, which is closed until it is opened.
+  assert.doesNotMatch(html, /class="hint"|<details[^>]*\bopen\b/);
+  assert.match(html, /<details class="help" id="help">\s*<summary id="help-summary">Help<\/summary>/);
+  assert.equal(html.match(/<p><strong>/g).length, 7);
+  assert.match(script, /"Settings apply instantly\.", "Original keeps the site’s setting\."/);
+  // The two places where something is said: under the settings and under the bookmark's buttons.
+  const live = [...html.matchAll(/<p class="said" id="([\w-]+)" role="status" aria-live="polite" aria-atomic="true"><\/p>/g)].map((match) => match[1]);
+  assert.deepEqual(live, ["status", "place-note"]);
+  assert.ok(html.indexOf('id="status"') > html.indexOf('name="spacing"') && html.indexOf('id="status"') < html.indexOf('class="place"'));
+  assert.ok(html.indexOf('id="place-note"') > html.indexOf('id="place-clear"') && html.indexOf('id="place-note"') < html.indexOf("<footer>"));
+  // The footer: Reset settings, who made this, the version. Nothing in it is a place for words to appear.
+  const footer = html.slice(html.indexOf("<footer>"), html.indexOf("</footer>"));
+  assert.deepEqual([...footer.matchAll(/\bid="([\w-]+)"/g)].map((match) => match[1]), ["reset", "publisher", "version-line", "version"]);
+  assert.doesNotMatch(footer, /role="status"|aria-live|class="said"/);
+  assert.match(script, /reset: "Settings reset\. Bookmarks kept\."/);
+  assert.match(script, /failed: "Could not save your changes\."/);
+  // The popup wears the chosen appearance, from the one setting there is: no setting of its own.
+  assert.match(script, /if \(preferences\.theme === "page"\) root\.removeAttribute\("data-theme"\);\s*else root\.setAttribute\("data-theme", preferences\.theme\);/);
+  assert.match(styles, /:root\[data-theme="paper"\] \{\s*color-scheme: light;/);
+  assert.match(styles, /:root\[data-theme="night"\] \{\s*color-scheme: dark;/);
+  assert.match(styles, /@media \(prefers-color-scheme: dark\) \{\s*:root:not\(\[data-theme\]\) \{/);
+  // It takes the width it is laid out for, never more than it is given, has no fixed height and scrolls only where it must.
+  assert.match(styles, /body \{[^}]*\bwidth: 360px;[^}]*\bmax-width: 100%;/);
+  assert.match(styles, /html \{\s*overflow-y: auto;\s*\}/);
+  assert.doesNotMatch(styles, /(?:^|\n)(?:html|body|main) \{[^}]*[^-]height:/);
+  assert.doesNotMatch(styles, /text-overflow|line-clamp/);
 });
 
 test("the web-accessible resources are the packaged fonts and nothing else, for the supported hosts only", () => {
