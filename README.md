@@ -176,11 +176,17 @@ On each site:
 
 ## Privacy and permissions
 
-Readela works on your device. It has no backend, sends nothing anywhere, loads
-no remote code or fonts, and stores only your preferences and your
-bookmarks. A bookmark holds one-way fingerprints and a few small numbers,
-never your text, a title or the address of the conversation. That is matching
-information kept on your device, not encryption.
+Readela processes conversation text locally in your browser. The extension
+has no backend, does not transmit conversation content, uses no analytics or
+tracking, loads no remote code or fonts, and stores only your preferences and
+your bookmarks, on your device. A bookmark holds one-way fingerprints and a
+few small numbers, never your text, a title or the address of the
+conversation. That is matching information kept on your device, not
+encryption.
+
+This is about Readela. ChatGPT and Claude send and receive your conversations
+on their own servers, under their own privacy policies, whether Readela is
+installed or not; Readela takes no part in that and does not change it.
 
 | Permission | Reason |
 | --- | --- |

@@ -71,9 +71,10 @@ What it does
 
 Privacy
 
-- Readela works inside your browser. To do its job it reads the text of the conversation on the page, on chatgpt.com and claude.ai only.
-- That text is not sent anywhere, and none of it is stored in readable form. Readela has no server, no analytics or telemetry, no advertising and no remote code, and it makes no network request.
-- Stored on your device only: your settings and your bookmarks. A bookmark is kept as short fingerprints (hashes) and position numbers, not as your text, a title or an address.
+- Readela processes conversation text locally in your browser. To do its job it reads the text of the conversation on the page, on chatgpt.com and claude.ai only, and uses it in memory.
+- The extension does not transmit conversation content and keeps none of it in readable form. It has no server, no analytics, telemetry or tracking, no advertising and no remote code, and it makes no network request of its own.
+- Only your preferences and your bookmarks are stored, locally on your device. A bookmark is kept as short fingerprints (hashes) and position numbers, not as your text, a title or an address.
+- ChatGPT and Claude are separate services: your conversations are sent to and handled by them under their own privacy policies, with or without Readela. Readela does not change that.
 - Permissions: access to chatgpt.com and claude.ai, and local storage. Nothing else.
 - Open source under the MIT license: github.com/amir42com/readela
 
@@ -92,7 +93,8 @@ Works on chatgpt.com and claude.ai, in Chrome and Firefox on desktop. Readela is
    Remove; optional shortcuts the browser manages.
 6. Code, mathematics and the site's own components kept as they are; an
    Original choice for every setting; an exact off switch.
-7. Processing in the browser; no network request, tracking or remote code.
+7. Local processing in the browser; the extension makes no network request
+   and has no tracking or remote code.
 
 ### Release notes for 0.3.0
 
@@ -192,13 +194,13 @@ How to test:
 4. Bookmark: Save place stores a bookmark for the conversation, at the first response paragraph in view or at the paragraph that holds selected text. Scroll away and choose Return. Remove deletes it. The same three actions are the three commands.
 5. Switch Readela off in the popup: the page returns to the site's own presentation.
 
-Data: the content script reads the conversation text in memory to count words by script and to recognise a bookmarked paragraph. Nothing is transmitted; the code contains no fetch, XMLHttpRequest, WebSocket, sendBeacon or EventSource. Local extension storage holds two objects: readela.preferences (the settings) and readela.marks (the bookmarks: 64-bit hash fingerprints and position numbers, with no readable text, title or address).
+Data: the content script reads the conversation text in memory to count words by script and to recognise a bookmarked paragraph. The extension transmits nothing; its code contains no fetch, XMLHttpRequest, WebSocket, sendBeacon or EventSource. Local extension storage holds two objects: readela.preferences (the settings) and readela.marks (the bookmarks: 64-bit hash fingerprints and position numbers, with no readable text, title or address).
 
 Messages: the popup and the background component ask the content script of the active tab with tabs.sendMessage (one word: status, set, go, clear or quick). The content script asks the background component to change the stored bookmarks with runtime.sendMessage. Each side accepts messages from this extension only.
 
 Screenshots: the listing images show this extension on synthetic test pages written for the listing (scripts/lib/store-pages.mjs in the source), served at the two sites' addresses in a temporary browser profile by scripts/store-images.mjs. Their text is an example, not a real conversation.
 
-Tests in the source: npm test runs the unit and contract tests; npm run test:e2e installs the built extension into temporary Chrome and Firefox profiles and checks the behaviour, including that no request leaves the browser and that storage holds only the two objects above.
+Tests in the source: npm test runs the unit and contract tests; npm run test:e2e installs the built extension into temporary Chrome and Firefox profiles and checks the behaviour, including that the extension makes no network request and that storage holds only the two objects above.
 ```
 
 ## Chrome Web Store
@@ -276,8 +278,9 @@ Why the data-usage answers stay as they are:
 - The certifications: no sale or transfer of user data to third parties
   outside the approved use cases; no use or transfer for purposes unrelated
   to the single purpose; no use or transfer to determine creditworthiness or
-  for lending. All three hold: nothing leaves the device. The exact wording
-  of the boxes is read from the dashboard.
+  for lending. All three hold: Readela transmits nothing, so it has nothing
+  to sell, transfer or use elsewhere. The exact wording of the boxes is read
+  from the dashboard.
 
 ### 4. Distribution tab
 
@@ -346,9 +349,10 @@ describes what the public version does not do.
 
 Data collection: the manifest declares
 `data_collection_permissions.required: ["none"]`, which Firefox shows at
-installation as collecting no data. It is true of 0.3.0: nothing is
-transmitted, so nothing is collected in Mozilla's sense of the word. The
-conversation text Readela reads stays in the page.
+installation as collecting no data. It is true of 0.3.0: Readela transmits
+nothing, so it collects nothing in Mozilla's sense of the word. It uses the
+conversation text in the page and passes it on to no one; what the site
+itself does with a conversation is the site's.
 
 ### Source code submission
 

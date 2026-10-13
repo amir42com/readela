@@ -9,12 +9,20 @@ controls behind it are in
 
 ## In short
 
-Readela works entirely inside your browser. It reads the text of the
-conversation shown on `chatgpt.com` and `claude.ai` to decide which direction
-each paragraph should be read in and, from version 0.3.0, to find the place
-you bookmarked. It changes only how that text is presented. It does not send
-anything anywhere and it does not keep any of the text. It saves your own
-settings and, from version 0.3.0, your bookmarks, on your own device.
+Readela processes conversation text locally, inside your browser. It reads
+the text of the conversation shown on `chatgpt.com` and `claude.ai` to decide
+which direction each paragraph should be read in and, from version 0.3.0, to
+find the place you bookmarked. It changes only how that text is presented.
+The extension does not transmit conversation content, uses no analytics or
+tracking, and keeps none of the text. It stores only your own settings and,
+from version 0.3.0, your bookmarks, locally on your own device; a bookmark is
+fingerprints and position numbers, not text.
+
+This policy is about what Readela does. ChatGPT and Claude are services of
+their own: what you write and read there is sent to and handled by those
+services, under their own terms and privacy policies, whether Readela is
+installed or not. Readela takes no part in that exchange and does not change
+it.
 
 ## What Readela reads, and what happens to it
 
@@ -62,8 +70,9 @@ the extension.
   and after it — and a few small numbers: the kind of paragraph, its position
   in the message, the message's row number where the site gives one, and
   roughly how far along the conversation it is. A fingerprint cannot be turned
-  back into text. It is matching information kept on your device, not
-  encryption. On Claude a bookmark also holds a fingerprint of the address of
+  back into text, though someone who can already read the extension's storage
+  on your device could test a guess against it. It is matching information
+  kept on your device, not encryption. On Claude a bookmark also holds a fingerprint of the address of
   the conversation's row in the sidebar, so that the row can be marked; it
   can be added once when the sidebar shows which row that is. Remove deletes
   the bookmark of a conversation; a bookmark that cannot be found is kept

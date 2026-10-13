@@ -113,8 +113,9 @@ the popup from the extension's own storage, not from a page.
   saved in another tab is not lost; and nothing is shown or reported as saved
   or cleared before the browser has stored it. A lookup that fails never
   removes a place.
-- **Sent anywhere:** nothing. The extension has no backend and makes no
-  network request.
+- **Sent by the extension:** nothing. It has no backend and makes no
+  network request. What a site sends to its own servers is the site's, with
+  or without Readela, and Readela does not change it.
 
 ## Controls
 
