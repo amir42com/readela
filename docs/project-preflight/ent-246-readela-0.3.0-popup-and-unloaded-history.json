@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-246-readela-0.3.0-popup-and-unloaded-history.json",
+  "recordDate": "2026-10-13",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.23",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-246",
+    "title": "Readela 0.3.0: the popup shown whole at ordinary desktop sizes, and a check of Return when the saved passage lies in history the site has not loaded yet",
+    "authorizingDecisions": ["DEC-144", "DEC-143", "DEC-142"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-10-13, after the owner's test of the local Chrome build on real ChatGPT and Claude conversations. It authorizes two bounded tasks on the existing branch, with commits and their plain push and without a check after each step: the smallest correction of the popup's layout so that it is shown whole, footer included, without vertical scrolling in ordinary desktop use; and a verification of Return for a passage in history the site has not loaded, with a correction only if a reproducible material defect is shown. It asks for updated local test builds and only the evidence the repository's workflow requires. It does not authorize a change of the typography, the reading themes, the reading options, the stored form of bookmarks, the permissions or the version number; support for code workspaces; a new control or a settings page; merging pull request 9, marking it ready, a tag, a release, a store submission or a change to Personal OS."
+  },
+  "baseCommit": "a0bb9a256217c323688a2fd12847699e05f1262c",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-246-readela-0.3.0-correction-5.json",
+    "reused": false,
+    "reason": "That record covers the fifth correction through its evidence and is not edited; none of its invalidators fired in the work it covered. The popup's layout is not in its scope, so this step is a separately bounded piece of work with its own assertion. What that record says about Return (never report as reached a place that is not the saved one) stays the contract a correction here would have to keep."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the existing branch from baseCommit.",
+      "src/ui/popup.html and src/ui/popup.css, and src/ui/popup.js only where a text it shows has to change: width, vertical spacing and explanatory text that says a thing twice, so that the popup with its footer (Reset settings, By Amir42, the version) is shown without vertical scrolling at the browser's ordinary zoom; scrolling stays available where the room is unusually small or the text much enlarged. No control is added, removed, hidden or made smaller than is comfortable to use.",
+      "End-to-end checks of the popup's size in Chrome and Firefox, and a look at the rendered popup in both.",
+      "A check of Return on a synthetic conversation that at first holds only its latest messages and loads older ones in batches, some of them slowly, with a saved passage that appears only after several batches, one that never appears, and passages that repeat. Fixtures and end-to-end steps for it.",
+      "A correction of the search behind Return in src/page/reader.js only if that check shows a reproducible material defect, limited to that defect, with one regression test.",
+      "Documentation and dated evidence made necessary by the above, local Chrome and Firefox builds for the owner's review, and an accurate description of pull request 9."
+    ],
+    "outOfScope": [
+      "The packaged fonts and how they are declared, the reading themes, the choices of direction, size and line spacing, the stored form of bookmarks, permissions, the version number.",
+      "More retries, a longer search or more scrolling without a defect that calls for them.",
+      "Code workspaces of the supported sites, a switch between chat and code, a settings page, any new control.",
+      "A repeat of the hour-long memory comparison, unless a change here affects what it measured.",
+      "The owner's browser profile, a signed-in site and real conversation content.",
+      "Merging pull request 9, marking it ready, a tag, a release, a store submission, store images and copy (ENT-243, paused), any write to Personal OS.",
+      "Capabilities, Exceptions, the dev-standards pin and the repository ruleset."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No. The project is in continuous work.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-13.",
+      "protocolChanged": "No. Revision v1.23, the revision the earlier records were assessed under; the canonical page was last edited on 2026-10-06.",
+      "architectureOrTrustBoundaryChanged": "No. The popup's spacing and wording, and tests. A correction of Return, if one proves necessary, stays inside the page's own search and its existing limits; nothing is stored, sent or permitted differently.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable. No parent Preflight is being worked under; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-13",
+    "branch": "feat/ent-240-readela-0.3.0 at a0bb9a256217c323688a2fd12847699e05f1262c locally and on the remote; clean worktree and index; no stash, one worktree.",
+    "main": "e13a3cee17c20a4811f9e80a2f90a08311071e68 on the remote (version 0.2.1).",
+    "pullRequests": "Pull request 9 against main: open, draft, not merged, head a0bb9a2, check verify succeeded.",
+    "localVerification": "node .governance/dev-standards/verify-dev-standards.mjs passed on the worktree; npm test 87 passed.",
+    "managerialState": "Protocol v1.23, the Project (Active, Next item ENT-246) and ENT-246 (Active, with its note of 2026-10-13) were read on 2026-10-13 and agree with the instruction and with the repository: the owner kept Inter with Vazirmatn as now declared, and the owner's review of the build and the decision on the memory gate are open."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "A layout change to one small page of the extension's own, and tests. Nothing is published. The risk is a popup that fits by cutting something off; the checks measure that nothing is clipped and that every control keeps its size."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-13",
+      "covers": "Commits on feat/ent-240-readela-0.3.0 from baseCommit within scope.inScope, their plain push to that branch, and an update of the description of draft pull request 9. It does not cover merging, marking the pull request ready, a tag or any publication.",
+      "basis": [
+        "The owner instruction of 2026-10-13 covers this scope and the push to the existing pull-request branch.",
+        "Protocol, Project state and ENT-246 were read on 2026-10-13 and are consistent with it.",
+        "Repository, remote and pull request match verifiedStartingState; no unrelated local change exists.",
+        "No full-preflight trigger fired.",
+        "This record is the first commit of the step."
+      ]
+    },
+    "integration": {
+      "result": "NOT_APPLICABLE",
+      "note": "Out of scope; the integration gate of the fifth ENT-246 record stays not yet evaluated."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: a control would have to be added, removed or hidden, or a file outside the popup, the search behind Return, the tests and the documents would have to change.",
+    "A correction of Return would need a longer search, a stored value, a permission or a different stored form of bookmarks.",
+    "A check would need the owner's browser profile, a signed-in site or real conversation content.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit.",
+    "Project Operating Protocol semantics materially change before the step is closed."
+  ]
+}
