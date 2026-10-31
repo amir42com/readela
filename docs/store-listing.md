@@ -29,7 +29,7 @@ without notice, so a label is matched by what it asks for.
 | Privacy policy | https://github.com/amir42com/readela/blob/main/docs/privacy-policy.md |
 | License | MIT |
 | Supported sites | chatgpt.com, claude.ai |
-| Supported browsers | Chrome 121 or newer; Firefox 140 or newer (desktop) |
+| Supported browsers | Chrome 121 or newer; Firefox 140 or newer (desktop); Firefox for Android 142 or newer, declared in the Firefox package from the release after 0.3.0 |
 | Permissions | `storage`; content script on `https://chatgpt.com/*` and `https://claude.ai/*`. The same as in 0.2.1: the update asks the reader for nothing new |
 | Background component | one file, `background.js` (a service worker in Chrome, a script that is not kept running in Firefox): passes the three bookmark commands to the page and is the one writer of the stored bookmarks |
 | Commands | `bookmark`, `bookmark-return`, `bookmark-remove`; no key suggested, the reader may assign one in the browser |
@@ -318,7 +318,7 @@ Manage Status & Versions, then Upload a New Version.
 | Step | Action |
 | --- | --- |
 | Upload | `readela-0.3.0-firefox.zip`, the archive built from the frozen commit, whose SHA-256 is the one in the release evidence |
-| Compatibility | Firefox only. Firefox for Android stays unticked: it has not been tested and is not claimed |
+| Compatibility | Firefox, and Firefox for Android once a check on a real phone is recorded in the dated evidence; until then Firefox for Android stays unticked and is not claimed. The manifest's `gecko_android` entry sets the Android range, which AMO then shows as locked |
 | Validation | Read the result. Errors stop the submission; warnings are read and recorded |
 | Source code | "Yes": upload `readela-0.3.0-source.zip` (see Source code submission) |
 | Release notes | The Release notes for 0.3.0 above |

@@ -81,6 +81,7 @@ const shortcuts = document.getElementById("shortcuts");
 const shortcutState = document.getElementById("shortcut-state");
 const shortcutSet = document.getElementById("shortcut-set");
 const shortcutList = document.getElementById("shortcut-list");
+const shortcutHelp = document.getElementById("help-shortcuts");
 const placeButtons = {
   set: document.getElementById("place-save"),
   go: document.getElementById("place-return"),
@@ -159,10 +160,12 @@ function renderPlace() {
 // assigns and checks them; the popup only says what they are, exactly as the
 // browser gives them, and opens the way there. Each assigned key is a pair:
 // the action, and its key. Where none is assigned that is said in two words,
-// and where the browser tells nothing, nothing is shown.
+// and where the browser tells nothing, as Firefox for Android does, nothing
+// is shown, not even the help about them.
 async function renderShortcut() {
   const commands = await assignedShortcuts();
   shortcuts.hidden = commands === null;
+  shortcutHelp.hidden = commands === null;
   if (commands === null) return;
   const set = commands.filter((command) => command.keys !== "");
   shortcutState.textContent = set.length === 0 ? "Not set" : "";
