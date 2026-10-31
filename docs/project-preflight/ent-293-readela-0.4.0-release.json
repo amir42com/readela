@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-293-readela-0.4.0-release.json",
+  "recordDate": "2026-10-31",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.25",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-293",
+    "title": "Readela 0.4.0: the release that brings Firefox for Android to readers: the version, the store copy, the packages of the frozen commit, the tag and the release, and a hand-off for both stores",
+    "authorizingDecisions": ["DEC-137", "DEC-116", "DEC-144"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner choice of 2026-10-31, after the phone check, to release 0.4.0 now, and the owner's instruction of the same day that the store descriptions, the other documents, Personal OS and the Readela article on amir42.com say that Firefox for Android is added. It covers: raising the version to 0.4.0; the store listing kit, README, privacy policy and release notes for 0.4.0; the release checks; merging into main once the integration Gate passes; the packages and the source archive built from the frozen commit; a v0.4.0 tag and a release on that commit carrying the three archives; and a hand-off for the owner. It does not authorize: a change of what the extension does, requests, reads or stores; any store upload, submission or change of a live listing, which stay the owner's own steps; credentials, agreements or verifications of a provider."
+  },
+  "baseCommit": "010132c67ccb2ebfc00e785c727bab79ee4fbc5d",
+  "parentPreflight": {
+    "record": "docs/project-preflight/ent-293-readela-firefox-for-android.json",
+    "reused": false,
+    "reason": "That record placed the version number, the tag, the release and every store step out of scope. The release is that work, separately bounded and authorized, so it carries its own assertion, as the 0.2.1 and 0.3.0 releases did. The parent stays the record for what it covers and is not edited."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the working branch from baseCommit.",
+      "package.json and package-lock.json: version 0.4.0. The manifests take the version from package.json at build time.",
+      "docs/store-listing.md, README.md and docs/privacy-policy.md: the copy, the release notes and the notes to reviewers for 0.4.0, the reviewer notes within AMO's 3,000-character field.",
+      "Dated evidence under docs/evidence/, a pull request, and its merge into main with the repository's merge method.",
+      "From the frozen commit on main: the Chrome and Firefox packages, the source archive, their digests, the release checks (verifier, unit tests, package contents, Mozilla's linter) and the end-to-end suite in desktop Chrome and Firefox.",
+      "An annotated tag v0.4.0 on the frozen commit and a release that carries the three archives and their digests.",
+      "A hand-off for the owner's submission to Firefox Add-ons (with Firefox for Android ticked) and to the Chrome Web Store, and the product page text to enter once the version is public."
+    ],
+    "outOfScope": [
+      "Everything that is packaged other than the version number: what runs in a page, the popup, the background component, the manifests' other entries, permissions, match patterns, web-accessible resources, stored forms, fonts and icons.",
+      "The store images, which show nothing that 0.4.0 changes.",
+      "Any upload, submission or change of a live listing on either store.",
+      "The amir42.com website, which has its own repository and project.",
+      "The end-to-end harness for Firefox 159 and later.",
+      "Changes to declared Capabilities or Exceptions, the dev-standards pin and the repository ruleset."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "No. The project is in continuous work since ENT-293 began on the same day.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-31.",
+      "protocolChanged": "No. Revision v1.25, as in the parent record of the same day.",
+      "architectureOrTrustBoundaryChanged": "No. The packages are those assessed under the parent record with a new version number; publication goes to the same Firefox add-on and Chrome Web Store item, with the same permissions and data-collection declaration.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable; see parentPreflight.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-31",
+    "main": "010132c67ccb2ebfc00e785c727bab79ee4fbc5d, the merge of pull request 11 (Firefox for Android), version 0.3.0; the working branch starts there, clean.",
+    "pullRequests": "None open; pull requests 1 to 11 are merged.",
+    "tagsAndReleases": "v0.2.0, v0.2.1 and v0.3.0, each with a release; no v0.4.0 tag.",
+    "publicListings": "Read on 2026-10-31: Firefox Add-ons public API, add-on readela public at 0.3.0; Chrome Web Store public page, 0.3.0, updated 14 October 2026.",
+    "managerialState": "The Project (Active, Next item ENT-293) and ENT-293 (Active) were read on 2026-10-31; the Project's Next step names this release as waiting for the owner's go-ahead, which the owner gave."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "A published store version can only be superseded, so every file the owner submits is built from one frozen commit on main and bound to it by SHA-256, and the product page is changed only after the version it describes is public."
+  },
+  "ordering": "This assertion committed first; the version, the copy and the dated evidence after it; integration Gate bound to the exact head and a green verify, with the end-to-end suite run on that head; merge; that merge commit frozen; packages and source archive built from clean clones and hashed; tag and release on the frozen commit; hand-off to the owner for both stores; product page and close-out evidence once a store reports the version public.",
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-31",
+      "covers": "Commits on the working branch from baseCommit within scope.inScope, their push, and a pull request against main. It does not cover the merge, the tag or the release.",
+      "basis": [
+        "The owner's choice and instruction of 2026-10-31 cover this scope.",
+        "The Project and ENT-293 were read on 2026-10-31 and agree with the instruction.",
+        "The working tree is clean at baseCommit and no other pull request is open.",
+        "This record is the first commit of the work."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before the merge, bound to the exact head and a green verify. Recorded in dated evidence."
+    },
+    "release": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before the tag, bound to the frozen commit and the digests of its packages. Recorded in dated evidence."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: anything packaged other than the version number would have to change.",
+    "A release check or the end-to-end suite fails on the frozen commit.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit before the merge.",
+    "Project Operating Protocol semantics materially change before the work is closed."
+  ]
+}
