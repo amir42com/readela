@@ -99,14 +99,41 @@ Run on 2026-10-31 in `D:\01_Tech\readela`, switched to this branch at
   (Android 14) connected with USB debugging allowed. Firefox is not installed
   on it, so `web-ext` was not run.
 
+## Check on a phone
+
+Run on 2026-10-31 by the owner, on the Samsung SM-A526B (Android 14) above,
+after Firefox for Android 159.0 was installed on it (user agent
+`Mozilla/5.0 (Android 14; Mobile; rv:159.0) Gecko/159.0 Firefox/159.0`).
+Readela was loaded from `dist/firefox` of this branch with
+`web-ext run --target=firefox-android` over USB, as a temporary add-on.
+
+- First pass, on one claude.ai tab: Readela on and off, direction, Readela
+  Sans, text size and line spacing took effect; Paper and Night changed
+  nothing, and the bookmark buttons in the popup stayed disabled. The tab was
+  read through Firefox's remote debugging, for structure only (no text): it
+  was not a Claude conversation but a page under `/code/` of claude.ai, which
+  Readela was never made for. The Claude adapter recognises conversations at
+  `/chat/<id>` and the reply markup of those pages; that page has neither
+  (`.standard-markdown` and `.progressive-markdown` 0), so the popup reports
+  no conversation and nothing is coloured, as designed. Direction and
+  typography are applied to the paragraphs of any page of the host, which is
+  why they acted there. The same holds on the desktop.
+- Second pass, on a signed-in Claude conversation (`claude.ai/chat/…`) and a
+  signed-in ChatGPT conversation: every option worked on both sites,
+  including Paper and Night and Save place, Return and Remove from the popup.
+  The site adapters recognise the mobile layouts of both sites as they are on
+  this date.
+- The popup could not be inspected from the computer: Firefox 159 for Android
+  does not list it among the add-on's debuggable frames. This did not matter
+  once the check ran on conversations.
+
 ## Not yet done
 
 - The end-to-end suite in Firefox 159 and later: the harness must open the
   popup another way, or the suite must name a Firefox version. Revisit before
   the next release's Firefox end-to-end run.
-- Readela in Firefox for Android on a real phone, on signed-in ChatGPT and
-  Claude conversations: direction, Paper and Night, Readela Sans, text size and
-  spacing, and Save place, Return and Remove from the popup. Whether the site
-  adapters recognise the mobile layouts of the two sites has not been observed.
+- Pages of claude.ai outside conversations, such as those under `/code/`, are
+  not supported on any platform. Supporting them would be a new site adapter
+  and its own work unit.
 - Raising the version, a tag, a release and the AMO submission with Android
   compatibility, which need their own go-ahead.
