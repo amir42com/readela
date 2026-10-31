@@ -1,0 +1,85 @@
+# Evidence: Readela on Firefox for Android (2026-10-31)
+
+Work unit: ENT-293, under the light assertion
+`docs/project-preflight/ent-293-readela-firefox-for-android.json`.
+
+This file records what was changed and checked to let the existing Firefox
+package run in Firefox for Android. It is dated evidence, not a statement of
+current status; the managerial system owns status. Sections are appended as
+later stages happen.
+
+## Starting state
+
+- `main` at `84d7cd5a9d8345abfcf37748c41b2bcfa101f7be` (version 0.3.0),
+  clean; no open pull request or issue.
+- Public listings read on 2026-10-31: the Firefox Add-ons public API reports
+  add-on `readela` public at 0.3.0; the Chrome Web Store public page shows
+  0.3.0, updated 14 October 2026.
+- `node .governance/dev-standards/verify-dev-standards.mjs`: passed (v0.6.0,
+  effective policy `sha256:b671fdd9…a692`, exceptions none).
+
+## What Firefox for Android lacks that Readela used
+
+Read from Mozilla's documentation for extension developers (Extension
+Workshop, "Developing extensions for Firefox for Android" and "Differences
+between desktop and Android extensions"; MDN, `browser_specific_settings`):
+
+- An add-on is offered on Android only when its manifest declares
+  `browser_specific_settings.gecko_android`.
+- `commands` is not supported: a phone has no keyboard from which a command
+  can be given.
+- The action popup opens as an overlay over the page.
+- `storage.local` is supported. Permissions are granted at installation.
+
+This is documentation, not observation. Nothing here has run in Firefox for
+Android yet.
+
+## Change
+
+| Where | Change |
+| --- | --- |
+| `src/manifest/firefox.json` | `browser_specific_settings.gecko_android.strict_min_version: "142.0"`. 142 is the first Firefox for Android that supports `data_collection_permissions`; with it, Mozilla's linter no longer gives the warning `KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION` recorded for 0.3.0. Permissions, hosts, web-accessible resources and the desktop minimum (140) are unchanged. |
+| `src/background/main.js` | The listener for commands is added only where the browser has a `commands` namespace. Before, the first line that touched `commands` would throw in Firefox for Android and stop the background component before it began to answer requests to change the stored bookmarks, so no bookmark could be saved there. |
+| `src/ui/popup.html`, `src/ui/popup.js` | Where the browser reports no commands, the Help paragraph about shortcuts is hidden together with the shortcut row, which was already hidden. |
+| `test/browser/background.test.mjs` | New: the background component loads without `commands`, answers requests to change bookmarks and ignores messages from elsewhere. |
+| `test/page/sites.test.mjs` | Two contract assertions follow the two changes above. |
+| `README.md`, `docs/privacy-policy.md`, `docs/privacy-and-permissions.md`, `docs/store-listing.md` | Firefox for Android described: declared from the release after 0.3.0, no keyboard commands, Chrome for Android unable to run extensions, AMO's Android compatibility left unticked until a check on a phone is recorded. |
+
+The Chrome package changes only in `background.js` and the popup; its
+manifest is unchanged.
+
+## Checks in the cloud environment
+
+Environment: Ubuntu 24.04.5, Node.js 22.23.4, npm 10.9.9.
+
+- `npm test`: 90 passed, 0 failed (89 before, plus the new test).
+- `npm run package`: `readela-0.3.0-firefox.zip`
+  `c8c3e54fc7847ceec2f94d38ec4180054af500cf3a192f0c1292110380a89134`,
+  `readela-0.3.0-chrome.zip`
+  `d6fc2d749125d82b16dfaa05391159034d9973bfea44fe7aa8b364daafa9bdcc`. These
+  are working builds of this branch, not release artefacts; the version number
+  is unchanged.
+- Mozilla's `addons-linter` 10.15.0 on the Firefox archive: 0 errors,
+  0 notices, 0 warnings. The tool was run from a scratch directory and is not
+  a dependency.
+- `npm run test:e2e:chrome` in Google Chrome for Testing 153.0.8010.12
+  (headless, Linux): 69 checks passed, 3 failed. The three are popup layout
+  checks ("popup: as approved …", and "light theme" and "dark theme: popup
+  contrast and 320px fit", which report a popup height of 1125). The same three
+  fail in the same way on unchanged `main` in this environment, so they come
+  from this browser build and its fonts, not from this change. The release
+  evidence of 0.3.0 records the suite passing in Chrome 154.0.8037.98 on
+  Windows 11.
+- `npm run test:e2e:firefox`: **not run.** Firefox cannot be downloaded in this
+  environment (the hosts `product-details.mozilla.org` and `ftp.mozilla.org`
+  are refused).
+
+## Not yet done
+
+- Firefox desktop end-to-end suite on this branch.
+- Readela in Firefox for Android on a real phone, on signed-in ChatGPT and
+  Claude conversations: direction, Paper and Night, Readela Sans, text size and
+  spacing, and Save place, Return and Remove from the popup. Whether the site
+  adapters recognise the mobile layouts of the two sites has not been observed.
+- Raising the version, a tag, a release and the AMO submission with Android
+  compatibility, which need their own go-ahead.
