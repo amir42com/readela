@@ -125,7 +125,8 @@ test("three commands, with no key of their own, and a background component of on
   // asks for nothing, and holds nothing of its own between two changes.
   const background = source("background/main.js");
   assert.deepEqual(background.match(/\.addListener\(/g), [".addListener("]);
-  assert.match(background, /api\.commands\.onCommand\.addListener\(onCommand\)/);
+  // Where the browser has no commands (Firefox for Android) it still loads.
+  assert.match(background, /api\.commands\?\.onCommand\?\.addListener\(onCommand\)/);
   assert.match(background, /^answerMarkChanges\(createMarkWriter\(\)\);$/m);
   const idle = /setTimeout|setInterval|alarms|fetch\(|XMLHttpRequest|WebSocket|importScripts|onInstalled|onStartup|onConnect|keepAlive/;
   assert.doesNotMatch(background, idle);
@@ -223,7 +224,7 @@ test("the popup is five rows of settings in the approved order, Help closed, and
   // No line under a choice any more: what a choice means is in Help, which is closed until it is opened.
   assert.doesNotMatch(html, /class="hint"|<details[^>]*\bopen\b/);
   assert.match(html, /<details class="help" id="help">\s*<summary id="help-summary">Help<\/summary>/);
-  assert.equal(html.match(/<p><strong>/g).length, 7);
+  assert.equal(html.match(/<p(?: id="[\w-]+")?><strong>/g).length, 7);
   assert.match(script, /"Settings apply instantly\.", "Original keeps the site’s setting\."/);
   // The two places where something is said: under the settings and under the bookmark's buttons.
   const live = [...html.matchAll(/<p class="said" id="([\w-]+)" role="status" aria-live="polite" aria-atomic="true"><\/p>/g)].map((match) => match[1]);

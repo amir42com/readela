@@ -43,7 +43,10 @@ export async function onCommand(command, tab) {
   return askTab(target, request);
 }
 
-api.commands.onCommand.addListener(onCommand);
+// Firefox for Android offers no commands: a phone has no keyboard to give
+// them. There the bookmark is used from the popup, and this component still
+// writes it.
+api.commands?.onCommand?.addListener(onCommand);
 answerMarkChanges(createMarkWriter());
 // Reachable by name inside this component only, so that the handler can be
 // called where a key the browser manages cannot be pressed: in the tests.
