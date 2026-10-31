@@ -1,11 +1,11 @@
-# Store listing kit — Readela 0.3.0
+# Store listing kit: Readela 0.4.0
 
 One source for everything entered into the Chrome Web Store and Firefox
 Add-ons (AMO) dashboards. Every statement here must stay true of the packaged
 extension; when the product changes, this file, the privacy policy and the
 manifest change in the same release.
 
-This kit describes version 0.3.0. It is the copy to enter when that version is
+This kit describes version 0.4.0. It is the copy to enter when that version is
 submitted; which version and copy each store carries is recorded in the dated
 evidence under `docs/evidence/`. Entering it is a publication step: it needs
 the publication Gate of that stage and the owner's authorization, and nothing
@@ -20,7 +20,7 @@ without notice, so a label is matched by what it asks for.
 | | |
 | --- | --- |
 | Name as shown | Readela (manifest `name` and `short_name`) |
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Publisher / developer | Amir42 |
 | Author | Amir |
 | Homepage | https://amir42.com |
@@ -29,10 +29,10 @@ without notice, so a label is matched by what it asks for.
 | Privacy policy | https://github.com/amir42com/readela/blob/main/docs/privacy-policy.md |
 | License | MIT |
 | Supported sites | chatgpt.com, claude.ai |
-| Supported browsers | Chrome 121 or newer; Firefox 140 or newer (desktop); Firefox for Android 142 or newer, declared in the Firefox package from the release after 0.3.0 |
-| Permissions | `storage`; content script on `https://chatgpt.com/*` and `https://claude.ai/*`. The same as in 0.2.1: the update asks the reader for nothing new |
+| Supported browsers | Chrome 121 or newer; Firefox 140 or newer (desktop); Firefox for Android 142 or newer (from 0.4.0) |
+| Permissions | `storage`; content script on `https://chatgpt.com/*` and `https://claude.ai/*`. The same since 0.2.1: the update asks the reader for nothing new |
 | Background component | one file, `background.js` (a service worker in Chrome, a script that is not kept running in Firefox): passes the three bookmark commands to the page and is the one writer of the stored bookmarks |
-| Commands | `bookmark`, `bookmark-return`, `bookmark-remove`; no key suggested, the reader may assign one in the browser |
+| Commands | `bookmark`, `bookmark-return`, `bookmark-remove`; no key suggested, the reader may assign one in the browser. Firefox for Android has no commands; there the bookmark is used from the popup |
 | Web-accessible resources | three packaged font files, for those two sites only |
 | Third-party assets | Inter (upright and italic) and Vazirmatn fonts, SIL Open Font License 1.1, both licence files in the package |
 | Package | 18 files in each browser's package; code not minified |
@@ -65,7 +65,7 @@ What it does
 - Text size and line spacing, three steps of each.
 - Text direction: Auto reads each paragraph, list and table right-to-left or left-to-right from its own words, so Persian, Arabic or Hebrew mixed with English stays readable. RTL and LTR are there when you want to decide yourself.
 - Bookmark: Save place, Return and Remove. One bookmark per conversation, to pick up a long read where you stopped.
-- Optional keyboard shortcuts for the bookmark. You assign them in your browser's own shortcut settings; Readela sets none by default.
+- Optional keyboard shortcuts for the bookmark, on the desktop. You assign them in your browser's own shortcut settings; Readela sets none by default.
 - Keeps code, mathematics, tables and links readable, and leaves the site's own cards, charts, polls and controls as they are.
 - Every setting has an Original choice, and turning Readela off returns the page to the site's own presentation.
 
@@ -78,7 +78,7 @@ Privacy
 - Permissions: access to chatgpt.com and claude.ai, and local storage. Nothing else.
 - Open source under the MIT license: github.com/amir42com/readela
 
-Works on chatgpt.com and claude.ai, in Chrome and Firefox on desktop. Readela is an independent project and is not affiliated with OpenAI or Anthropic.
+Works on chatgpt.com and claude.ai, in Chrome and Firefox on the desktop and in Firefox for Android. Readela is an independent project and is not affiliated with OpenAI or Anthropic.
 ```
 
 ### Core features (short list)
@@ -96,21 +96,20 @@ Works on chatgpt.com and claude.ai, in Chrome and Firefox on desktop. Readela is
 7. Local processing in the browser; the extension makes no network request
    and has no tracking or remote code.
 
-### Release notes for 0.3.0
+### Release notes for 0.4.0
 
 Entered on AMO as the version's release notes. The Chrome Web Store has no
 field for them.
 
 ```text
-Readela 0.3.0 is a reading-comfort release.
+Readela 0.4.0 brings Readela to Firefox for Android.
 
-- New: Paper and Night, warm reading colours for responses.
-- New: Readela Sans, a reading font that comes with the extension (Inter for Latin text, Vazirmatn for Persian and Arabic). It replaces the earlier font choices, which depended on fonts installed on the device.
-- New: Bookmark. Save place, Return and Remove, one bookmark per conversation, stored on this device, with optional shortcuts you assign in the browser.
-- New popup: every setting has an Original choice, and the popup follows the appearance you choose.
-- Auto direction also recognises a right-to-left sentence that is full of terms in Latin letters, and leaves the site's own cards, charts and polls as they are.
+- New: Firefox for Android 142 or newer. Paper and Night, Readela Sans, text size and spacing, text direction and the bookmark work on ChatGPT and Claude conversations, from the Readela menu.
+- Keyboard shortcuts for the bookmark stay a desktop feature: a phone has none.
 - No new permission. Readela still makes no network request.
 ```
+
+The release notes of 0.3.0 are in this file at tag `v0.3.0`.
 
 ### Screenshots
 
@@ -130,6 +129,7 @@ the first is the one a store shows before the others.
 What they are, so that no one takes them for more:
 
 - Every capture inside an image is the built 0.3.0 Chrome extension at work
+  (0.4.0 changes nothing that the images show)
   in a temporary browser profile: the reading colours, the font, the
   direction, the saved place, the bookmarks in the list and the popup are
   what the extension rendered, under the settings the label names. The
@@ -176,31 +176,27 @@ reviewer finds them explained:
 
 ### Reviewer notes (shared wording)
 
+AMO's field for notes to the reviewer takes at most 3,000 characters; these
+notes and the source paragraph under Source code submission fit together.
+
 ```text
-Readela 0.3.0 has three parts: a content script on https://chatgpt.com/* and https://claude.ai/*, a popup, and a small background component. There is no account, no server and no network access. The code is not minified.
+Readela 0.4.0: a content script on https://chatgpt.com/* and https://claude.ai/*, a popup and a small background script. No account, server or network access; code not minified.
 
-What is new in the manifest since 0.2.1, and why:
+New since 0.3.0: the Firefox package declares Firefox for Android 142+ (browser_specific_settings.gecko_android). Android has no commands API, so background.js now adds its command listener only where browser.commands exists, and the popup hides its shortcut help there. Permissions are unchanged: storage and the content script on the two sites.
 
-1. background.js (a service worker in Chrome, a non-persistent background script in Firefox). It does two things, both for the bookmark. It passes the browser's three commands to the content script of the active tab. And it is the one writer of the stored bookmarks: a page asks it for a change and it makes the changes one after another, so two tabs cannot overwrite each other. It sets no timer, makes no request, keeps nothing between two changes and uses only the storage permission.
-2. commands: bookmark, bookmark-return and bookmark-remove, with no suggested key. The user may assign keys in the browser's own shortcut settings; "Set shortcuts" in the popup opens them (chrome://extensions/shortcuts through tabs.create in Chrome, commands.openShortcutSettings() in Firefox).
-3. web_accessible_resources: three packaged font files (fonts/InterVariable.woff2, fonts/InterVariable-Italic.woff2, fonts/Vazirmatn-NL-wght.woff2), for chatgpt.com and claude.ai only, so their pages can display them when Font is Readela Sans. They are the unmodified upstream files of Inter 4.1 and Vazirmatn 33.003, both under the SIL Open Font License 1.1; the licences are in the package (fonts/Inter-LICENSE.txt, fonts/OFL.txt). Nothing is fetched from the network.
-4. Permissions are unchanged: storage, and the content script on the two sites. The tabs permission is not requested: tabs.query, tabs.sendMessage and tabs.create are used without it.
+background.js passes the three bookmark commands (no suggested key) to the active tab and is the only writer of the stored bookmarks. No timer, no request.
 
-How to test:
+Fonts: three unmodified OFL font files (Inter 4.1, Vazirmatn 33.003) are web-accessible to the two sites only; licences in fonts/.
 
-1. Open a conversation on chatgpt.com or claude.ai. chatgpt.com can usually be used without an account; claude.ai needs one. No credentials are provided or needed by the extension.
-2. Open the Readela popup from the toolbar. Choose Paper or Night under Appearance: the text of responses takes the reading colours; your own messages, code blocks and the site's controls keep the site's. Choose Readela Sans, a text size and a line spacing.
-3. Ask for an answer in Persian or Arabic that includes English terms and a list. With Direction on Auto, paragraphs and lists whose words are mostly right-to-left read right-to-left, and code and web addresses stay left-to-right. Original shows the site's own direction.
-4. Bookmark: Save place stores a bookmark for the conversation, at the first response paragraph in view or at the paragraph that holds selected text. Scroll away and choose Return. Remove deletes it. The same three actions are the three commands.
-5. Switch Readela off in the popup: the page returns to the site's own presentation.
+How to test, on desktop or Android:
+1. Open a conversation on chatgpt.com or claude.ai (claude.ai needs an account; the extension needs no credentials).
+2. In the Readela popup choose Paper or Night, Readela Sans, a text size and spacing: response text changes; code and site controls do not.
+3. Ask for a Persian or Arabic answer with English terms: with Direction Auto, right-to-left paragraphs read right-to-left.
+4. Save place, scroll away, Return, Remove.
+5. Switch Readela off: the page returns to the site's presentation.
 
-Data: the content script reads the conversation text in memory to count words by script and to recognise a bookmarked paragraph. The extension transmits nothing; its code contains no fetch, XMLHttpRequest, WebSocket, sendBeacon or EventSource. Local extension storage holds two objects: readela.preferences (the settings) and readela.marks (the bookmarks: 64-bit hash fingerprints and position numbers, with no readable text, title or address).
-
-Messages: the popup and the background component ask the content script of the active tab with tabs.sendMessage (one word: status, set, go, clear or quick). The content script asks the background component to change the stored bookmarks with runtime.sendMessage. Each side accepts messages from this extension only.
-
-Screenshots: the listing images show this extension on synthetic test pages written for the listing (scripts/lib/store-pages.mjs in the source), served at the two sites' addresses in a temporary browser profile by scripts/store-images.mjs. Their text is an example, not a real conversation.
-
-Tests in the source: npm test runs the unit and contract tests; npm run test:e2e installs the built extension into temporary Chrome and Firefox profiles and checks the behaviour, including that the extension makes no network request and that storage holds only the two objects above.
+Data: text is read in memory only. Storage holds readela.preferences and readela.marks (64-bit hashes and positions, no text, title or address). The popup and background ask the tab with tabs.sendMessage; pages ask the background with runtime.sendMessage; only messages from this extension are accepted.
+Screenshots show synthetic test pages (scripts/lib/store-pages.mjs).
 ```
 
 ## Chrome Web Store
@@ -217,7 +213,7 @@ Do the tabs in this order.
 
 | Field | Action |
 | --- | --- |
-| Upload new package | Upload `readela-0.3.0-chrome.zip`, the archive built from the frozen commit, whose SHA-256 is the one in the release evidence. The dashboard then shows the draft version 0.3.0 |
+| Upload new package | Upload `readela-0.4.0-chrome.zip`, the archive built from the frozen commit, whose SHA-256 is the one in the release evidence. The dashboard then shows the draft version 0.4.0 |
 
 The title (Readela) and the summary come from the package and need no
 typing. After the upload, check that the summary shown on the Store listing
@@ -317,11 +313,11 @@ Manage Status & Versions, then Upload a New Version.
 
 | Step | Action |
 | --- | --- |
-| Upload | `readela-0.3.0-firefox.zip`, the archive built from the frozen commit, whose SHA-256 is the one in the release evidence |
-| Compatibility | Firefox, and Firefox for Android once a check on a real phone is recorded in the dated evidence; until then Firefox for Android stays unticked and is not claimed. The manifest's `gecko_android` entry sets the Android range, which AMO then shows as locked |
+| Upload | `readela-0.4.0-firefox.zip`, the archive built from the frozen commit, whose SHA-256 is the one in the release evidence |
+| Compatibility | Tick Firefox and Firefox for Android. The check on a real phone is recorded in `docs/evidence/2026-10-31-readela-firefox-for-android.md`. The manifest's `gecko_android` entry sets the Android range, which AMO then shows as locked |
 | Validation | Read the result. Errors stop the submission; warnings are read and recorded |
-| Source code | "Yes": upload `readela-0.3.0-source.zip` (see Source code submission) |
-| Release notes | The Release notes for 0.3.0 above |
+| Source code | "Yes": upload `readela-0.4.0-source.zip` (see Source code submission) |
+| Release notes | The Release notes for 0.4.0 above |
 | Notes to reviewer | The Reviewer notes above, followed by the paragraph under Source code submission |
 | Submit Version | The publication step |
 
@@ -349,7 +345,7 @@ describes what the public version does not do.
 
 Data collection: the manifest declares
 `data_collection_permissions.required: ["none"]`, which Firefox shows at
-installation as collecting no data. It is true of 0.3.0: Readela transmits
+installation as collecting no data. It is true of 0.4.0: Readela transmits
 nothing, so it collects nothing in Mozilla's sense of the word. It uses the
 conversation text in the page and passes it on to no one; what the site
 itself does with a conversation is the site's.
@@ -361,7 +357,7 @@ by esbuild from the ES modules under `src/`, and `content.css` by the build
 script from `src/page/style.js`, so the source archive is submitted with the
 package.
 
-- Archive: `dist/packages/readela-0.3.0-source.zip`, written by
+- Archive: `dist/packages/readela-0.4.0-source.zip`, written by
   `npm run source-package`: the complete tracked tree of the frozen commit
   (readable source, `package.json`, `package-lock.json`, build scripts, tests
   and documentation; no `node_modules`, caches or build output). Its bytes
@@ -370,15 +366,15 @@ package.
 - For the notes to the reviewer:
 
   ```text
-  Source: the attached archive is the complete repository tree of the release commit, also public at https://github.com/amir42com/readela (tag v0.3.0).
+  Source: the attached archive is the complete repository tree of the release commit, also public at https://github.com/amir42com/readela (tag v0.4.0).
 
   To build:
-    unzip readela-0.3.0-source.zip
-    cd readela-0.3.0-source
+    unzip readela-0.4.0-source.zip
+    cd readela-0.4.0-source
     npm ci
     npm run package
 
   Requires Node.js 22.15 or newer with its bundled npm. The build was verified on Windows 11 with Node.js 22.23.1 and gave the same bytes with Node.js 20.20.2; no step is specific to an operating system. npm ci installs exactly the versions in package-lock.json. The build uses esbuild 0.28.2 and nothing else; the other two development dependencies (puppeteer-core, @puppeteer/browsers) drive browsers in the tests and take no part in the build. The output is not minified.
 
-  Result: dist/firefox/ (18 files) is the content of the submitted package, and dist/packages/readela-0.3.0-firefox.zip is the archive. The archive is written with sorted entries and a fixed timestamp, so the same files give the same bytes; if the archive bytes differ in another environment, the extracted files are what to compare. The fonts under fonts/ are copied unchanged from src/fonts/, where README.md records their upstream sources, versions and SHA-256 digests.
+  Result: dist/firefox/ (18 files) is the content of the submitted package, and dist/packages/readela-0.4.0-firefox.zip is the archive. The archive is written with sorted entries and a fixed timestamp, so the same files give the same bytes; if the archive bytes differ in another environment, the extracted files are what to compare. The fonts under fonts/ are copied unchanged from src/fonts/, where README.md records their upstream sources, versions and SHA-256 digests.
   ```
