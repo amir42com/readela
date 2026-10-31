@@ -3,7 +3,7 @@
 **Readela by Amir42**: browser extension for Chrome and Firefox, including
 Firefox for Android. This policy applies from version 0.2.0. It was changed on
 2026-10-13 to describe version 0.3.0, and on 2026-10-31 to add Firefox for
-Android, which Readela supports from the first release after 0.3.0. Where a statement applies only from version 0.3.0, it
+Android, which Readela supports from version 0.4.0. Where a statement applies only from version 0.3.0, it
 says so. Its history is visible in the public repository, and the technical
 controls behind it are in
 [privacy-and-permissions.md](privacy-and-permissions.md).
