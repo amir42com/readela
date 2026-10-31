@@ -284,8 +284,13 @@ No change: public, all regions, free, no in-app purchases.
 
 ### 5. Test instructions tab
 
-No username or password. In the field for further instructions, paste the
-Reviewer notes above.
+No username or password. The field for further instructions takes at most
+500 characters, so it gets this shorter text (494 characters), not the
+Reviewer notes:
+
+```text
+No account or credentials are needed for the extension. To test: open a conversation on chatgpt.com (a signed-out chat works) or claude.ai. In the Readela toolbar popup choose Paper or Night, Readela Sans, a text size and spacing. Ask for Persian or Arabic mixed with English: with Direction Auto those paragraphs read right-to-left; code and links stay left-to-right. Save place, scroll away, Return, Remove. Off restores the site's presentation. Source and tests: github.com/amir42com/readela
+```
 
 ### 6. Submit
 
