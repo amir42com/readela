@@ -351,7 +351,9 @@ npm run package   # dist/chrome, dist/firefox and dist/packages/*.zip
 - `npm run source-package` writes `dist/packages/readela-<version>-source.zip`,
   the tracked tree of the current commit, for the Firefox Add-ons source
   review. Its bytes name the commit, so the same tree at another commit gives
-  another archive with the same files.
+  another archive with the same files. The script runs `git archive` in the
+  UTC time zone, because a zip entry stores local time; without it a machine
+  in another zone gives the same files with other timestamps.
 - `npm run store-images` regenerates `docs/store-images/` from the built
   extension and the synthetic pages written for the listing
   (`scripts/lib/store-pages.mjs`); what the images are and are not is in
