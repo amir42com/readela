@@ -2,9 +2,9 @@
 
 **Readela by Amir42** — a small reading-comfort extension that makes long and
 multilingual text easier to read within the original page. It supports ChatGPT
-(`chatgpt.com`) and Claude (`claude.ai`), in Chrome and Firefox. The Firefox
-package also declares Firefox for Android (version 142 or newer), on the mobile
-web versions of the two sites.
+(`chatgpt.com`) and Claude (`claude.ai`), in Chrome and Firefox, and from
+version 0.4.0 in Firefox for Android (version 142 or newer), on the mobile web
+versions of the two sites.
 
 Mixed right-to-left and left-to-right answers often come out with the wrong
 paragraph direction: a Persian sentence that starts with an English word is
@@ -89,11 +89,21 @@ part of the automated evidence. Return in a very old conversation whose
 earlier part the site had not loaded yet was checked on the synthetic pages
 only.
 
+Version 0.4.0 adds Firefox for Android. On 2026-10-31 the owner ran a build of
+it in Firefox for Android 159.0 on a Samsung phone (Android 14), on signed-in
+ChatGPT and Claude conversations: every setting and Save place, Return and
+Remove from the popup worked. That check was manual; the automated suite runs
+in desktop browsers only. Pages of claude.ai that are not conversations, such
+as those under `/code/`, are not supported on any platform.
+
 The minimum browser versions declared in the manifests (Chrome 121, Firefox
 140) have not been exercised. The exact cases, method and limits are in the
 dated evidence, newest first; a later file supersedes an earlier one where
 they differ:
 
+- [docs/evidence/2026-10-31-readela-firefox-for-android.md](docs/evidence/2026-10-31-readela-firefox-for-android.md)
+  (Firefox for Android: the change, the checks on the owner's computer and
+  the check on a phone)
 - [docs/evidence/2026-10-13-readela-0.3.0-release.md](docs/evidence/2026-10-13-readela-0.3.0-release.md)
   (the release: the privacy wording, the integration, the packages of the
   frozen commit and what each store reported)
@@ -127,8 +137,8 @@ npm run package
 This writes two loadable directories and two archives:
 
 ```
-dist/chrome/                              dist/packages/readela-0.3.0-chrome.zip
-dist/firefox/                             dist/packages/readela-0.3.0-firefox.zip
+dist/chrome/                              dist/packages/readela-0.4.0-chrome.zip
+dist/firefox/                             dist/packages/readela-0.4.0-firefox.zip
 ```
 
 ### Chrome — load unpacked (development install)
