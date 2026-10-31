@@ -2,7 +2,9 @@
 
 **Readela by Amir42** — a small reading-comfort extension that makes long and
 multilingual text easier to read within the original page. It supports ChatGPT
-(`chatgpt.com`) and Claude (`claude.ai`), in Chrome and Firefox.
+(`chatgpt.com`) and Claude (`claude.ai`), in Chrome and Firefox. The Firefox
+package also declares Firefox for Android (version 142 or newer), on the mobile
+web versions of the two sites.
 
 Mixed right-to-left and left-to-right answers often come out with the wrong
 paragraph direction: a Persian sentence that starts with an English word is
@@ -149,6 +151,20 @@ while the unpacked one is on: two copies would both mark the same page.
 Firefox removes a temporary add-on when it restarts. The archive is **not
 signed**; release versions of Firefox will not install it permanently.
 
+### Firefox for Android (development install)
+
+A phone runs the same Firefox package. With the phone connected to a
+computer by USB, USB debugging on in the phone's developer options and
+**Remote debugging via USB** on in Firefox's settings on the phone:
+
+```sh
+adb devices                                   # note the device id
+npx web-ext run --target=firefox-android --android-device=<device id> --source-dir=dist/firefox
+```
+
+Firefox on the phone opens with Readela installed until it is closed.
+`web-ext` and `adb` are not dependencies of the project.
+
 ### Use
 
 Open a conversation on `chatgpt.com` or `claude.ai` and use the Readela
@@ -277,6 +293,9 @@ controls and how they are verified:
   streamed in is marked within about a tenth of a second; it can show the
   site's own direction for that moment.
 - The popup is in English.
+- Firefox for Android has no keyboard commands: there Save place, Return and
+  Remove are in the popup only, and the popup says nothing about shortcuts.
+  Chrome for Android does not run extensions, so Readela cannot run there.
 
 ## Development
 

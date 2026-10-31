@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/ent-293-readela-firefox-for-android.json",
+  "recordDate": "2026-10-31",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.25",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "ENT-293",
+    "title": "Readela on Firefox for Android: the Firefox package declares Firefox for Android, nothing fails where Android lacks keyboard commands, and the documents say so",
+    "authorizingDecisions": ["DEC-137", "DEC-116", "DEC-144"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner choice of 2026-10-31 to start Firefox for Android support, recorded in ENT-293. It is the one go-ahead for a new platform and covers: the manifest change for Firefox for Android, the code guards it needs, tests for them, and the matching changes to docs/privacy-and-permissions.md, docs/privacy-policy.md, README.md and docs/store-listing.md. It does not authorize: a new permission, host, match pattern or stored form; raising the version; a tag or a release; any store submission or change of a live listing; Chrome for Android or any other Android browser."
+  },
+  "baseCommit": "84d7cd5a9d8345abfcf37748c41b2bcfa101f7be",
+  "parentPreflight": {
+    "record": null,
+    "reused": false,
+    "reason": "The 0.3.0 records cover work that is integrated and released, and each places Firefox for Android out of scope. This is a new bounded work unit, so it carries its own light assertion."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the working branch from baseCommit.",
+      "src/manifest/firefox.json: browser_specific_settings.gecko_android with a minimum version.",
+      "src/background and src/ui: no failure, and no misleading text, where the browser offers no keyboard commands.",
+      "A unit test for the background component without commands.",
+      "docs/privacy-and-permissions.md, docs/privacy-policy.md, README.md and docs/store-listing.md: Firefox for Android described as it is.",
+      "Dated evidence under docs/evidence/ of what was checked, in which browser and version, and what was not."
+    ],
+    "outOfScope": [
+      "Permissions, host access, match patterns, web-accessible resources, stored forms, fonts, icons and the version number.",
+      "The Chrome package and Chrome for Android.",
+      "Site adapters, unless the owner's check on a phone shows a reading defect that needs them; that would be reported first.",
+      "A tag, a release, an AMO submission or any change of a live store listing.",
+      "Changes to declared Capabilities or Exceptions, the dev-standards pin and the repository ruleset."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": {
+      "projectStartedOrResumed": "The project was Paused between releases with no open development and is resumed for this bounded unit; the code, the baseline and the governance are unchanged since the 0.3.0 release, which had full records, so a full Preflight would repeat them.",
+      "capabilitiesChanged": "No. The declared set stays [\"web-interface\"].",
+      "baselineIdentityChanged": "No. dev-standards v0.6.0 at f35e1025bf6cc0fcedbf7528b41a00ceaebf04d8, effective policy sha256:b671fdd9a246661e047d243a5611baecca1aaaa0baf85aa2398caee48c6da692; the verifier passed on baseCommit on 2026-10-31.",
+      "protocolChanged": "Revision v1.25 since the last record (v1.23). v1.24 and v1.25 state that no Preflight, Gate, work-unit, review or close-out semantics changed.",
+      "architectureOrTrustBoundaryChanged": "No. The same package, permissions (storage and the two sites), data-collection declaration and add-on id are offered to one more Firefox build. Firefox for Android grants the requested permissions at installation, as desktop Firefox does for these two sites.",
+      "scopeExpandedBeyondCurrentPreflight": "Not applicable; no parent is being worked under.",
+      "conformanceOrExceptionsInvalid": "No. Exceptions remain none."
+    }
+  },
+  "verifiedStartingState": {
+    "verifiedOn": "2026-10-31",
+    "main": "84d7cd5a9d8345abfcf37748c41b2bcfa101f7be, version 0.3.0; the working branch starts there, clean.",
+    "pullRequests": "None open; pull requests 1 to 10 are merged. No open issue.",
+    "tagsAndReleases": "v0.2.0, v0.2.1 and v0.3.0, each with a release.",
+    "publicListings": "Read on 2026-10-31: Firefox Add-ons public API, add-on readela public at 0.3.0; Chrome Web Store public page, 0.3.0, updated 14 October 2026.",
+    "managerialState": "Protocol v1.25, the Project (Active, Next item ENT-293), ENT-293 (Active) and DEC-137 (Accepted) were read on 2026-10-31."
+  },
+  "risk": {
+    "tier": "T2",
+    "note": "A change of the Firefox manifest reaches readers only through a later release, which keeps its own go-ahead and Gates."
+  },
+  "gates": {
+    "implementation": {
+      "result": "PASS",
+      "evaluatedOn": "2026-10-31",
+      "covers": "Commits on the working branch from baseCommit within scope.inScope, their push, and a pull request against main.",
+      "basis": [
+        "The owner's choice of 2026-10-31 and DEC-137 cover this scope.",
+        "Protocol v1.25, the Project, ENT-293 and DEC-137 were read on 2026-10-31 and agree with the instruction.",
+        "The working tree is clean at baseCommit and no other pull request is open.",
+        "This record is the first commit of the work."
+      ]
+    },
+    "integration": {
+      "result": "NOT_YET_EVALUATED",
+      "evaluatedAt": "Before the merge, bound to the exact head and a green verify, after the owner's check on a phone is recorded. Recorded in dated evidence."
+    }
+  },
+  "invalidators": [
+    "Work leaves the declared scope: a permission, a host, a match pattern, a stored form or the version number would have to change.",
+    "A site adapter would have to change for the mobile layouts.",
+    "Declared Capabilities or Exceptions change, or the applicable baseline identity changes.",
+    "HEAD stops descending from baseCommit before the merge.",
+    "Project Operating Protocol semantics materially change before the work is closed."
+  ]
+}

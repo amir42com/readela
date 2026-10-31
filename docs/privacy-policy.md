@@ -1,8 +1,9 @@
 # Readela privacy policy
 
-**Readela by Amir42** — browser extension for Chrome and Firefox.
-This policy applies from version 0.2.0 and was last changed on 2026-10-13 to
-describe version 0.3.0. Where a statement applies only from version 0.3.0, it
+**Readela by Amir42**: browser extension for Chrome and Firefox, including
+Firefox for Android. This policy applies from version 0.2.0. It was changed on
+2026-10-13 to describe version 0.3.0, and on 2026-10-31 to add Firefox for
+Android, which Readela supports from the first release after 0.3.0. Where a statement applies only from version 0.3.0, it
 says so. Its history is visible in the public repository, and the technical
 controls behind it are in
 [privacy-and-permissions.md](privacy-and-permissions.md).
@@ -107,7 +108,8 @@ available to those two sites so their pages can display them; this is not a
 permission and gives the sites no information about you. Also from version
 0.3.0 Readela declares three commands (save the bookmark, return to it,
 remove it), none of which has a keyboard shortcut unless you give it one in
-your browser. A small background part of the extension passes such a command
+your browser. Firefox for Android has no such commands; there you use the
+popup. A small background part of the extension passes such a command
 to the page, and it is the one place that writes your bookmarks to the
 browser's storage on your device, one change at a time, so that two tabs
 cannot overwrite one another. It does nothing else: it makes no network
@@ -125,7 +127,8 @@ can be checked.
   extension's single purpose, and not used to determine creditworthiness or
   for lending.
 - **Firefox Add-ons.** Readela declares to Firefox that it collects and
-  transmits no data (`data_collection_permissions: required ["none"]`).
+  transmits no data (`data_collection_permissions: required ["none"]`), on
+  desktop and on Android.
 
 ## Children
 
