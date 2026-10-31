@@ -74,9 +74,36 @@ Environment: Ubuntu 24.04.5, Node.js 22.23.4, npm 10.9.9.
   environment (the hosts `product-details.mozilla.org` and `ftp.mozilla.org`
   are refused).
 
+## Checks on the owner's Windows computer
+
+Run on 2026-10-31 in `D:\01_Tech\readela`, switched to this branch at
+`1e9014a62576b331e4dc1c7f9df9bc3312641cb5`; the worktree stayed clean.
+
+- `npm ci`, `npm test`: 90 passed, 0 failed.
+- `npm run package`, built twice: the same two digests as the cloud build,
+  `c8c3e54f…89134` (Firefox) and `d6fc2d74…bdcc` (Chrome).
+- `npm run test:e2e:chrome` in Chrome 156.0.8078.48 (headless): 72 passed,
+  none failed. The three popup checks that failed in the cloud browser pass
+  here.
+- `npm run test:e2e:firefox` in Firefox 157.0: 69 passed, none failed; `main`
+  gives the same 69 in that version. Firefox 157.0 was downloaded to a
+  temporary folder for this run only.
+- In Firefox 159.0, the version `npm run browsers:firefox` downloads today, the
+  suite stops before its first check, on this branch and on `main` alike:
+  `TimeoutError: Waiting failed: 15000ms exceeded` in `loadPopup`
+  (`test/e2e/run.mjs:159`). Firefox 159 refuses the automation's direct
+  navigation to the extension's popup page ("is not allowed in this
+  context"). This is a limit of the test harness in that Firefox version, not
+  of the extension, and is outside this work unit.
+- Phone preparation: Android Platform-Tools 37.0.1 present; a Samsung SM-A526B
+  (Android 14) connected with USB debugging allowed. Firefox is not installed
+  on it, so `web-ext` was not run.
+
 ## Not yet done
 
-- Firefox desktop end-to-end suite on this branch.
+- The end-to-end suite in Firefox 159 and later: the harness must open the
+  popup another way, or the suite must name a Firefox version. Revisit before
+  the next release's Firefox end-to-end run.
 - Readela in Firefox for Android on a real phone, on signed-in ChatGPT and
   Claude conversations: direction, Paper and Night, Readela Sans, text size and
   spacing, and Save place, Return and Remove from the popup. Whether the site
