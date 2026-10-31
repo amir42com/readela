@@ -3,7 +3,7 @@
 //   dist/packages/readela-<version>-source.zip
 //
 // The archive is exactly the tracked tree of the current commit (git archive),
-// so its bytes depend only on that commit. It contains the readable source,
+// so its bytes depend only on that commit, on any machine (see TZ below). It contains the readable source,
 // package.json, the lockfile, the build scripts and the documentation, and
 // nothing that is ignored or untracked: no node_modules, caches, build output
 // or test results. The working tree must be clean so that the archive and the
@@ -16,7 +16,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+// A zip entry keeps its time as local time, and git archive writes the
+// commit's time in the time zone of the machine. Fixing the zone to UTC makes
+// the archive the same bytes on every machine.
+const git = (...args) =>
+  execFileSync("git", args, { cwd: root, encoding: "utf8", env: { ...process.env, TZ: "UTC" } }).trim();
 const { version } = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 
 const dirty = git("status", "--porcelain");
