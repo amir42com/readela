@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/attribution-check-ci.json",
+  "recordDate": "2026-11-03",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.27",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "attribution-check-ci",
+    "title": "Check commit and pull-request provenance in CI: attribution shapes, tool-named branches and the owner's commit identity",
+    "authorizingDecisions": [
+      "DEC-151",
+      "DEC-160"
+    ],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner approval of 2026-11-03 (12:44 UTC) in the Project Hub thread of set A of the Git history attribution cleanup plan: port the attribution check to Readela without ruleset changes. It covers this pull request and its merge under the standing merge approval (DEC-160). It does not authorize a history rewrite, tag move, branch deletion, ruleset or required-check change, release or store change."
+  },
+  "baseCommit": "5239e4ceb63a9e4abe86c23068a2ac4497e90451",
+  "parentPreflight": {
+    "record": null,
+    "reused": false,
+    "reason": "No open work unit covers CI provenance checks; this is a new bounded unit with its own light assertion."
+  },
+  "scope": {
+    "inScope": [
+      "This record.",
+      "scripts/check-attribution.mjs (shared with the website repository), test/repo/attribution-check.test.mjs with synthetic fixtures, and the npm test glob that runs it.",
+      ".github/workflows/attribution.yml, a check-only workflow on pushes to main and on pull requests, including edits.",
+      "docs/project-instructions.md: one Working rules bullet on commit identity and the check."
+    ],
+    "outOfScope": [
+      "Rewriting history, moving tags, deleting branches and changing the main ruleset or its required checks; each needs the owner's separate approval.",
+      "Application code, permissions, the version, tags, releases and store listings.",
+      "dev-standards, declared Capabilities and Exceptions."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": "A read-only CI check is added. No Capability, baseline identity, architecture or trust boundary changes, and no product code changes. Reversal is a revert."
+  }
+}
