@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/history-rewrite-2026-11-03.json",
+  "recordDate": "2026-11-03",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.27",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "history-rewrite-2026-11-03",
+    "title": "Record the correction of commit authors and messages in the Git history",
+    "authorizingDecisions": [
+      "DEC-151",
+      "DEC-160"
+    ],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner approval of 2026-11-03 in the Project Hub thread of the grouped actions for this repository: the history rewrite and force-push, the v0.4.0 tag move with its release text, the deletion of three merged branches, and ruleset ENT-197 off and back on with Check attribution required. This pull request records that work and merges under the standing merge approval (DEC-160)."
+  },
+  "baseCommit": "045f35ddbae74ed2af08770bc863252d0d470dba",
+  "parentPreflight": {
+    "record": "docs/project-preflight/attribution-check-rewritten-base.json",
+    "reused": false,
+    "reason": "That record placed the rewrite, tag move, branch deletions and ruleset change out of scope. This unit only records them."
+  },
+  "scope": {
+    "inScope": [
+      "This record.",
+      "docs/evidence/2026-11-03-history-rewrite.md: what changed and what was checked."
+    ],
+    "outOfScope": [
+      "Application code, permissions, the version, packages and store listings.",
+      "The commit map and backups, which stay private outside the repository."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": "Documentation only: a dated evidence file and this record. No code, Capability, permission or trust boundary changes."
+  }
+}
