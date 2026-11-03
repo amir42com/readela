@@ -111,6 +111,15 @@ stopped. It runs on `chatgpt.com` and `claude.ai` in Chrome and Firefox.
   attribution lines or trailers. The only approved functional reference is the
   root entry files `AGENTS.md` and `CLAUDE.md` and the import `@AGENTS.md`
   (DEC-151).
+- Commit identity: every commit is authored and committed as
+  `Amir <155735614+amir42com@users.noreply.github.com>`; GitHub may commit
+  web merges. Set `user.name` and `user.email` before the first commit of a
+  session, turn off the coding client's own attribution defaults, and check
+  the branch name, identity, commit messages and pull-request text before the
+  first push. The `attribution` workflow (`scripts/check-attribution.mjs`)
+  fails on attribution shapes in commit messages and pull-request text
+  (including after an edit), on a head branch without a Conventional Commits
+  type prefix, and on any other author or committer.
 - Local files on the owner's computer follow Local Filesystem Structure
   (https://app.notion.com/p/3dab7da33f50812882d5ec1ccb7eaa71). Temporary work,
   worktrees, builds and screenshots go under `D:\01_Tech\_scratch\readela\`,
