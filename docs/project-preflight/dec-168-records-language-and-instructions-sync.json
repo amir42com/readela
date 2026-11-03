@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/dec-168-records-language-and-instructions-sync.json",
+  "recordDate": "2026-11-03",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.27",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "DEC-168-mirror",
+    "title": "Mirror the language-of-records rule (DEC-168) into docs/project-instructions.md and bring that document in line with the project's current working instructions",
+    "authorizingDecisions": ["DEC-168", "DEC-151", "DEC-152", "DEC-160"],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-11-03: add the DEC-168 bullet to docs/project-instructions.md, check the repository instructions for drift and fix clear, small omissions in the same pull request, and fully synchronise docs/project-instructions.md with the project's current working instructions so that any agent working from the repository alone learns the rules. It covers a documentation-only pull request and its merge under the standing merge approval (DEC-160). It does not authorize application code, tests, schema, CI, dependency, release, store or dev-standards changes, or a rewrite of other documents."
+  },
+  "baseCommit": "ba81b1c99f38d73c84646fc3471220b808de209d",
+  "parentPreflight": {
+    "record": null,
+    "reused": false,
+    "reason": "No open work unit covers repository instructions; this is a new bounded documentation unit with its own light assertion."
+  },
+  "scope": {
+    "inScope": [
+      "This record, committed first on the working branch from baseCommit.",
+      "docs/project-instructions.md: the DEC-168 bullet and the synchronised project instructions, keeping the Protocol pointer block.",
+      "AGENTS.md (pointer only) and CLAUDE.md (exactly the import line) at the repository root under DEC-151."
+    ],
+    "outOfScope": [
+      "Application code, tests, schema, CI, dependencies, the version, tags, releases and store listings.",
+      "Rewriting other documents, including removing em dashes already present in older documents.",
+      "dev-standards, declared Capabilities and Exceptions."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": "Documentation only. No Capability, baseline identity, architecture or trust boundary changes; Protocol v1.26 and v1.27 state that no Preflight, Gate or work-unit semantics changed; the scope is new and bounded rather than an expansion of an existing Preflight."
+  }
+}
