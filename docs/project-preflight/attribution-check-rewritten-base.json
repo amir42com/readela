@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/attribution-check-rewritten-base.json",
+  "recordDate": "2026-11-03",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.27",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "attribution-check-rewritten-base",
+    "title": "Let the attribution check report on a main branch whose history was rewritten",
+    "authorizingDecisions": [
+      "DEC-151",
+      "DEC-160"
+    ],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner instruction of 2026-11-03 (13:37 UTC) in the Project Hub thread to carry the Git history attribution cleanup through every repository and verify prevention before publishing. It covers this pull request and its merge under the standing merge approval (DEC-160). The history rewrite, tag move, branch deletions and ruleset changes each need the owner's grouped approval."
+  },
+  "baseCommit": "c1f01ab1a7f228168802f58745b9a90f3c627e39",
+  "parentPreflight": {
+    "record": "docs/project-preflight/attribution-check-ci.json",
+    "reused": false,
+    "reason": "A follow-up to the check added under that record; a new bounded unit with its own light assertion."
+  },
+  "scope": {
+    "inScope": [
+      "This record.",
+      "scripts/check-attribution.mjs (shared with the website repository) and test/repo/attribution-check.test.mjs: the commit range after a push that replaced history.",
+      "docs/project-instructions.md: one sentence in the Commit identity bullet."
+    ],
+    "outOfScope": [
+      "Rewriting history, moving tags, deleting branches and changing the main ruleset or its required checks; each needs the owner's approval.",
+      "Application code, permissions, the version, tags, releases and store listings.",
+      "dev-standards, declared Capabilities and Exceptions."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": "A read-only CI check chooses a wider commit range when a push replaced history. No Capability, baseline identity, architecture or trust boundary changes, and no product code changes. Reversal is a revert."
+  }
+}
