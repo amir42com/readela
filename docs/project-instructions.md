@@ -121,6 +121,11 @@ stopped. It runs on `chatgpt.com` and `claude.ai` in Chrome and Firefox.
   (including after an edit), on a head branch without a Conventional Commits
   type prefix, and on any other author or committer. After a push that
   replaced history it checks every commit of the new head.
+- Draft-first pull requests: open each pull request as a draft, remove any
+  attribution the tooling added to its text, then mark it ready. No job of a
+  workflow this repository owns runs on a draft, so `Check attribution` runs
+  once the pull request is ready, on the final text; the managed
+  `dev-standards-verify` workflow is left unchanged and still runs.
 - Local files on the owner's computer follow Local Filesystem Structure
   (https://app.notion.com/p/3dab7da33f50812882d5ec1ccb7eaa71). Temporary work,
   worktrees, builds and screenshots go under `D:\01_Tech\_scratch\readela\`,

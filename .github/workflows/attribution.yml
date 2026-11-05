@@ -1,7 +1,9 @@
 # Repository provenance: commit messages and pull-request text name no tool and
 # carry no attribution, and every commit uses the owner's identity. It runs on
 # every push to main and on every pull request, including an edit to its
-# title or body. The check reads only Git history and the pull request.
+# title or body. The check reads only Git history and the pull request. A draft
+# pull request runs no job: its text is cleaned first, and the check runs when
+# it is marked ready (ready_for_review), on every later push and on every edit.
 name: attribution
 
 permissions:
@@ -12,7 +14,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
 
 concurrency:
   group: attribution-${{ github.event.pull_request.number || github.ref }}
@@ -21,6 +23,7 @@ concurrency:
 jobs:
   attribution:
     name: Check attribution
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
