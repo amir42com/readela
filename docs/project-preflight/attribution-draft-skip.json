@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "light-assertion",
+  "recordPath": "docs/project-preflight/attribution-draft-skip.json",
+  "recordDate": "2026-11-05",
+  "protocol": {
+    "version": "v1",
+    "revision": "v1.27",
+    "canonicalSource": "https://app.notion.com/p/3c2b7da33f5081709510eb8c464dcef9"
+  },
+  "work": {
+    "project": "Readela",
+    "workUnitId": "attribution-draft-skip",
+    "title": "Skip CI on draft pull requests and align the attribution check tests with the website repository",
+    "authorizingDecisions": [
+      "DEC-151",
+      "DEC-160"
+    ],
+    "managerialProject": "https://app.notion.com/p/3edb7da33f508123a869fc4505e81d31",
+    "ownerAuthorization": "Owner request of 2026-11-05 (03:33 UTC) in the Readela project to make this repository's attribution CI equal to the website repository's and add the draft skip. It covers this pull request and its merge under the standing merge approval (DEC-160). It does not authorize a ruleset or required-check change."
+  },
+  "baseCommit": "a3d61ff3da8c695f84d8e4895337bda2d0cdf779",
+  "parentPreflight": {
+    "record": "docs/project-preflight/attribution-check-ci.json",
+    "reused": false,
+    "reason": "A follow-up to the check added under that record; a new bounded unit with its own light assertion."
+  },
+  "scope": {
+    "inScope": [
+      "This record.",
+      ".github/workflows/attribution.yml: run on ready_for_review and skip the job on a draft pull request.",
+      "test/repo/attribution-check.test.mjs: the seven tests and all cases of the website repository's version.",
+      "docs/project-instructions.md: one bullet on the draft-first flow."
+    ],
+    "outOfScope": [
+      ".github/workflows/dev-standards-verify.yml and every other file managed by dev-standards or the Universal Project Bootstrap.",
+      "Rewriting history, moving tags, deleting branches and changing the main ruleset or its required checks.",
+      "Application code, permissions, dependencies, the version, tags, releases and store listings."
+    ]
+  },
+  "fullPreflightTrigger": {
+    "fired": false,
+    "assessment": "A CI trigger filter and more unit cases for a read-only check. No Capability, baseline identity, architecture or trust boundary changes, and no product code changes. Drafts cannot be merged, so skipping CI on them lets nothing reach main unchecked. Reversal is a revert."
+  }
+}
